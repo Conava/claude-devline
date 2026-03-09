@@ -3,50 +3,46 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$SCRIPT_DIR/plugin"
-PLUGINS_DIR="$HOME/.claude/plugins"
-INSTALLED_FILE="$PLUGINS_DIR/installed_plugins.json"
-PLUGIN_NAME="marlon-claude-plugin"
+PLUGIN_NAME="claude-devline"
 
-if [ ! -d "$PLUGINS_DIR" ]; then
-    echo "Error: $PLUGINS_DIR does not exist. Is Claude Code installed?"
+# Validate plugin exists
+if [ ! -f "$PLUGIN_DIR/.claude-plugin/plugin.json" ]; then
+    echo "Error: Plugin manifest not found at $PLUGIN_DIR/.claude-plugin/plugin.json"
     exit 1
 fi
 
-# Register in installed_plugins.json
-if [ ! -f "$INSTALLED_FILE" ]; then
-    echo '{"version":2,"plugins":{}}' > "$INSTALLED_FILE"
-fi
+# Detect shell config file
+SHELL_NAME="$(basename "$SHELL")"
+case "$SHELL_NAME" in
+    zsh)  RC_FILE="$HOME/.zshrc" ;;
+    bash) RC_FILE="$HOME/.bashrc" ;;
+    *)    RC_FILE="" ;;
+esac
 
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-ENTRY=$(cat <<EOF
-{
-  "scope": "user",
-  "installPath": "$PLUGIN_DIR",
-  "version": "0.1.0",
-  "installedAt": "$TIMESTAMP",
-  "lastUpdated": "$TIMESTAMP"
-}
-EOF
-)
+ALIAS_LINE="alias claude='claude --plugin-dir \"$PLUGIN_DIR\"'"
+MARKER="# $PLUGIN_NAME"
 
-# Use jq if available, otherwise use python
-if command -v jq &>/dev/null; then
-    jq --arg name "$PLUGIN_NAME" --argjson entry "$ENTRY" \
-        '.plugins[$name] = [$entry]' "$INSTALLED_FILE" > "$INSTALLED_FILE.tmp" \
-        && mv "$INSTALLED_FILE.tmp" "$INSTALLED_FILE"
-elif command -v python3 &>/dev/null; then
-    python3 -c "
-import json
-with open('$INSTALLED_FILE') as f:
-    data = json.load(f)
-data['plugins']['$PLUGIN_NAME'] = [json.loads('''$ENTRY''')]
-with open('$INSTALLED_FILE', 'w') as f:
-    json.dump(data, f, indent=2)
-"
+if [[ -n "$RC_FILE" && -f "$RC_FILE" ]]; then
+    # Remove old entry if present
+    if grep -qF "$MARKER" "$RC_FILE" 2>/dev/null; then
+        # Remove the marker line and the alias line after it
+        sed -i "/$MARKER/,+1d" "$RC_FILE"
+    fi
+
+    # Append alias
+    printf '\n%s\n%s\n' "$MARKER" "$ALIAS_LINE" >> "$RC_FILE"
+
+    echo "Added plugin alias to $RC_FILE:"
+    echo "  $ALIAS_LINE"
+    echo ""
+    echo "Run 'source $RC_FILE' or open a new terminal, then start claude."
+    echo "Updates from git pull take effect on next claude restart — no reinstall needed."
 else
-    echo "Warning: Neither jq nor python3 found. Please manually add '$PLUGIN_NAME' to $INSTALLED_FILE"
-    exit 0
+    echo "Could not detect shell config file."
+    echo ""
+    echo "Add this alias to your shell config manually:"
+    echo "  $ALIAS_LINE"
+    echo ""
+    echo "Or launch directly:"
+    echo "  claude --plugin-dir $PLUGIN_DIR"
 fi
-
-echo "Registered $PLUGIN_NAME (path: $PLUGIN_DIR) in $INSTALLED_FILE"
-echo "Done! Restart Claude Code to load the plugin."

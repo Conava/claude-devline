@@ -1,0 +1,135 @@
+git:
+  never_push: true
+  protected_branches:
+    - main
+    - master
+    - develop
+    - development
+    - staging
+    - production
+    - release
+    - release/*
+    - hotfix
+    - trunk
+  commit_format: "conventional"
+  commit_template: "<type>(<scope>): <description>"
+  merge_commit_format: "conventional"
+  merge_commit_template: "<type>(<scope>): <summary>"
+  pr_title_format: "conventional"
+  pr_title_template: "<type>(<scope>): <summary>"
+  max_pr_title_length: 70
+  require_branch_prefix: true
+  branch_prefixes:
+    - feat/
+    - fix/
+    - chore/
+    - refactor/
+    - docs/
+    - test/
+    - style/
+    - perf/
+    - ci/
+    - build/
+    - revert/
+    - wip/
+
+project_structure:
+  # Where agents read/write project documentation and artifacts.
+  # Override per-project in repo/.claude-plugin-config.yaml.
+  readme: README.md
+  claude_md: CLAUDE.md
+  changelog: CHANGELOG.md
+  docs_dir: docs/
+  architecture: docs/architecture.md
+  api_spec: docs/api/openapi.yaml
+  design_docs: docs/plans/
+  decisions: docs/decisions/
+  runbooks: docs/runbooks/
+
+code:
+  require_tests: true
+  test_approach: tdd
+  untestable_strategies:
+    - manual-verification
+    - screenshot-comparison
+    - dry-run
+    - smoke-test
+    - peer-review
+
+review:
+  # Confidence threshold for filtering deep review findings (0.0–1.0 scale)
+  confidence_threshold: 0.8
+  deep_review_agents:
+    - code-quality
+    - security
+    - test-coverage
+  require_verification: true
+  # Deep review intensity: "full" (3 opus), "targeted" (relevant reviewers only),
+  # "light" (single sonnet), "auto" (chooses based on change scope)
+  deep_review_mode: "auto"
+
+workflow:
+  human_checkpoints:
+    - brainstorm
+    - plan
+  max_parallel_tasks: 4
+  # Project verification commands (e.g. ["npm test", "npm run lint"]).
+  # Empty = verifier auto-discovers from package.json / Makefile / etc.
+  verification_commands: []
+
+skills:
+  # Skills always shown regardless of project detection
+  always_show:
+    - pipeline
+    - brainstorm
+    - plan
+    - implement
+    - review
+    - docs-update
+    - merge-prep
+    - skills-list
+    - skills-load
+    - claude-md-management
+    - systematic-debugging
+    - dx-audit
+    - docs-generate
+    - perf-review
+  # Explicitly enable skills (overrides auto-detection, empty = auto-detect)
+  enabled: []
+  # Explicitly disable skills (takes precedence over everything)
+  disabled: []
+
+safeguards:
+  blocked_commands:
+    - "git push"
+    - "git fetch"
+    - "git pull"
+    - "git clone"
+    - "git ls-remote"
+    - "git remote update"
+    - "git submodule update --remote"
+    - "git checkout main"
+    - "git checkout master"
+    - "git merge main"
+    - "git merge master"
+    - "rm -rf"
+    - "rm -r /"
+    - "--force"
+    - "--hard"
+    - "git reset"
+    - "git clean"
+    - "ssh "
+    - "scp "
+    - "sftp "
+  blocked_patterns:
+    - "git\\s+(push|fetch|pull|clone|ls-remote)"
+    - "git\\s+remote\\s+update"
+    - "git\\s+submodule\\s+update\\s+.*--remote"
+    - "\\bssh\\s+"
+    - "\\bscp\\s+"
+    - "\\bsftp\\s+"
+    - "git\\s+(checkout\\s+(main|master|develop|staging|production|release|trunk)|merge\\s+(main|master|develop|staging|production|release|trunk))"
+    - "rm\\s+-[rf]{2,}"
+    - "--force"
+    - "--hard"
+    - "git\\s+(reset|clean)"

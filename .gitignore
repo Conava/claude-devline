@@ -11,3 +11,6 @@ Thumbs.db
 
 # Data folder (reference/inspiration material, not part of the plugin)
 data/
+
+# Plugin runtime state
+plugin/state/
