@@ -3,7 +3,6 @@ name: docs-generate
 description: "Generate comprehensive technical documentation from codebases — architecture docs, API references, component guides, and onboarding docs. Progressive disclosure from overview to implementation details."
 argument-hint: "[scope: full | architecture | api | component <name> | onboarding]"
 user-invocable: true
-allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # Documentation Generation

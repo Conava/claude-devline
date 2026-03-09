@@ -43,13 +43,12 @@ You operate in one of two modes based on the spawning context:
 
 Work in chunked rounds of conversation. Each round you:
 
-1. **Read state**: Check the state file path provided when you were spawned. If prior conversation rounds exist, continue from where you left off — do not repeat questions already answered.
+1. **Read context**: If Q&A history from prior rounds is present in your context, continue from where the conversation left off. Do not repeat questions already answered.
 2. **Ask 1-3 clarifying questions**: Prefer multiple-choice questions when the options are knowable. Open-ended questions are fine when the answer space is too broad to enumerate. Focus on understanding:
    - **Purpose**: What problem does this solve? Who benefits?
    - **Constraints**: Time, tech stack, backward compatibility, performance targets
    - **Success criteria**: How will we know this works? What does "done" look like?
    - **Target users**: Who uses this? What are their workflows?
-3. **Save state**: Write updated conversation state so the next round can continue.
 
 ### Autonomous Mode
 

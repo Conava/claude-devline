@@ -4,209 +4,197 @@ description: "Use when the user asks to 'build a feature', 'add functionality', 
 argument-hint: "[task description]"
 disable-model-invocation: false
 user-invocable: true
-allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # Pipeline Orchestration
 
-This document defines the orchestration flow for multi-stage development pipelines. When `/build` is invoked or a development task is detected, the main chat (Sonnet) acts as orchestrator: spawning agents, relaying questions between agents and the user, and tracking pipeline progress in context.
+The main chat acts as orchestrator: spawning agents directly, relaying questions to the user, and tracking progress in context. All orchestration logic is defined here — do not delegate to other skills.
+
+---
+
+## Pre-Pipeline Options
+
+Before entering the pipeline, determine the execution path:
+
+- **Skip brainstorm**: If the task already has a clear spec, acceptance criteria, or design doc — or the user says "skip brainstorm" — skip Stage 1 and go directly to Stage 2.
+- **Bug mode**: If the task is a specific bug with reproduction steps (not a new feature), skip Stages 1–2. In Stage 3, use the systematic-debugging path (debugger agent) for the failing component instead of the normal implement flow.
 
 ---
 
 ## Size Gating
 
-Before entering the pipeline, evaluate whether the task is trivially small. A task is trivially small when it affects a single file with an obvious, well-scoped change (e.g., rename a variable, fix a typo, add a single config field). For trivially small tasks, skip Stages 0 through 2 and enter directly at Stage 3 with a synthetic single-task execution graph. Apply all subsequent stages normally.
-
-For everything else, begin at Stage 0.
+A task is trivially small when it affects a single file with an obvious, well-scoped change (e.g., rename a variable, fix a typo, add a single config field). For trivially small tasks, skip Stages 0–2 and enter directly at Stage 3 with a synthetic single-task plan. Apply all subsequent stages normally.
 
 ---
 
 ## Stage 0: Branch Safety
 
-Run `git rev-parse --abbrev-ref HEAD` to determine the current branch.
+Run `git rev-parse --abbrev-ref HEAD`.
 
-- **Protected branch detected** (matched against `git.protected_branches` in the plugin config): Create a new feature branch using the prefix defined in `git.feature_branch_prefix` (default `feature/`). Derive the branch name from a slug of the task description. Check out the new branch before proceeding.
-- **Wrong branch detected** (not protected, but not obviously related to the current task): Ask the user whether to continue on this branch or create a new one. Do not proceed until the user confirms.
-- **Feature branch detected** (not protected, name matches the feature prefix or user confirms it is correct): Continue immediately.
+- **Protected branch** (matches `git.protected_branches` in config): Create a feature branch using `git.feature_branch_prefix` + task slug. Check it out before proceeding.
+- **Wrong branch** (not protected, not obviously related to the task): Ask the user whether to continue or create a new branch. Do not proceed until confirmed.
+- **Feature branch**: Continue immediately.
 
 ---
 
-## Stage 1: Brainstorm
+## Stage 1: Brainstorm (optional)
 
-Read `workflow.human_checkpoints` from the plugin config.
+Skip if: brainstorm is not needed (see Pre-Pipeline Options above).
 
-### Interactive Mode (when `"brainstorm"` is listed in `human_checkpoints`)
+Read `workflow.human_checkpoints` from config.
 
-1. Generate a run ID (UUID v4).
-2. Spawn a brainstorm agent. Pass it the user's task description and any referenced files.
-3. The brainstorm agent returns 1 to 3 clarifying questions. Relay these questions to the user verbatim. Do not paraphrase or summarize.
-4. Re-spawn the brainstorm agent with the Q&A history in context. The agent reads prior Q&A and either returns more questions or a finalized design document.
-5. Repeat steps 3-4 until the agent returns a design document instead of questions.
-6. Save the design document to `docs/plans/<run-id>-design.md`.
+**Interactive mode** (`brainstorm` in `human_checkpoints`):
+1. Spawn the **brainstorm agent**. Pass the task description and any referenced files.
+2. Relay the agent's questions to the user verbatim. Collect answers.
+3. Re-spawn the brainstorm agent with the full Q&A history. Repeat until the agent produces a design document.
 
-### Autonomous Mode (when `"brainstorm"` is NOT in `human_checkpoints`)
+**Autonomous mode**:
+1. Spawn the **brainstorm agent** with `autonomous: true`. It produces a design document in one pass.
 
-Spawn the brainstorm agent once in autonomous mode. Pass `autonomous: true` in the agent context. The agent produces a design document without asking questions, drawing on the codebase context, referenced files, and task description. Save the design document to `docs/plans/<run-id>-design.md`.
+Save the design document to `docs/plans/YYYY-MM-DD-<slug>-design.md`. Commit: `git add docs/plans/...-design.md && git commit -m "docs: add design document for <task>"`.
 
 ---
 
 ## Stage 2: Plan
 
-Read `workflow.human_checkpoints` from the plugin config.
+Skip for bug mode — use the debugger agent in Stage 3 instead.
 
-### Interactive Mode (when `"plan"` is listed in `human_checkpoints`)
+Read `workflow.human_checkpoints` from config.
 
-1. Spawn a planner agent. Pass the design document path and the full codebase context.
-2. The planner returns a draft execution graph or follow-up questions. If questions: relay to the user, pass answers back in context, re-spawn.
-3. Repeat until the planner returns a finalized execution graph.
+**Interactive mode** (`plan` in `human_checkpoints`):
+1. Spawn the **planner agent**. Pass the design document path (or task description if no design doc exists).
+2. Relay questions and re-spawn with answers until the planner produces a finalized execution graph.
 
-### Autonomous Mode (when `"plan"` is NOT in `human_checkpoints`)
+**Autonomous mode**:
+1. Spawn the **planner agent** once with `autonomous: true`. It produces the execution graph in one pass.
 
-Spawn the planner agent once. Pass `autonomous: true`. The planner produces the execution graph without interaction.
+The execution graph is a JSON structure with:
+- `tasks`: array of `{ id, description, touches, depends_on, parallel_group }`
+- `order`: topological ordering of task IDs
 
-The execution graph is a JSON structure containing:
-- `tasks`: an array of task objects, each with `id`, `description`, `touches` (list of file paths the task will modify), `depends_on` (list of task IDs), and `parallel_group` (integer).
-- `order`: a topological ordering of task IDs respecting dependencies.
-
-Save the execution graph to `docs/plans/<run-id>-plan.json`.
+Save to `docs/plans/YYYY-MM-DD-<slug>-plan.json`. Commit: `git add docs/plans/...-plan.json && git commit -m "docs: add implementation plan for <task>"`.
 
 ---
 
 ## Stage 3: Implement + Review
 
-Read the execution graph from `docs/plans/<run-id>-plan.json`.
+Read the execution graph from the plan file. For bug mode, create a single synthetic task from the bug description.
 
 ### Task Scheduling
 
-Track completed task IDs and currently-running task file paths in context. A task is eligible to run when:
-1. All task IDs in its `depends_on` list are in the completed set.
-2. None of the file paths in its `touches` list overlap with any currently-running task's `touches` list.
+Track completed task IDs and in-progress file paths in context. A task is eligible when:
+1. All `depends_on` IDs are in the completed set.
+2. Its `touches` files don't overlap with any in-progress task's `touches`.
 
-Spawn eligible tasks in parallel up to the concurrency limit defined in `workflow.max_parallel_tasks` (default 4).
+Spawn eligible tasks in parallel up to `workflow.max_parallel_tasks` (default 4).
 
 ### Domain Skill Resolution
 
-**Before spawning any implementer**, resolve domain skills for each task:
-
+Before spawning any implementer, resolve domain skills for the task:
 1. Read `${CLAUDE_PLUGIN_ROOT}/config/skill-mappings.yaml`.
-2. For each file in the task's `touches` list, match its extension against `file_patterns` (e.g., `*.java` → `[java-coding-standards, jdtls-lsp]`) and its directory path against `directory_patterns`.
-3. Also scan `relevant_context` files for framework markers listed in `framework_markers`.
-4. Deduplicate. For each matched skill name, construct the full path: `${CLAUDE_PLUGIN_ROOT}/skills/<skill-name>/SKILL.md`.
-5. Pass this resolved list as `domain_skills` to the implementer. **Never spawn an implementer without resolving skills first.**
+2. For each file in `touches`, match its extension against `file_patterns` and directory against `directory_patterns`.
+3. Deduplicate. Construct full paths: `${CLAUDE_PLUGIN_ROOT}/skills/<skill-name>/SKILL.md`.
 
 ### Per-Task Execution
 
 For each task:
 
-1. **Implement**: Spawn an implementer agent with `isolation: "worktree"`. Pass the task object, the resolved `domain_skills` paths, the design document path, and any prior reviewer feedback (on retry). The implementer works in an isolated git worktree and returns an implementation summary and the worktree path.
-
-2. **Review**: When the implementer returns, run `git diff <feature-branch>...<task-branch>` to get the diff. Spawn a **reviewer agent** (this is a per-task correctness check — it is **not** Stage 5 deep review). Pass the diff, implementation summary, task object, and design document. The reviewer returns a verdict: `PASS` or `FAIL` with specific feedback.
-
-3. **On PASS**: Merge the worktree into the feature branch. The implementer runs with `isolation: "worktree"` — Claude Code creates the worktree and a task branch named `<feature-branch>/<task-id>`. After the agent completes, the worktree path is returned in the agent result. Run:
+1. **Create worktree from local HEAD** — no remote fetch, no SSH required:
    ```
-   git checkout <feature-branch>
-   git merge --no-ff <feature-branch>/<task-id> -m "<type>(<task-id>): <task-description>"
-   git worktree remove <worktree-path> --force
-   git branch -d <feature-branch>/<task-id>
+   git worktree add .claude/worktrees/agent-<id> -b worktree-agent-<id> HEAD
    ```
-   Use `fix:` type for bug tasks, `feat:` for new features, `refactor:` for refactoring. Add the task ID to the completed set.
+   Use a random 8-character hex ID (e.g. `python3 -c "import secrets; print(secrets.token_hex(4))"`). Note the absolute worktree path.
 
-4. **On FAIL (attempt 1 — normal retry)**: Re-spawn the implementer agent with the reviewer's feedback appended to the task context.
+2. **Spawn implementer**: Pass the task object, absolute worktree path, resolved domain skill paths, design document path, and any retry feedback. The implementer works entirely within the worktree — reads, writes, tests, self-reviews, and commits there.
 
-5. **On FAIL (attempt 2 or 3 — systematic debugging)**: Spawn the **debugger agent** (opus) instead of re-spawning the implementer. Pass the task context, reviewer feedback history, prior implementation attempt evidence, and changed files. The debugger follows a four-phase methodology (Root Cause Investigation → Pattern Analysis → Hypothesis Testing → Implementation) and returns the fix along with a root cause analysis and regression test. On attempt 3, pass cumulative evidence from attempt 2 so the debugger builds on prior investigation rather than starting from scratch.
+3. **Spawn reviewer**: Run `git diff <feature-branch>...worktree-agent-<id>` to get the diff. Spawn the **reviewer agent**. Pass: diff, implementation summary, task object, design document, and the absolute worktree path. The reviewer reads files and runs tests from the worktree path.
 
-6. **On FAIL (attempt 4)**: Stop all currently running parallel agents. Spawn the planner agent with a `"debug_plan"` context containing the failing task details, reviewer feedback history, debugger root cause analyses from attempts 2-3, and the current state of the codebase. The planner produces a revised sub-plan for the failing task. Execute a new implement+review cycle using the revised plan. If the revised plan also fails after one full cycle, pause the entire pipeline and escalate to the user with a detailed summary of what failed and why.
+4. **On PASS**: Merge and clean up:
+   ```
+   git merge --no-ff worktree-agent-<id> -m "<type>(<task-id>): <description>"
+   git worktree remove .claude/worktrees/agent-<id> --force
+   git branch -D worktree-agent-<id>
+   ```
+   Use `fix:` for bugs, `feat:` for features, `refactor:` for refactoring. Add task to completed set.
 
+5. **On FAIL (attempt 1 — normal retry)**: Re-spawn the implementer with reviewer feedback appended to the task context.
+
+6. **On FAIL (attempt 2–3 — systematic debugging)**: Spawn the **debugger agent** instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence. On attempt 3, pass cumulative evidence from attempt 2.
+
+7. **On FAIL (attempt 4)**: Stop all parallel agents. Spawn the **planner agent** in `debug_plan` mode with full failure evidence. Execute a new implement+review cycle on the revised plan. If still failing, pause and escalate to the user.
+
+### Worktree Cleanup Failure
+
+If `git worktree remove` fails due to untracked or modified files: run `git worktree prune` to remove stale references, then `git branch -D worktree-agent-<id>` to remove the branch. Do not use `rm -rf` or `git clean`.
 
 ---
 
 ## Stage 4: Docs Update
 
-**This stage is mandatory. Do not skip it, even if the changes seem small.**
+**Mandatory. Do not skip.**
 
-Spawn a docs-updater agent. Pass the list of all completed tasks, their implementation summaries, the design document, and any existing documentation files that reference modified code.
+Spawn the **docs-updater agent**. Pass the list of completed tasks, their implementation summaries, the design document, and paths to existing documentation files that reference modified code.
 
-The docs-updater produces updated or new documentation reflecting the changes made during implementation.
+Spawn the **docs-reviewer agent**. Pass the docs-updater output and implementation context.
 
-Spawn a docs-reviewer agent. Pass the docs-updater's output and the implementation context. The reviewer returns `PASS` or `FAIL` with feedback.
-
-- **PASS**: Commit the documentation changes.
-- **FAIL**: Re-spawn the docs-updater with the reviewer's feedback. Repeat the review cycle. After 3 failed attempts, escalate to the user.
+- **PASS**: Commit documentation changes.
+- **FAIL**: Re-spawn docs-updater with reviewer feedback. Retry up to 3 times, then escalate to user.
 
 ---
 
 ## Stage 5: Deep Review
 
-**This is distinct from the per-task reviewer used in Stage 3.** Stage 3 uses the `reviewer` agent to check correctness of individual tasks. Stage 5 uses Opus-class specialist agents (security-reviewer, code-quality-reviewer, test-coverage-reviewer) to audit the entire diff holistically. Do not substitute Stage 3 per-task review for Stage 5.
+**Distinct from Stage 3 per-task review.** This audits the entire diff holistically.
 
-Read `review.deep_review_mode` from the plugin config (default `"auto"`).
+Compute the full diff: `git diff <base-branch>...HEAD`.
 
-### Review Mode Selection
+**Always spawn**: **code-quality reviewer** (Opus).
+**Spawn if code changes exist** (not just docs/config): **test-coverage reviewer** (Opus).
+**Spawn only if security-relevant** (changes touch auth, API endpoints, user input handling, crypto, network, or env/config files): **security reviewer** (Opus).
 
-- **`full`**: Always spawn all 3 Opus review agents (security, code-quality, test-coverage). Use when quality cannot be compromised.
-- **`targeted`**: Analyze the diff to determine which reviewers are relevant. Spawn only those. Rules:
-  - Security reviewer: if changes touch auth, API endpoints, user input handling, crypto, network, or env/config files.
-  - Code quality reviewer: if changes add or modify more than 50 lines of logic (excludes tests, docs, config).
-  - Test coverage reviewer: if changes add or modify source code (not just tests or docs).
-- **`light`**: Spawn a single Sonnet-based reviewer that performs a combined check covering security, quality, and coverage at a surface level. Best for trivial or low-risk changes.
-- **`auto`** (default): Choose the mode based on change scope:
-  - Trivially small task (single file, <30 lines changed, no new public API) → `light`
-  - Medium task (2-5 files, <200 lines, no security-sensitive changes) → `targeted`
-  - Large task or any security-sensitive change → `full`
+For trivially small changes (single file, <30 lines, no new API): spawn a single **reviewer agent** (Sonnet) instead, with a combined prompt covering all three areas.
 
-### Agent Spawning
+Each reviewer returns findings with `severity` (critical/important/minor) and `confidence` (0.0–1.0). Discard findings below `review.confidence_threshold` (default 0.8).
 
-Based on the selected mode:
+### Escalation
 
-1. **Security reviewer** (Opus): Analyze all changes for security vulnerabilities, injection risks, auth/authz gaps, secret exposure, and unsafe deserialization. Reference OWASP categories relevant to the stack.
-2. **Code quality reviewer** (Opus): Check for architectural consistency, naming conventions, error handling, performance anti-patterns, dead code, and adherence to project style guides.
-3. **Test coverage reviewer** (Opus): Verify that new and modified code has adequate test coverage. Flag untested branches, missing edge cases, and integration test gaps.
-
-In `light` mode, spawn a single Sonnet agent with a combined prompt covering all three areas. It produces the same findings format but with a single agent.
-
-Each reviewer returns findings as a list of issues, each with a `severity` (`critical`, `important`, `minor`) and a `confidence` score (0.0 to 1.0).
-
-### Filtering and Escalation
-
-Read `review.confidence_threshold` from the plugin config (default 0.8). All confidence values use a 0.0–1.0 scale. Discard findings with confidence below the threshold.
-
-- **Critical finding detected**: Immediately escalate. If the finding is actionable by the planner (e.g., architectural issue), spawn the planner with the finding. If it requires human judgment (e.g., business logic concern), pause and present to the user. Do not proceed until resolved.
-- **Important finding detected (first occurrence)**: Loop back to Stage 3 for the relevant task. Create a new implementation task targeting the finding. Execute a full implement+review cycle.
-- **Important finding detected (second occurrence for the same issue)**: Escalate to the planner or human. Present the full history of the finding, including both implementation attempts.
-- **Minor findings only**: Log them in context. Continue to Stage 6.
+- **Critical finding**: Escalate immediately. If architectural → spawn planner. If business logic → pause for user. Do not proceed until resolved.
+- **Important finding (first occurrence)**: Loop back to Stage 3 **only if the fix is directly actionable within the current scope**. Do NOT loop back for findings that require external runtime infrastructure (e.g. UI test frameworks), significant architectural changes outside task scope, or would substantially expand the work. Log those as deferred findings and continue.
+- **Important finding (second occurrence for same issue)**: Escalate to planner or user.
+- **Minor findings**: Log and continue to Stage 6.
 
 ---
 
 ## Stage 6: Verification
 
-**Do not run tests or build commands directly.** Always spawn the verifier agent. Running `mvn test`, `npm test`, or any equivalent directly does not satisfy this stage.
+**Do not run test commands directly.** Spawn the **verifier agent**.
 
-Spawn a verifier agent. Pass the full execution graph, all implementation summaries, the design document, and the current branch state. The verifier runs project-defined verification commands as specified in `workflow.verification_commands` in the config. If not configured, the verifier auto-detects: Maven/Gradle projects → `mvn test` or `./gradlew test`; Node.js → `npm test`; Python → `pytest`; Rust → `cargo test`; Go → `go test ./...`.
+Pass the execution graph, all implementation summaries, design document, and current branch state. The verifier uses `workflow.verification_commands` from config or auto-detects: Maven/Gradle → `mvn test` / `./gradlew test`; Node → `npm test`; Python → `pytest`; Rust → `cargo test`; Go → `go test ./...`.
 
 - **PASS**: Continue to Stage 7.
-- **FAIL (build/type errors)**: Spawn a build-fixer agent with the failure output. The build-fixer applies minimal surgical fixes to get the build passing, then re-run verification. If the build-fixer cannot resolve the errors after one attempt, fall through to the general failure path below.
-- **FAIL (test/lint failures)**: Loop back to Stage 3 for the failing components. If verification fails a second time after re-implementation, escalate to the planner. If it fails a third time, pause for human intervention.
+- **FAIL (build/type errors)**: Spawn **build-fixer agent** with the failure output. Re-run verification. If still failing, fall through to test/lint path.
+- **FAIL (test/lint)**: Loop back to Stage 3 for failing components. Second failure → escalate to planner. Third failure → pause for user.
 
 ---
 
 ## Stage 7: Merge Prep
 
-Read all files in `docs/plans/` to reconstruct what was done across the pipeline.
+1. **Generate merge commit message**: Follow `git.merge_commit_template` from config. Summarize all changes, tasks completed, and review outcomes. Default: conventional commit format with a detailed body.
 
-1. **Generate merge commit message**: Follow the template in `git.merge_commit_template` from the config. Include a summary of all changes, tasks completed, and review outcomes. If no template is configured, use conventional commit format with a detailed body.
+2. **Generate PR title**: Under 72 characters, prefixed with branch type (`feat:`, `fix:`, `refactor:`).
 
-2. **Generate PR title**: Derive from the task description. Keep it under 72 characters. Include a prefix matching the branch type (e.g., `feat:`, `refactor:`, `fix:`).
+3. **Present for approval**: Show the user both. Wait for explicit confirmation before proceeding.
 
-3. **Present for approval**: Show the user the merge commit message and PR title. Wait for confirmation or edits. Do not proceed without explicit user approval.
+4. **Clean up plan artifacts**:
+   - If plan files are git-tracked: `git rm docs/plans/<design-doc> docs/plans/<plan-json> && git commit -m "chore: remove pipeline plan artifacts"`
+   - If plan files are untracked (were never committed): delete the files without a commit.
 
-4. **Clean up plan artifacts**: Remove all files in `docs/plans/` that were created during this run. Stage and commit the removal as a separate cleanup commit with message `chore: remove pipeline plan artifacts for <run-id>`.
-
-5. **Report completion**: Output `"Pipeline complete. Ready for PR."` along with a summary: number of tasks completed, review iterations, findings addressed, and total agent spawns.
+5. **Report**: `"Pipeline complete. Ready for PR."` with task count, review iterations, findings addressed, and agent spawns.
 
 ---
 
 ## Error Handling
 
-- **Agent spawn failure**: Retry once. If the second spawn fails, log the error and pause for human intervention.
-- **Git operation failure** (merge conflict, worktree error): Log the error with full context. Attempt automatic conflict resolution for trivial conflicts (e.g., both sides added different items to a list). For non-trivial conflicts, pause and present the conflict to the user.
-- **Config missing or malformed**: Use defaults for all configurable values. Log a warning that defaults are in use.
+- **Agent spawn failure**: Retry once. If still failing, pause for user intervention.
+- **Git merge conflict**: Log with full context. Attempt automatic resolution for trivial conflicts (both sides added different items to a list). Non-trivial conflicts → pause for user.
+- **Config missing or malformed**: Use defaults for all values. Log a warning that defaults are in use.

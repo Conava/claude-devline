@@ -13,24 +13,21 @@ Run the brainstorm stage independently, outside the full development pipeline. T
 
 ## Procedure
 
-1. **Load configuration.** Read `plugin/config/workflow.yaml` to retrieve `workflow.human_checkpoints` and any brainstorm-specific settings (e.g., `brainstorm.max_rounds`, `brainstorm.output_dir`). Default output directory is `docs/plans/`.
+1. **Load configuration.** Read the plugin config to retrieve `workflow.human_checkpoints`. Default output directory is `docs/plans/`.
 
-2. **Create a state file.** Initialize a temporary state file at `.claude/state/brainstorm-<timestamp>.json` to track the chunked interaction. The state file holds the evolving design context, questions asked, answers received, and current iteration count.
+2. **Determine interaction mode.** If `workflow.human_checkpoints` includes `brainstorm`, run in interactive mode. Otherwise, run in autonomous mode.
 
-3. **Determine interaction mode.** If `workflow.human_checkpoints` includes the brainstorm stage (or is set to `all`), run in interactive mode. Otherwise, run in autonomous mode where the agent produces a complete design doc without pausing for input.
+3. **Spawn the brainstorm agent.** Pass the user's problem statement and any referenced files. The brainstorm agent will auto-detect if domain skills are missing and trigger `/skills-load` as needed.
 
-4. **Spawn the brainstorm agent.** Launch the brainstorm agent with the state file path and the user's problem statement as input. Pass any relevant context files the user mentioned. The brainstorm agent will auto-detect if domain skills are missing for the technologies involved and trigger `/skills-load` to load and persist them.
-
-5. **Run the chunked interaction loop.** In interactive mode, enter a relay loop:
-   - Receive the agent's design questions or trade-off proposals.
+4. **Run the interaction loop.** In interactive mode:
+   - Receive the agent's questions or trade-off proposals.
    - Present them to the user and collect answers.
-   - Update the state file with the new context.
-   - Re-spawn the brainstorm agent with the updated state file.
-   - Repeat until the agent signals that the design doc is ready or the user explicitly approves the current draft.
+   - Re-spawn the brainstorm agent with the full Q&A history in context.
+   - Repeat until the agent produces a design document.
    In autonomous mode, let the agent run to completion in a single pass.
 
-6. **Save the design document.** Write the final design doc to `docs/plans/brainstorm-<slug>.md`, where `<slug>` is derived from the problem statement. Include a metadata header with timestamp, interaction mode used, and number of rounds completed.
+5. **Save the design document.** Write the final design doc to `docs/plans/brainstorm-<slug>.md`, where `<slug>` is derived from the problem statement.
 
-7. **Report and suggest next step.** Print the path to the saved design doc and its summary. Suggest the logical next step:
+6. **Report and suggest next step.** Print the path to the saved design doc and its summary. Suggest the logical next step:
 
    > Run `/plan` to create an implementation plan from this design document.

@@ -22,8 +22,8 @@ Prepare the current feature branch for merge or PR creation.
 4. Generate a PR title following the configured template (respect max length)
 5. Present both for user approval
 6. After approval:
-   - Delete all files in `docs/plans/`
-   - Commit the cleanup with `chore: remove plan artifacts`
+   - If plan files are git-tracked: `git rm docs/plans/<files> && git commit -m "chore: remove plan artifacts"`
+   - If plan files are untracked: delete them without committing.
 7. Report: "Ready for PR. Suggested title: \<title\>"
 
 ## Guidelines

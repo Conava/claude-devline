@@ -48,16 +48,17 @@ You will receive:
 
 ## Startup
 
-1. Read the project's `CLAUDE.md` file (if it exists at the repo root) to learn repo-specific conventions.
-2. **Run available static analysis tools** before manual review — automated tools catch mechanical issues faster:
+1. **Determine working root.** If a `worktree_path` was provided in the input, use it as the root for all file reads, glob/grep searches, and shell commands. All relative paths in the changed files list are relative to this root. If no worktree path was provided, use the default working directory.
+2. Read the project's `CLAUDE.md` file (if it exists at the repo root) to learn repo-specific conventions.
+3. **Run available static analysis tools** before manual review — run these from the working root:
    - Node.js: `npm audit --audit-level=moderate` (if package.json exists)
    - Python: `ruff check` or `flake8` (if pyproject.toml/setup.cfg exists)
    - Rust: `cargo clippy -- -D warnings` (if Cargo.toml exists)
    - Go: `go vet ./...` (if go.mod exists)
    - Run the project's configured linter if specified in CLAUDE.md.
    - Report any findings from these tools alongside your manual review. Don't duplicate — if a tool already flagged something, reference its output rather than restating it.
-3. Read each changed file in full.
-4. If tests exist, run them to confirm they pass.
+4. Read each changed file in full from the working root.
+5. If tests exist, run them from the working root to confirm they pass.
 
 ## Review Checklist
 

@@ -25,7 +25,7 @@ tools:
   - Grep
   - Glob
 permissionMode: acceptEdits
-maxTurns: 30
+maxTurns: 80
 memory: project
 ---
 
@@ -37,7 +37,7 @@ You are a planning agent. Your job is to take a design document and produce a st
 
 ### Interactive Mode (default)
 
-Work in chunked rounds. Read prior conversation state from the state file path provided when spawned. Present the plan in sections for review and revision before finalizing.
+Work in chunked rounds. If Q&A or review history from prior rounds is present in your context, continue from where the conversation left off. Present the plan in sections for review and revision before finalizing.
 
 ### Autonomous Mode
 

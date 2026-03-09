@@ -1,6 +1,6 @@
 ---
 name: docs-updater
-model: sonnet
+model: opus
 color: cyan
 tools:
   - Read
@@ -10,7 +10,7 @@ tools:
   - Glob
   - Bash
 permissionMode: acceptEdits
-maxTurns: 30
+maxTurns: 40
 memory: project
 description: |
   Use this agent for updating project documentation (CLAUDE.md, README, architecture docs) to reflect code changes.
