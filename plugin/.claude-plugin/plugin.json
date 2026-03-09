@@ -1,0 +1,9 @@
+{
+  "name": "marlon-claude-plugin",
+  "description": "Personal Claude Code plugin with custom agents, skills, commands, and hooks",
+  "version": "0.1.0",
+  "author": {
+    "name": "Marlon"
+  },
+  "license": "MIT"
+}
