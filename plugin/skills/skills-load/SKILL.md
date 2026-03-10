@@ -1,6 +1,6 @@
 ---
 name: skills-load
-description: "Use when the user asks to 'load skill', 'load skills', 'activate skill', 'I need kotlin patterns', or wants to load domain/LSP skills ad-hoc. Also invoked automatically by the brainstorm agent when it detects missing skills."
+description: "Use when the user asks to 'load skill', 'load skills', 'activate skill', 'I need kotlin patterns', or wants to load domain skills ad-hoc. Also invoked automatically by the brainstorm agent when it detects missing skills."
 argument-hint: "[skill name or technology]"
 user-invocable: true
 allowed-tools: Read, Grep, Glob
@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob
 
 # Load Skills Ad-Hoc
 
-Intelligently detect, load, and persist domain and LSP skills based on natural language input, project context, or brainstorm analysis.
+Intelligently detect, load, and persist domain skills based on natural language input, project context, or brainstorm analysis.
 
 ## Trigger Sources
 
@@ -24,25 +24,23 @@ This skill is invoked in three ways:
 Parse the input — whether a direct skill name, fuzzy shorthand, or a natural language description of what's being built. Identify all technologies, languages, frameworks, and domains mentioned or implied.
 
 Examples of inference:
-- "I'm building a REST API with Kotlin and PostgreSQL" → kotlin-lsp, api-design, database-migrations
-- "Spring Boot microservice with JPA" → java-coding-standards, jdtls-lsp, springboot-patterns, jpa-patterns, api-design
-- "React dashboard with TypeScript" → frontend-design, typescript-lsp
-- "CLI tool in Rust" → rust-patterns, rust-analyzer-lsp
-- "Python data pipeline with FastAPI" → python-patterns, pyright-lsp, api-design
+- "I'm building a REST API with Kotlin and PostgreSQL" → api-design, database-migrations
+- "Spring Boot microservice with JPA" → java-coding-standards, springboot-patterns, jpa-patterns, api-design
+- "React dashboard with TypeScript" → frontend-design, frontend-patterns
+- "CLI tool in Rust" → rust-patterns
+- "Python data pipeline with FastAPI" → python-patterns, api-design
 
 Fuzzy name resolution:
-- "python" / "py" → python-patterns, pyright-lsp
-- "rust" / "rs" → rust-patterns, rust-analyzer-lsp
-- "go" / "golang" → golang-patterns, gopls-lsp
-- "java" → java-coding-standards, jdtls-lsp
-- "kotlin" / "kt" → kotlin-lsp
-- "typescript" / "ts" → typescript-lsp
-- "c++" / "cpp" / "c" → cpp-patterns, clangd-lsp
-- "csharp" / "c#" / "cs" → csharp-lsp
+- "python" / "py" → python-patterns
+- "rust" / "rs" → rust-patterns
+- "go" / "golang" → golang-patterns
+- "java" → java-coding-standards
+- "typescript" / "ts" → frontend-patterns
+- "c++" / "cpp" / "c" → cpp-patterns
 - "swift" / "swiftui" / "ios" / "macos" → swift-patterns
 - "spring" / "springboot" → springboot-patterns
 - "jpa" / "hibernate" → jpa-patterns
-- "django" / "drf" → django-patterns, python-patterns, pyright-lsp
+- "django" / "drf" → django-patterns, python-patterns
 - "api" / "rest" / "endpoints" → api-design
 - "database" / "migrations" / "db" / "schema" → database-migrations
 - "postgres" / "postgresql" / "sql" → postgres-patterns
@@ -107,6 +105,6 @@ Skills in context can't be removed mid-session. To prevent a skill from loading 
 ```yaml
 # .claude-plugin-config.yaml
 skills:
-  disabled: [frontend-design, clangd-lsp]
+  disabled: [frontend-design, cpp-patterns]
 ```
 The `disabled` list takes precedence over both `enabled` and auto-detection.

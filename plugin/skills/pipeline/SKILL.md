@@ -10,6 +10,22 @@ user-invocable: true
 
 The main chat acts as orchestrator: spawning agents directly, relaying questions to the user, and tracking progress in context. All orchestration logic is defined here — do not delegate to other skills.
 
+## Orchestrator Discipline
+
+**Do not explore, read files, or gather context yourself before entering Stage 0.** The pipeline stages exist precisely to do that work through the right agents. Rationalising "I need context first" means you are about to skip a stage — don't.
+
+| Thought | Correct action |
+|---------|---------------|
+| "Let me explore the codebase first" | No. Pass the task to the brainstorm agent. It explores. |
+| "I need to understand the current state" | No. That is Stage 1 (brainstorm) or Stage 2 (plan). |
+| "The task is too vague to brainstorm" | No. Vagueness is exactly what brainstorm resolves. |
+| "Let me check the branch first" | Yes — Stage 0 only. Then immediately enter Stage 1. |
+| "I'll invoke the merge-prep / plan / brainstorm skill" | No. **Never invoke other skills.** All stage logic is defined in this document. Use the Agent tool to spawn the relevant agent directly. |
+| "Let me summarise what the brainstorm/plan agent said" | No. Relay its full output verbatim. The user needs the complete text to choose an approach. |
+| "The reviewer found issues, I'll handle them in chat" | No. Spawn the implementer in fix mode. Then spawn the reviewer again. |
+
+Enter Stage 0 now.
+
 ---
 
 ## Pre-Pipeline Options
@@ -45,8 +61,9 @@ Read `workflow.human_checkpoints` from config.
 
 **Interactive mode** (`brainstorm` in `human_checkpoints`):
 1. Spawn the **brainstorm agent**. Pass the task description and any referenced files.
-2. Relay the agent's questions to the user verbatim. Collect answers.
-3. Re-spawn the brainstorm agent with the full Q&A history. Repeat until the agent produces a design document.
+2. Relay the agent's **full output** to the user verbatim — approaches, trade-offs, recommendations, and questions. Do not summarise, filter, or condense. The user must see the complete output to make informed choices.
+3. Collect the user's answers and any approach selection.
+4. Re-spawn the brainstorm agent with the full Q&A history. Repeat until the agent produces a design document.
 
 **Autonomous mode**:
 1. Spawn the **brainstorm agent** with `autonomous: true`. It produces a design document in one pass.
@@ -63,7 +80,8 @@ Read `workflow.human_checkpoints` from config.
 
 **Interactive mode** (`plan` in `human_checkpoints`):
 1. Spawn the **planner agent**. Pass the design document path (or task description if no design doc exists).
-2. Relay questions and re-spawn with answers until the planner produces a finalized execution graph.
+2. Relay the agent's **full output** to the user verbatim — proposed task breakdown, groupings, dependency decisions, and questions. Do not summarise or filter.
+3. Collect answers and re-spawn with the full Q&A history until the planner produces a finalized execution graph.
 
 **Autonomous mode**:
 1. Spawn the **planner agent** once with `autonomous: true`. It produces the execution graph in one pass.
@@ -78,22 +96,59 @@ Save to `docs/plans/YYYY-MM-DD-<slug>-plan.json`. Commit: `git add docs/plans/..
 
 ## Stage 3: Implement + Review
 
-Read the execution graph from the plan file. For bug mode, create a single synthetic task from the bug description.
+Read the plan file once. Extract the scheduling fields into a compact in-context table — do not retain the full plan content:
+
+| id | name (≤5 words) | group | touches | depends_on |
+|----|-----------------|-------|---------|------------|
+| T01 | board init | 1 | [src/board.ts] | [] |
+| … | … | … | … | … |
+
+Pass the plan file **path** (not its content) to agents that need the full task detail. For bug mode, create a single synthetic task row.
 
 ### Task Scheduling
 
-Track completed task IDs and in-progress file paths in context. A task is eligible when:
-1. All `depends_on` IDs are in the completed set.
-2. Its `touches` files don't overlap with any in-progress task's `touches`.
+Track status in the same table — update the `status` column as tasks progress:
+
+| id | name | group | touches | depends_on | status |
+|----|------|-------|---------|------------|--------|
+| T01 | board init | 1 | [src/board.ts] | [] | ✅ merged |
+| T02 | move validation | 2 | [src/moves.ts] | [T01] | ⏳ running |
+| T03 | game state | 3 | [src/state.ts] | [T01] | 🔒 waiting |
+
+This single table is all the orchestrator needs for scheduling, overlap detection, and progress display. Use it to render the status table shown to the user after each task completes.
+
+A task is eligible when:
+1. All `depends_on` IDs are `✅ merged`.
+2. Its `touches` files don't overlap with any `⏳ running` task's touches.
 
 Spawn eligible tasks in parallel up to `workflow.max_parallel_tasks` (default 4).
 
-### Domain Skill Resolution
+### Gitignore Check
 
-Before spawning any implementer, resolve domain skills for the task:
-1. Read `${CLAUDE_PLUGIN_ROOT}/config/skill-mappings.yaml`.
-2. For each file in `touches`, match its extension against `file_patterns` and directory against `directory_patterns`.
-3. Deduplicate. Construct full paths: `${CLAUDE_PLUGIN_ROOT}/skills/<skill-name>/SKILL.md`.
+Before creating any worktree, ensure `.claude/worktrees/` is gitignored so worktree directories never appear as untracked files:
+
+```bash
+grep -qx '.claude/worktrees/' .gitignore 2>/dev/null || echo '.claude/worktrees/' >> .gitignore
+```
+
+If `.gitignore` was modified, commit it: `git add .gitignore && git commit -m "chore: ignore worktree directories"`.
+
+### Review Document
+
+Before spawning the first implementer, create the feature's review document:
+`docs/plans/YYYY-MM-DD-<slug>-review.md`
+
+The orchestrator owns this file — agents do not write to it directly. Initialize it with:
+```markdown
+# Review — <slug>
+Generated: YYYY-MM-DD
+
+## Per-Task Reviews
+
+## Stage 5: Deep Review
+```
+
+Pass this path to every reviewer spawn. Append all findings here as the pipeline progresses. This is the single source of truth that docs-updater reads at the end.
 
 ### Per-Task Execution
 
@@ -103,11 +158,11 @@ For each task:
    ```
    git worktree add .claude/worktrees/agent-<id> -b worktree-agent-<id> HEAD
    ```
-   Use a random 8-character hex ID (e.g. `python3 -c "import secrets; print(secrets.token_hex(4))"`). Note the absolute worktree path.
+   Generate the ID with: `printf '%x%x' $RANDOM $RANDOM`. Note the absolute worktree path.
 
-2. **Spawn implementer**: Pass the task object, absolute worktree path, resolved domain skill paths, design document path, and any retry feedback. The implementer works entirely within the worktree — reads, writes, tests, self-reviews, and commits there.
+2. **Spawn implementer**: Pass the task object, absolute worktree path, design document path, review document path, and any retry feedback. The implementer works entirely within the worktree — reads, writes, tests, self-reviews, and commits there.
 
-3. **Spawn reviewer**: Run `git diff <feature-branch>...worktree-agent-<id>` to get the diff. Spawn the **reviewer agent**. Pass: diff, implementation summary, task object, design document, and the absolute worktree path. The reviewer reads files and runs tests from the worktree path.
+3. **Spawn reviewer**: Spawn the **reviewer agent**. Pass: the implementer's status report, the plan file path, the task ID, the review document path, the feature branch name, the worktree branch name (`worktree-agent-<id>`), and the absolute worktree path. **Do not compute the git diff yourself** — the reviewer runs `git diff <feature-branch>...worktree-agent-<id>` from the worktree path. After the reviewer returns, **append its findings to the review document** under `### <task-id>: <task description>`, each marked `[OPEN]` or `[DEFERRED]`.
 
 4. **On PASS**: Merge and clean up:
    ```
@@ -116,8 +171,11 @@ For each task:
    git branch -D worktree-agent-<id>
    ```
    Use `fix:` for bugs, `feat:` for features, `refactor:` for refactoring. Add task to completed set.
+   In the review document, mark any in-scope findings for this task that triggered a retry as `[RESOLVED — fixed in retry N]`. For out-of-scope findings:
+   - If the code **compiles and tests pass** → mark `[DEFERRED]` in the review document.
+   - If the code **does not compile or tests fail because of it** → escalate immediately to the **planner agent** with the finding. Do not defer. Do not proceed.
 
-5. **On FAIL (attempt 1 — normal retry)**: Re-spawn the implementer with reviewer feedback appended to the task context.
+5. **On FAIL (attempt 1 — normal retry)**: Re-spawn the implementer with all in-scope reviewer findings appended to the task context.
 
 6. **On FAIL (attempt 2–3 — systematic debugging)**: Spawn the **debugger agent** instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence. On attempt 3, pass cumulative evidence from attempt 2.
 
@@ -129,39 +187,56 @@ If `git worktree remove` fails due to untracked or modified files: run `git work
 
 ---
 
-## Stage 4: Docs Update
-
-**Mandatory. Do not skip.**
-
-Spawn the **docs-updater agent**. Pass the list of completed tasks, their implementation summaries, the design document, and paths to existing documentation files that reference modified code.
-
-Spawn the **docs-reviewer agent**. Pass the docs-updater output and implementation context.
-
-- **PASS**: Commit documentation changes.
-- **FAIL**: Re-spawn docs-updater with reviewer feedback. Retry up to 3 times, then escalate to user.
-
----
-
-## Stage 5: Deep Review
+## Stage 4: Deep Review
 
 **Distinct from Stage 3 per-task review.** This audits the entire diff holistically.
 
-Compute the full diff: `git diff <base-branch>...HEAD`.
+Pass the base branch name and HEAD to each reviewer — **do not compute the full diff yourself**. Each reviewer runs `git diff <base-branch>...HEAD` itself.
+
+All findings from Stage 5 are appended to the review document under `## Stage 5: Deep Review`, each marked `[OPEN]` or `[DEFERRED]`. After each reviewer returns, append its findings before spawning the next.
+
+### Step 1: Holistic Compliance (always)
+
+**Spawn the reviewer agent (Sonnet)** with the base branch name, the plan file path, the design document path, and the review document path. Its job is to answer:
+- Was the plan followed? Are all tasks accounted for in the diff?
+- Were issues from Stage 3 per-task reviews actually resolved, or do they still appear in the final diff?
+- Does the overall feature behave as designed end-to-end?
+
+This is the only reviewer checking "did we build the right thing" — the specialist reviewers below check "did we build it correctly."
+
+### Step 2: Specialist Reviews
 
 **Always spawn**: **code-quality reviewer** (Opus).
 **Spawn if code changes exist** (not just docs/config): **test-coverage reviewer** (Opus).
 **Spawn only if security-relevant** (changes touch auth, API endpoints, user input handling, crypto, network, or env/config files): **security reviewer** (Opus).
 
-For trivially small changes (single file, <30 lines, no new API): spawn a single **reviewer agent** (Sonnet) instead, with a combined prompt covering all three areas.
+For trivially small changes (single file, <30 lines, no new API): replace Steps 1 and 2 with a single **reviewer agent** (Sonnet) covering all areas in one pass:
 
-Each reviewer returns findings with `severity` (critical/important/minor) and `confidence` (0.0–1.0). Discard findings below `review.confidence_threshold` (default 0.8).
+> "Review this diff as a combined holistic + security + quality + coverage check. First verify the plan was followed and all prior review findings are resolved. Then scan for injection risks, hardcoded secrets, OWASP Top 10 patterns, naming clarity, DRY violations, dead code, error handling, behavioral test coverage, and silent failures. Report findings with severity (critical/important) and confidence ≥ 0.8."
+
+Each reviewer returns findings with `severity` (critical/important) and `confidence` (0.0–1.0). Discard findings below `review.confidence_threshold` (default 0.8).
 
 ### Escalation
 
-- **Critical finding**: Escalate immediately. If architectural → spawn planner. If business logic → pause for user. Do not proceed until resolved.
-- **Important finding (first occurrence)**: Loop back to Stage 3 **only if the fix is directly actionable within the current scope**. Do NOT loop back for findings that require external runtime infrastructure (e.g. UI test frameworks), significant architectural changes outside task scope, or would substantially expand the work. Log those as deferred findings and continue.
+- **Critical finding**: Spawn the **implementer in fix mode** with all critical findings (plus any actionable important findings). After the fix agent returns, **spawn the reviewer agent again** with the same scope (full diff, base branch, review document path) to verify the fixes. If reviewer passes → mark fixed findings `[RESOLVED]` in the review document and continue. If reviewer fails again → escalate to planner (architectural) or pause for user (business logic).
+- **Important finding (first occurrence)**: Include in the fix mode batch **only if directly actionable within the current scope**. Mark as `[DEFERRED]` for findings that require external infrastructure, architectural changes outside scope, or would substantially expand the work.
 - **Important finding (second occurrence for same issue)**: Escalate to planner or user.
-- **Minor findings**: Log and continue to Stage 6.
+- **Minor findings**: Log in the review document as `[DEFERRED]` and continue to Stage 5.
+
+**Code simplifier**: Do not auto-invoke. If Stage 4 surfaces significant simplification opportunities (dead code clusters, over-engineered abstractions, excessive duplication), note them in the review document as `[DEFERRED]` recommendations. The user can invoke `/simplify` as a follow-up after merge.
+
+---
+
+## Stage 5: Docs Update
+
+**Mandatory. Do not skip. Runs after deep review so the review document is complete.**
+
+Spawn the **docs-updater agent**. Pass the list of completed tasks, the design document path, the review document path, and paths to existing documentation files that reference modified code. The docs-updater reads the review document directly and records only `[OPEN]` and `[DEFERRED]` findings — it ignores `[RESOLVED]` ones.
+
+Spawn the **docs-reviewer agent**. Pass the docs-updater output and implementation context.
+
+- **PASS**: Commit documentation changes.
+- **FAIL**: Re-spawn docs-updater with reviewer feedback. Retry up to 3 times, then escalate to user.
 
 ---
 

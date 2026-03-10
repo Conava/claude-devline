@@ -18,10 +18,15 @@ Run a deep, multi-perspective code review on the current branch without entering
 
 3. **Compute the diff.** Generate the diff between the base branch and the current HEAD. Collect the list of changed files, added lines, and removed lines. This diff is the shared input for all review agents.
 
-4. **Spawn three deep review agents in parallel.** Launch the following agents concurrently, each receiving the full diff and changed file list:
-   - **Security reviewer** — scans for vulnerability patterns, hardcoded secrets, injection risks, unsafe deserialization, and permission issues.
-   - **Code quality reviewer** — checks for code smells, complexity hotspots, naming inconsistencies, dead code, and adherence to project conventions.
-   - **Test coverage reviewer** — evaluates whether changed code paths have corresponding tests, identifies missing edge-case coverage, and flags untested error handling.
+4. **Determine which agents to spawn.** Always spawn code quality. Apply these conditions for the others:
+
+   - **Security reviewer**: spawn only if the diff touches security-relevant files — auth/session/token logic, API endpoint handlers, user input processing, crypto/hashing, network/HTTP clients, environment variables, or config files.
+   - **Test coverage reviewer**: spawn only if the diff contains non-trivial code changes (not just docs, config, or comment updates). Check whether any `.test.`, `_test.`, or `spec.` file changes are present alongside source changes.
+
+   Spawn eligible agents concurrently, each receiving the full diff and changed file list:
+   - **Code quality reviewer** — checks for code smells, complexity hotspots, naming inconsistencies, dead code, and adherence to project conventions. Always spawned.
+   - **Security reviewer** — scans for vulnerability patterns, hardcoded secrets, injection risks, unsafe deserialization, and permission issues. Conditional (see above).
+   - **Test coverage reviewer** — evaluates whether changed code paths have corresponding tests, identifies missing edge-case coverage, and flags untested error handling. Conditional (see above).
 
 5. **Aggregate findings.** Collect results from all three agents. Filter out any findings below the configured `confidence_threshold`. De-duplicate overlapping findings across agents.
 

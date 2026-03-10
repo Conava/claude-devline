@@ -37,19 +37,6 @@ Present as a table grouped by type:
 | api-design | API design principles |
 | database-migrations | Database migration best practices |
 
-**LSP Skills** (language server integration for diagnostics):
-
-| Skill | Description |
-|-------|-------------|
-| typescript-lsp | TypeScript language server diagnostics |
-| pyright-lsp | Python type checking via Pyright |
-| gopls-lsp | Go language server diagnostics |
-| rust-analyzer-lsp | Rust language server diagnostics |
-| kotlin-lsp | Kotlin language server diagnostics |
-| clangd-lsp | C/C++ language server diagnostics |
-| jdtls-lsp | Java language server diagnostics |
-| csharp-lsp | C# language server diagnostics |
-
 **Management Skills** (project and plugin management):
 
 | Skill | Description |

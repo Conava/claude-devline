@@ -297,7 +297,11 @@ print('; '.join(parts) if parts else '')
 CONTEXT=""
 
 if [[ -n "$SKILLS_LINES" ]]; then
-  CONTEXT+="Available skills:\n${SKILLS_LINES}"
+  CONTEXT+="SKILL USAGE RULES (follow exactly):\n"
+  CONTEXT+="1. Before responding to any development task, check whether a skill applies. If there is even a 10%% chance a skill fits, invoke it via the Skill tool BEFORE doing anything else — including asking clarifying questions.\n"
+  CONTEXT+="2. When invoking a skill, announce it first: \"I'm using the [skill-name] skill to [one-line purpose].\"\n"
+  CONTEXT+="3. Once a skill is loaded, follow it exactly. Do not summarise it, skip steps, or deviate.\n"
+  CONTEXT+="\nAvailable skills:\n${SKILLS_LINES}"
 fi
 
 if [[ -n "$BRANCH_WARNING" ]]; then

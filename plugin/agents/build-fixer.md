@@ -88,10 +88,32 @@ After all fixes:
 
 ### 5. Stop Conditions
 
-Stop and report if:
+Stop and output a **BLOCKED** report if:
 - Same error persists after 3 fix attempts — likely needs architectural change
 - A fix introduces more errors than it resolves — approach is wrong
-- The error requires changing public API signatures or architecture — escalate to implementer or planner
+- The error requires changing public API signatures, data models, or architectural boundaries
+
+**BLOCKED report format:**
+```
+## Build Fix Report: BLOCKED
+
+### Problem
+[Exact error message and file:line]
+
+### Why It Cannot Be Fixed Surgically
+[One sentence: what architectural change is required]
+
+### What Needs to Happen
+[Concrete description of the change needed — e.g., "The Foo interface must gain a bar() method, which requires updating all 3 implementors"]
+
+### Files Involved
+[List of files that would need to change]
+
+### Attempts Made
+[What was tried and why it failed or made things worse]
+```
+
+Do not attempt any further changes after emitting a BLOCKED report. Return immediately — the pipeline will handle re-routing to the implementer or planner.
 
 ## Rules
 

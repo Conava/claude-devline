@@ -25,14 +25,14 @@ plugin/                              # The plugin (registered path)
 ├── scripts/
 │   └── merge-config.py              # Merges YAML configs (defaults → user → repo)
 ├── agents/                          # 16 agents with model/tools in frontmatter
-└── skills/                          # 57 skills (8 pipeline, 18 domain, 8 LSP, 3 management, 5 business, 10 extended, 5 business-ops)
+└── skills/                          # 49 skills (8 pipeline, 18 domain, 3 management, 5 business, 10 extended, 5 business-ops)
 data/                                # Reference material (gitignored)
 docs/plans/                          # Design docs and plans (per-feature, temporary)
 ```
 
 ## Pipeline (invoked via `/build` or natural language)
 
-Stage 0: Branch safety → Stage 1: Brainstorm (opus) → Stage 2: Plan (opus) → Stage 3: Implement+Review per task (sonnet, worktrees) → Stage 4: Docs update → Stage 5: Deep review (auto/full/targeted/light modes) → Stage 6: Verification → Stage 7: Merge prep
+Stage 0: Branch safety → Stage 1: Brainstorm (opus) → Stage 2: Plan (opus) → Stage 3: Implement+Review per task (sonnet, worktrees) → Stage 4: Deep review (holistic compliance + specialist reviewers) → Stage 5: Docs update (records unresolved findings from review doc) → Stage 6: Verification → Stage 7: Merge prep
 
 Trivial tasks skip stages 1-2. Bug-fix tasks use `/systematic-debugging` which skips brainstorm+plan and goes straight to diagnosis via the debugger agent (opus).
 

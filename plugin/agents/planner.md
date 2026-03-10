@@ -24,6 +24,8 @@ tools:
   - Write
   - Grep
   - Glob
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
 permissionMode: acceptEdits
 maxTurns: 80
 memory: project

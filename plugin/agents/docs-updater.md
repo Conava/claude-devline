@@ -59,6 +59,29 @@ If a project overrides these paths in its `.claude-plugin-config.yaml`, use the 
 6. Keep docs concise and accurate
 7. Commit with `docs: update documentation for <what changed>`
 
+## Mode 1b: Review Document Findings (after pipeline)
+
+When a review document path (`docs/plans/YYYY-MM-DD-<slug>-review.md`) is passed alongside the implementation context:
+
+1. Read the review document.
+2. Extract all entries marked `[OPEN]` or `[DEFERRED]`. **Ignore all `[RESOLVED]` entries** — those were fixed and must not appear in project documentation.
+3. Append the unresolved findings to `docs/deferred-findings.md` (create if it doesn't exist):
+
+```markdown
+## <YYYY-MM-DD> — <task-id or stage>: <description>
+
+- **Finding**: <description>
+- **Location**: `file_path:line_number`
+- **Severity**: Critical | Important
+- **Status**: OPEN | DEFERRED
+- **Why deferred** (if DEFERRED): <reason>
+- **Suggested fix**: <from reviewer>
+```
+
+Append new entries; never remove existing ones. Commit with `docs: record unresolved review findings for <slug>`.
+
+---
+
 ## Mode 2: CLAUDE.md Quality Audit (standalone)
 
 When invoked specifically for CLAUDE.md management:
