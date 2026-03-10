@@ -24,6 +24,21 @@ cd $HOME\claude-plugins\claude-devline
 
 The install script adds a shell alias so `claude` automatically loads the plugin via `--plugin-dir`. No marketplace registration or cache involved — the plugin runs directly from the cloned repo.
 
+### Recommended: bypass permissions mode
+
+The plugin's hooks (`guard.sh`, `file-guard.sh`) are the safety net — interactive permission prompts add friction without adding meaningful protection on top of them. Run Claude Code with permissions bypassed:
+
+```json
+// ~/.claude/settings.json
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
+}
+```
+
+Review `plugin/hooks/guard.sh` and `plugin/hooks/file-guard.sh` before enabling this. The defaults block network operations, protected branch mutations, sensitive file writes, and `rm -rf` outside the project directory. Extend the blocked command/pattern lists in your `~/.claude-plugin-config.yaml` or `repo/.claude-plugin-config.yaml` if your project has additional operations that should never run automatically.
+
 ### Updating
 
 Pull the latest changes. No reinstall needed — changes take effect on next Claude Code restart.
@@ -60,11 +75,11 @@ The full pipeline runs 8 stages. Trivial tasks (single file, obvious change) ski
 | Stage | What happens | Agent | Model |
 |-------|-------------|-------|-------|
 | 0. Branch safety | Creates feature branch if on a protected branch | — | — |
-| 1. Brainstorm | Interactive or autonomous design exploration | brainstorm | opus |
+| 1. Brainstorm | Conversational design exploration in main chat (no agent, no design doc) | — | — |
 | 2. Plan | Execution graph with task dependencies, file ownership, parallel groups | planner | opus |
 | 3. Implement + Review | Per-task TDD implementation in worktrees, then confidence-scored review | implementer + reviewer | sonnet |
-| 4. Docs update | Updates project documentation to reflect changes | docs-updater | sonnet |
-| 5. Deep review | Security, code quality, and test coverage analysis (auto/full/targeted/light) | security/quality/coverage reviewers | opus |
+| 4. Deep review | Security, code quality, and test coverage analysis (auto/full/targeted/light) | security/quality/coverage reviewers | opus/sonnet |
+| 5. Docs update | Updates project documentation to reflect changes | docs-updater | opus |
 | 6. Verification | Runs tests, linters, type checkers, build. Build failures get a fast-fix pass. | verifier + build-fixer | sonnet |
 | 7. Merge prep | Generates merge commit message, PR title, cleans plan artifacts | — | — |
 
@@ -83,6 +98,8 @@ Use `/claude-devline:systematic-debugging` for bug-fix tasks. It skips brainstor
 ## Skills
 
 All skills are namespaced: `/claude-devline:skill-name`.
+
+> **Some skills not included.** `pdf`, `docx`, `pptx`, and `xlsx` are licensed by Anthropic and cannot be redistributed. Download them from the [claude-code-skills](https://github.com/anthropics/claude-code-skills) repo and place them in `plugin/skills/`.
 
 ### Pipeline Stages (individually invocable)
 
@@ -132,6 +149,7 @@ All skills are namespaced: `/claude-devline:skill-name`.
 | `seo-audit` | SEO audit and recommendations |
 | `article-writing` | Long-form article writing |
 | `content-engine` | Content strategy and production |
+| `humanizer` | Remove AI-generated writing patterns from text |
 
 ### Domain Skills
 
@@ -150,18 +168,17 @@ Domain skills provide specialized knowledge for specific technologies. They load
 
 ## Agents
 
-16 specialized agents with models and tools defined in YAML frontmatter.
+15 specialized agents with models and tools defined in YAML frontmatter.
 
 | Agent | Model | Isolation | Purpose |
 |-------|-------|-----------|---------|
-| brainstorm | opus | — | Chunked interactive design exploration |
 | planner | opus | — | Execution graph with dependencies + file ownership |
 | implementer | sonnet | worktree | TDD-first implementation with domain skill loading |
 | reviewer | sonnet | — | Per-task confidence-scored review |
 | security-reviewer | opus | — | OWASP top 10 systematic check |
-| code-quality-reviewer | opus | — | Clean code, type design, simplification |
-| test-coverage-reviewer | opus | — | Behavioral coverage, silent failure detection |
-| docs-updater | sonnet | — | Living document updates |
+| code-quality-reviewer | sonnet | — | Clean code, type design, simplification |
+| test-coverage-reviewer | sonnet | — | Behavioral coverage, silent failure detection |
+| docs-updater | opus | — | Living document updates (tier model, active pruning) |
 | docs-reviewer | opus | — | Documentation accuracy review |
 | debugger | opus | — | Systematic root cause analysis (four-phase methodology) |
 | verifier | sonnet | — | Hard gate — evidence-based verification |
@@ -171,9 +188,11 @@ Domain skills provide specialized knowledge for specific technologies. They load
 | docs-architect | sonnet | — | Comprehensive technical documentation generation |
 | legacy-modernizer | sonnet | — | Incremental migrations using strangler fig pattern |
 
-**Model selection:** Opus for reasoning-heavy tasks (design, planning, debugging, security review). Sonnet for speed-sensitive tasks (implementation, basic review, docs). Models are set in agent frontmatter, not config.
+**Model selection:** Opus for reasoning-heavy tasks (planning, debugging, security review, docs update). Sonnet for speed-sensitive tasks (implementation, basic review, code quality). Models are set in agent frontmatter, not config.
 
-**Isolation:** Implementer and code-simplifier use git worktrees for isolated changes. Debugger works in the current branch (debugs where the bug lives).
+**Isolation:** Implementer and code-simplifier use git worktrees for isolated changes. Implementers spawn with `run_in_background: true` and auto-merge on completion. Debugger works in the current branch (debugs where the bug lives).
+
+**Permissions:** Implementer and debugger use `bypassPermissions` mode — hooks enforce safety, not interactive prompts. Other agents use `acceptEdits`.
 
 ## MCP Integration
 
@@ -269,18 +288,11 @@ The plugin uses hooks to enforce safety at multiple levels.
 **PostToolUse (Write/Edit)** — auto-formats files after writes:
 - Detects and runs project-appropriate formatters (prettier, ruff, gofmt, rustfmt, etc.)
 
-**Stop / SubagentStop** — completion verification:
-- Code changes: requires test output + build verification
-- Config changes: requires syntax validation
-- Docs changes: checks completeness
-- Research: approves if question was answered
-
 **Other hooks:**
 - **SessionStart**: Merges config layers, injects skill descriptions, detects tech stack
-- **UserPromptSubmit**: Warns about sensitive files and destructive operations
-- **PreCompact**: Preserves pipeline state before context compaction
+- **WorktreeCreate**: Copies hook scripts and config into new worktrees
 - **Notification**: Logs permission and idle prompts
-- **SessionEnd**: Logs session metrics, cleans stale state files (>7 days)
+- **SessionEnd**: No-op stub
 
 ## Customizing Agents and Skills
 

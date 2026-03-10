@@ -15,24 +15,25 @@ plugin/                              # The plugin (registered path)
 │   ├── defaults.yaml                # Default conventions, safeguards, workflow settings
 │   └── skill-mappings.yaml          # File/framework → domain skill auto-detection
 ├── hooks/
-│   ├── hooks.json                   # Hook config (8 hook types)
+│   ├── hooks.json                   # Hook config (6 hook types)
 │   ├── session-start.sh             # Injects merged config + skill descriptions
 │   ├── guard.sh                     # Blocks dangerous Bash operations
 │   ├── file-guard.sh                # Blocks writes to sensitive/lock files
 │   ├── auto-format.sh               # Runs project formatters after writes
+│   ├── worktree-create.sh            # Copies hooks/config into new worktrees
 │   ├── notify.sh                    # Logs permission/idle prompts
 │   └── session-end.sh               # No-op stub
 ├── scripts/
 │   └── merge-config.py              # Merges YAML configs (defaults → user → repo)
-├── agents/                          # 16 agents with model/tools in frontmatter
+├── agents/                          # 15 agents with model/tools in frontmatter
 └── skills/                          # 49 skills (8 pipeline, 18 domain, 3 management, 5 business, 10 extended, 5 business-ops)
 data/                                # Reference material (gitignored)
-docs/plans/                          # Design docs and plans (per-feature, temporary)
+docs/plans/                          # Pipeline artifacts (temporary, never committed)
 ```
 
 ## Pipeline (invoked via `/build` or natural language)
 
-Stage 0: Branch safety → Stage 1: Brainstorm (opus) → Stage 2: Plan (opus) → Stage 3: Implement+Review per task (sonnet, worktrees) → Stage 4: Deep review (holistic compliance + specialist reviewers) → Stage 5: Docs update (records unresolved findings from review doc) → Stage 6: Verification → Stage 7: Merge prep
+Stage 0: Branch safety → Stage 1: Brainstorm (main chat Q&A, no agent) → Stage 2: Plan (opus) → Stage 3: Implement per group (sonnet, worktrees, `run_in_background`) + batch review → Stage 4: Deep review (holistic + specialist reviewers) → Stage 5: Docs update → Stage 6: Verification → Stage 7: Merge prep
 
 Trivial tasks skip stages 1-2. Bug-fix tasks use `/systematic-debugging` which skips brainstorm+plan and goes straight to diagnosis via the debugger agent (opus).
 
@@ -64,7 +65,7 @@ Agents use configured paths to find and write documentation. Default paths (over
 | `docs_dir` | `docs/` | Documentation root |
 | `architecture` | `docs/architecture.md` | System architecture |
 | `api_spec` | `docs/api/openapi.yaml` | API specification |
-| `design_docs` | `docs/plans/` | Design docs and plans (pipeline artifacts) |
+| `design_docs` | `docs/plans/` | Pipeline artifacts (temporary, never committed) |
 | `decisions` | `docs/decisions/` | Architecture Decision Records (ADRs) |
 | `runbooks` | `docs/runbooks/` | Operational runbooks |
 
@@ -72,14 +73,13 @@ Agents use configured paths to find and write documentation. Default paths (over
 
 | Agent | Model | Isolation | Purpose |
 |-------|-------|-----------|---------|
-| brainstorm | sonnet | — | Conversational design exploration (what + why, not how) |
-| planner | opus | — | Execution graph with dependencies + file ownership + domain skills. Verifies library APIs via Context7 |
+| planner | opus | — | Comprehensive plan document with dependencies + domain skills. Verifies library APIs via Context7 |
 | implementer | sonnet | worktree | TDD-first implementation with domain skill loading |
 | reviewer | sonnet | — | Per-task confidence-scored review. Verifies library API usage via Context7 |
 | security-reviewer | opus | — | OWASP top 10 systematic check |
 | code-quality-reviewer | sonnet | — | Clean code, type design, simplification |
 | test-coverage-reviewer | sonnet | — | Behavioral coverage, silent failure detection |
-| docs-updater | sonnet | — | Living document updates |
+| docs-updater | opus | — | Living document updates (tier model, active pruning, deferred findings) |
 | docs-reviewer | opus | — | Documentation accuracy review |
 | debugger | opus | — | Systematic root cause analysis (four-phase methodology). Checks library docs via Context7 |
 | verifier | sonnet | — | Hard gate — evidence-based verification |
@@ -111,17 +111,21 @@ Context7 tools used: `mcp__context7__resolve-library-id`, `mcp__context7__query-
 - **PreToolUse (Bash)**: Blocks `git push`, `--force`, `rm -rf`, protected branch checkout/merge, `git reset`, `git clean`. Allows task→feature branch merges.
 - **PreToolUse (Write/Edit)**: Blocks writes to sensitive files (`.env`, credentials, keys), lock files, system directories, and path traversal
 - **PostToolUse (Write/Edit)**: Runs project-appropriate formatters (prettier, ruff, gofmt, rustfmt, etc.)
-- **UserPromptSubmit**: Warns about sensitive files and destructive operations
+- **WorktreeCreate**: Copies hook scripts and config into new worktrees
 - **Notification**: Logs permission and idle prompts
 - **SessionEnd**: No-op stub
 
 ## Key Design Decisions
 
 - Agents can't spawn agents — main chat orchestrates all agent dispatch
-- Chunked interaction for brainstorm/plan: agent asks 1-3 questions per round, Q&A tracked in context
+- Brainstorm runs in main chat (no agent spawn, no design doc) — confirms approach via Q&A, passes summary to planner as inline context
+- Implementer and debugger use `permissionMode: bypassPermissions` — hooks are the safety net, not permission prompts
+- Implementers spawn with `run_in_background: true` — root session never handles commits (worktree auto-merge)
+- Implementer scope is strictly bounded: plan task section is sole source of truth, no exploring beyond `touches` list, reports BLOCKED on scope violations
+- Plan and review docs are temporary artifacts — never committed, cleaned up with `rm -f` in Stage 7
 - Worktree isolation per implementation task, merge to feature branch after review
-- Tasks with overlapping files never run in parallel (planner enforces)
+- Tasks with overlapping files never run in parallel (planner enforces shared infrastructure files and compilation dependencies)
 - Per-task review retry flow: normal retry → systematic debugging via debugger agent (up to 2 attempts) → escalate to planner with cumulative evidence
 - `/implement` for building new things; `/systematic-debugging` for fixing broken things (skips brainstorm+plan)
-- Plan artifacts available during PR review, deleted before merge
 - Planner, reviewer, and debugger verify external library APIs via Context7 MCP to prevent hallucinated or deprecated API usage
+- Docs-updater uses tier model (Tier 1 always current, Tier 2 on change, Tier 3 on demand) with active pruning and deferred findings lifecycle
