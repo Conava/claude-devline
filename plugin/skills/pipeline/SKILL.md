@@ -84,26 +84,26 @@ Read `workflow.human_checkpoints` from config.
 3. Collect answers and re-spawn with the full Q&A history until the planner produces a finalized execution graph.
 
 **Autonomous mode**:
-1. Spawn the **planner agent** once with `autonomous: true`. It produces the execution graph in one pass.
+1. Spawn the **planner agent** once with `autonomous: true`. It produces the plan in one pass.
 
-The execution graph is a JSON structure with:
-- `tasks`: array of `{ id, description, touches, depends_on, parallel_group }`
-- `order`: topological ordering of task IDs
+The planner writes a comprehensive markdown plan document containing:
+- A `<!-- SCHEDULING -->` table (parsed by the orchestrator for task scheduling)
+- Detailed `## Task T<N>` sections (self-contained context for each implementer)
 
-Save to `docs/plans/YYYY-MM-DD-<slug>-plan.json`. Commit: `git add docs/plans/...-plan.json && git commit -m "docs: add implementation plan for <task>"`.
+Save to `docs/plans/YYYY-MM-DD-<slug>-plan.md`. Commit: `git add docs/plans/...-plan.md && git commit -m "docs: add implementation plan for <task>"`.
 
 ---
 
 ## Stage 3: Implement + Review
 
-Read the plan file once. Extract the scheduling fields into a compact in-context table — do not retain the full plan content:
+Read the plan file once. Extract the `<!-- SCHEDULING -->` table into an in-context tracking table:
 
-| id | name (≤5 words) | group | touches | depends_on |
-|----|-----------------|-------|---------|------------|
-| T01 | board init | 1 | [src/board.ts] | [] |
-| … | … | … | … | … |
+| id | name | group | touches | depends_on | status |
+|----|------|-------|---------|------------|--------|
+| T01 | board init | 1 | src/board.ts | — | 🔒 waiting |
+| … | … | … | … | … | … |
 
-Pass the plan file **path** (not its content) to agents that need the full task detail. For bug mode, create a single synthetic task row.
+Pass the plan file **path** (not its content) to each implementer. The plan's `## Task T<N>` sections contain all the detail the implementer needs. For bug mode, create a single synthetic task row.
 
 ### Task Scheduling
 
@@ -115,23 +115,11 @@ Track status in the same table — update the `status` column as tasks progress:
 | T02 | move validation | 2 | [src/moves.ts] | [T01] | ⏳ running |
 | T03 | game state | 3 | [src/state.ts] | [T01] | 🔒 waiting |
 
-This single table is all the orchestrator needs for scheduling, overlap detection, and progress display. Use it to render the status table shown to the user after each task completes.
-
 A task is eligible when:
 1. All `depends_on` IDs are `✅ merged`.
 2. Its `touches` files don't overlap with any `⏳ running` task's touches.
 
 Spawn eligible tasks in parallel up to `workflow.max_parallel_tasks` (default 4).
-
-### Gitignore Check
-
-Before creating any worktree, ensure `.claude/worktrees/` is gitignored so worktree directories never appear as untracked files:
-
-```bash
-grep -qx '.claude/worktrees/' .gitignore 2>/dev/null || echo '.claude/worktrees/' >> .gitignore
-```
-
-If `.gitignore` was modified, commit it: `git add .gitignore && git commit -m "chore: ignore worktree directories"`.
 
 ### Review Document
 
@@ -143,47 +131,53 @@ The orchestrator owns this file — agents do not write to it directly. Initiali
 # Review — <slug>
 Generated: YYYY-MM-DD
 
-## Per-Task Reviews
+## Batch Reviews
 
-## Stage 5: Deep Review
+## Stage 4: Deep Review
 ```
 
-Pass this path to every reviewer spawn. Append all findings here as the pipeline progresses. This is the single source of truth that docs-updater reads at the end.
+### Per-Group Execution
 
-### Per-Task Execution
+Process one parallel group at a time:
 
-For each task:
+#### 1. Spawn implementers
 
-1. **Create worktree from local HEAD** — no remote fetch, no SSH required:
-   ```
-   git worktree add .claude/worktrees/agent-<id> -b worktree-agent-<id> HEAD
-   ```
-   Generate the ID with: `printf '%x%x' $RANDOM $RANDOM`. Note the absolute worktree path.
+For each eligible task in the group, spawn the **implementer agent** (which has `isolation: worktree` in frontmatter — Claude Code auto-creates and auto-merges worktrees). Pass the task object, plan file path, and design document path. Spawn tasks in parallel up to `max_parallel_tasks`.
 
-2. **Spawn implementer**: Pass the task object, absolute worktree path, design document path, review document path, and any retry feedback. The implementer works entirely within the worktree — reads, writes, tests, self-reviews, and commits there.
+The implementer works in its isolated worktree, runs its self-check gate, commits, and finishes. On finish, changes are **auto-merged** to the feature branch.
 
-3. **Spawn reviewer**: Spawn the **reviewer agent**. Pass: the implementer's status report, the plan file path, the task ID, the review document path, the feature branch name, the worktree branch name (`worktree-agent-<id>`), and the absolute worktree path. **Do not compute the git diff yourself** — the reviewer runs `git diff <feature-branch>...worktree-agent-<id>` from the worktree path. After the reviewer returns, **append its findings to the review document** under `### <task-id>: <task description>`, each marked `[OPEN]` or `[DEFERRED]`.
+Wait for all implementers in the group to complete. Mark completed tasks `✅ merged` in the status table.
 
-4. **On PASS**: Merge and clean up:
-   ```
-   git merge --no-ff worktree-agent-<id> -m "<type>(<task-id>): <description>"
-   git worktree remove .claude/worktrees/agent-<id> --force
-   git branch -D worktree-agent-<id>
-   ```
-   Use `fix:` for bugs, `feat:` for features, `refactor:` for refactoring. Add task to completed set.
-   In the review document, mark any in-scope findings for this task that triggered a retry as `[RESOLVED — fixed in retry N]`. For out-of-scope findings:
-   - If the code **compiles and tests pass** → mark `[DEFERRED]` in the review document.
-   - If the code **does not compile or tests fail because of it** → escalate immediately to the **planner agent** with the finding. Do not defer. Do not proceed.
+#### 2. Batch review
 
-5. **On FAIL (attempt 1 — normal retry)**: Re-spawn the implementer with all in-scope reviewer findings appended to the task context.
+After all tasks in the group have merged, spawn the **reviewer agent** for the entire group. Pass:
+- The plan file path and the list of task IDs in this group
+- The review document path
+- The base branch name (feature branch before this group started — use a tag or commit hash saved before step 1)
 
-6. **On FAIL (attempt 2–3 — systematic debugging)**: Spawn the **debugger agent** instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence. On attempt 3, pass cumulative evidence from attempt 2.
+The reviewer runs `git diff <pre-group-commit>...HEAD` to see the combined diff of all tasks in the group. It reviews against the plan requirements for all tasks in the batch.
 
-7. **On FAIL (attempt 4)**: Stop all parallel agents. Spawn the **planner agent** in `debug_plan` mode with full failure evidence. Execute a new implement+review cycle on the revised plan. If still failing, pause and escalate to the user.
+After the reviewer returns, **append findings to the review document** under `### Group <N>: <task list>`, each marked `[OPEN]` or `[DEFERRED]`.
 
-### Worktree Cleanup Failure
+#### 3. On PASS
 
-If `git worktree remove` fails due to untracked or modified files: run `git worktree prune` to remove stale references, then `git branch -D worktree-agent-<id>` to remove the branch. Do not use `rm -rf` or `git clean`.
+Continue to the next group.
+
+#### 4. On FAIL (attempt 1 — targeted retry)
+
+For each task with in-scope findings:
+- Re-spawn the **implementer** with the reviewer findings for that specific task appended to context.
+- After all retries complete and auto-merge, re-run the batch reviewer on the same scope.
+
+#### 5. On FAIL (attempt 2 — systematic debugging)
+
+For tasks still failing: spawn the **debugger agent** instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence.
+
+After debugger fixes auto-merge, re-run the batch reviewer.
+
+#### 6. On FAIL (attempt 3)
+
+Stop. Spawn the **planner agent** in `debug_plan` mode with full failure evidence. Execute a new implement+review cycle on the revised plan. If still failing, pause and escalate to the user.
 
 ---
 
@@ -193,9 +187,32 @@ If `git worktree remove` fails due to untracked or modified files: run `git work
 
 Pass the base branch name and HEAD to each reviewer — **do not compute the full diff yourself**. Each reviewer runs `git diff <base-branch>...HEAD` itself.
 
-All findings from Stage 5 are appended to the review document under `## Stage 5: Deep Review`, each marked `[OPEN]` or `[DEFERRED]`. After each reviewer returns, append its findings before spawning the next.
+All findings from Stage 4 are appended to the review document under `## Stage 4: Deep Review`, each marked `[OPEN]` or `[DEFERRED]`.
 
-### Step 1: Holistic Compliance (always)
+### Determine Review Intensity
+
+Read `review.deep_review_mode` from config (default: `"auto"`).
+
+| Mode | Behavior |
+|------|----------|
+| `full` | Always run Steps 1 + 2 (all specialists) |
+| `targeted` | Step 1 always; Step 2 spawns only relevant specialists based on diff content |
+| `light` | Single reviewer (Sonnet) covering all areas in one pass |
+| `auto` | Choose based on diff scope — see below |
+
+**Auto mode** (default): Compute the diff stats (`git diff --stat <base-branch>...HEAD`).
+
+- **Trivially small** (single file, <30 lines changed, no new API): use `light` mode.
+- **Small-medium** (<10 files, <300 lines): use `targeted` mode.
+- **Large** (10+ files or 300+ lines): use `full` mode.
+
+### Light Mode
+
+Replace Steps 1 and 2 with a single **reviewer agent** (Sonnet):
+
+> "Review this diff as a combined holistic + security + quality + coverage check. First verify the plan was followed and all prior review findings are resolved. Then scan for injection risks, hardcoded secrets, OWASP Top 10 patterns, naming clarity, DRY violations, dead code, error handling, behavioral test coverage, and silent failures. Report findings with severity (critical/important) and confidence ≥ 0.8."
+
+### Step 1: Holistic Compliance (full + targeted modes)
 
 **Spawn the reviewer agent (Sonnet)** with the base branch name, the plan file path, the design document path, and the review document path. Its job is to answer:
 - Was the plan followed? Are all tasks accounted for in the diff?
@@ -204,15 +221,15 @@ All findings from Stage 5 are appended to the review document under `## Stage 5:
 
 This is the only reviewer checking "did we build the right thing" — the specialist reviewers below check "did we build it correctly."
 
-### Step 2: Specialist Reviews
+### Step 2: Specialist Reviews (full + targeted modes)
 
-**Always spawn**: **code-quality reviewer** (Opus).
-**Spawn if code changes exist** (not just docs/config): **test-coverage reviewer** (Opus).
-**Spawn only if security-relevant** (changes touch auth, API endpoints, user input handling, crypto, network, or env/config files): **security reviewer** (Opus).
+**Spawn specialists in parallel** using `run_in_background: true`. Collect results after all complete.
 
-For trivially small changes (single file, <30 lines, no new API): replace Steps 1 and 2 with a single **reviewer agent** (Sonnet) covering all areas in one pass:
+In **full** mode, spawn all applicable specialists. In **targeted** mode, apply the conditions below:
 
-> "Review this diff as a combined holistic + security + quality + coverage check. First verify the plan was followed and all prior review findings are resolved. Then scan for injection risks, hardcoded secrets, OWASP Top 10 patterns, naming clarity, DRY violations, dead code, error handling, behavioral test coverage, and silent failures. Report findings with severity (critical/important) and confidence ≥ 0.8."
+- **Code-quality reviewer** (Sonnet): Always spawn.
+- **Test-coverage reviewer** (Sonnet): Spawn if code changes exist (not just docs/config).
+- **Security reviewer** (Opus): Spawn only if security-relevant (changes touch auth, API endpoints, user input handling, crypto, network, or env/config files).
 
 Each reviewer returns findings with `severity` (critical/important) and `confidence` (0.0–1.0). Discard findings below `review.confidence_threshold` (default 0.8).
 
@@ -261,7 +278,7 @@ Pass the execution graph, all implementation summaries, design document, and cur
 3. **Present for approval**: Show the user both. Wait for explicit confirmation before proceeding.
 
 4. **Clean up plan artifacts**:
-   - If plan files are git-tracked: `git rm docs/plans/<design-doc> docs/plans/<plan-json> && git commit -m "chore: remove pipeline plan artifacts"`
+   - If plan files are git-tracked: `git rm docs/plans/<design-doc> docs/plans/<plan-md> && git commit -m "chore: remove pipeline plan artifacts"`
    - If plan files are untracked (were never committed): delete the files without a commit.
 
 5. **Report**: `"Pipeline complete. Ready for PR."` with task count, review iterations, findings addressed, and agent spawns.

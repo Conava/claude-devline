@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # guard.sh — PreToolUse hook for Claude Code
 # Intercepts Bash tool calls and blocks dangerous operations.
-# Receives JSON via stdin, checks command against blocked patterns.
-# Exit 0 = allow, Exit 2 = block (deny JSON on stderr).
+# Three tiers:
+#   1. Always blocked: network ops (push/fetch/pull/clone/ssh), rm -r /
+#   2. Branch-aware: --force, --hard, git reset, git clean — only on protected branches
+#   3. Path-aware: rm -rf — only outside the project directory
+# Exit 0 = allow, Exit 2 = block (message on stderr).
 set -euo pipefail
 
 # ---------- Read stdin (the hook payload) ----------
@@ -22,8 +25,6 @@ if [[ -z "$COMMAND" ]]; then
 fi
 
 # ---------- Unwrap shell wrappers to detect bypass attempts ----------
-# Catches: sh -c "git push", bash -c "git push", bash <<< "git push",
-#          echo "git push" | bash, eval "git push", $CMD where CMD="git push"
 EFFECTIVE_COMMAND="$COMMAND"
 
 # Unwrap: sh -c "..." / bash -c "..."
@@ -46,7 +47,6 @@ if [[ "$COMMAND" =~ eval[[:space:]]+[\"\'](.+)[\"\'] ]]; then
   EFFECTIVE_COMMAND="${BASH_REMATCH[1]}"
 fi
 
-# Check both the original and unwrapped command
 COMMANDS_TO_CHECK=("$COMMAND")
 if [[ "$EFFECTIVE_COMMAND" != "$COMMAND" ]]; then
   COMMANDS_TO_CHECK+=("$EFFECTIVE_COMMAND")
@@ -57,19 +57,15 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 DEFAULTS_CONFIG="$PLUGIN_ROOT/config/defaults.yaml"
 USER_CONFIG="${HOME}/.claude-plugin-config.yaml"
 PROJECT_CONFIG="${CLAUDE_PROJECT_DIR:+${CLAUDE_PROJECT_DIR}/.claude-plugin-config.yaml}"
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 # ---------- Parse configs with python3 ----------
-# Merges config files in order: defaults < user < project (most specific wins).
-# Falls back to hard-coded defaults if python3 or configs are unavailable.
-
 read_config() {
   python3 - "$DEFAULTS_CONFIG" "$USER_CONFIG" "${PROJECT_CONFIG:-}" <<'PYEOF'
 import sys, json, os
 
 def load_yaml_simple(path):
-    """Minimal YAML-subset parser using python3 (PyYAML not guaranteed).
-    Falls back to a very small pure-python parser that handles the subset
-    we need: lists of strings under nested keys."""
+    """Minimal YAML-subset parser using python3 (PyYAML not guaranteed)."""
     if not path or not os.path.isfile(path):
         return {}
     try:
@@ -78,9 +74,8 @@ def load_yaml_simple(path):
             return yaml.safe_load(f) or {}
     except ImportError:
         pass
-    # Fallback: hand-rolled parser for our simple YAML subset
     data = {}
-    stack = [(data, -1)]  # (current_dict, indent)
+    stack = [(data, -1)]
     current_key = None
     with open(path) as f:
         for line in f:
@@ -89,12 +84,10 @@ def load_yaml_simple(path):
                 continue
             indent = len(line) - len(line.lstrip())
             content = stripped.lstrip()
-            # Pop stack to correct nesting level
             while len(stack) > 1 and indent <= stack[-1][1]:
                 stack.pop()
             parent = stack[-1][0]
             if content.startswith('- '):
-                # List item
                 val = content[2:].strip().strip('"').strip("'")
                 if current_key and current_key in parent:
                     if isinstance(parent[current_key], list):
@@ -110,10 +103,8 @@ def load_yaml_simple(path):
                     parent[key] = {}
                     stack.append((parent[key], indent))
                 current_key = key
-                # Prepare for list values under this key
                 if not val:
                     parent[key] = []
-                    # But it might be a dict — we'll fix if we see sub-keys
     return data
 
 def deep_get(d, *keys):
@@ -125,7 +116,6 @@ def deep_get(d, *keys):
     return d if isinstance(d, list) else []
 
 def merge_lists(base, override):
-    """Override list replaces base entirely if non-empty."""
     return override if override else base
 
 defaults_path = sys.argv[1]
@@ -140,7 +130,6 @@ blocked_commands = deep_get(defaults, 'safeguards', 'blocked_commands')
 blocked_patterns = deep_get(defaults, 'safeguards', 'blocked_patterns')
 protected_branches = deep_get(defaults, 'git', 'protected_branches')
 
-# Read never_push (default true; only false if explicitly overridden)
 never_push = True
 git_cfg = defaults.get('git', {})
 if isinstance(git_cfg, dict):
@@ -150,7 +139,6 @@ if isinstance(git_cfg, dict):
     elif isinstance(np, str):
         never_push = np.lower() not in ('false', 'no', '0')
 
-# Merge: user overrides defaults, project overrides user
 for cfg in [user_cfg, project_cfg]:
     if not cfg:
         continue
@@ -160,7 +148,6 @@ for cfg in [user_cfg, project_cfg]:
     blocked_commands = merge_lists(blocked_commands, bc)
     blocked_patterns = merge_lists(blocked_patterns, bp)
     protected_branches = merge_lists(protected_branches, pb)
-    # Override never_push from user/project config
     g = cfg.get('git', {})
     if isinstance(g, dict) and 'never_push' in g:
         np = g['never_push']
@@ -169,7 +156,6 @@ for cfg in [user_cfg, project_cfg]:
         elif isinstance(np, str):
             never_push = np.lower() not in ('false', 'no', '0')
 
-# If never_push is false, remove "git push" from blocked lists
 if not never_push:
     blocked_commands = [c for c in blocked_commands if c != 'git push']
     blocked_patterns = [p for p in blocked_patterns
@@ -185,12 +171,10 @@ print(json.dumps(result))
 PYEOF
 }
 
-# Try to load config via python3; fall back to inline defaults
 CONFIG_JSON="$(read_config 2>/dev/null || echo "")"
 
 if [[ -z "$CONFIG_JSON" ]]; then
-  # Hard-coded fallback if python3 is unavailable
-  CONFIG_JSON='{"blocked_commands":["git push","git fetch","git pull","git clone","git ls-remote","git remote update","git submodule update --remote","git checkout main","git checkout master","git merge main","git merge master","rm -rf","rm -r /","--force","--hard","git reset","git clean","ssh ","scp ","sftp "],"blocked_patterns":["git\\s+(push|fetch|pull|clone|ls-remote)","git\\s+remote\\s+update","git\\s+submodule\\s+update\\s+.*--remote","\\bssh\\s+","\\bscp\\s+","\\bsftp\\s+","git\\s+(checkout\\s+(main|master|develop|staging|production|release|trunk)|merge\\s+(main|master|develop|staging|production|release|trunk))","rm\\s+-[rf]{2,}","--force","--hard","git\\s+(reset|clean)"],"protected_branches":["main","master","develop","development","staging","production","release","release/*","hotfix","trunk"]}'
+  CONFIG_JSON='{"blocked_commands":["git push","git fetch","git pull","git clone","git ls-remote","git remote update","git submodule update --remote","rm -r /","ssh ","scp ","sftp "],"blocked_patterns":["git\\s+(push|fetch|pull|clone|ls-remote)","git\\s+remote\\s+update","git\\s+submodule\\s+update\\s+.*--remote","\\bssh\\s+","\\bscp\\s+","\\bsftp\\s+"],"protected_branches":["main","master","develop","development","staging","production","release","release/*","hotfix","trunk"]}'
 fi
 
 # ---------- Extract arrays from CONFIG_JSON ----------
@@ -222,11 +206,9 @@ deny() {
 is_protected_branch() {
   local branch="$1"
   for pb in "${PROTECTED_BRANCHES[@]}"; do
-    # Support glob-style patterns like release/*
     if [[ "$branch" == "$pb" ]]; then
       return 0
     fi
-    # Glob match (e.g. release/* matches release/v1.2)
     # shellcheck disable=SC2254
     case "$branch" in
       $pb) return 0 ;;
@@ -235,62 +217,38 @@ is_protected_branch() {
   return 1
 }
 
-# ---------- Smart git merge / checkout logic ----------
-# For merge and checkout commands, extract the target branch and decide:
-#   - protected branch → block
-#   - non-protected branch → allow (skip further blocked_commands/patterns checks)
+# ---------- Get current branch (cached) ----------
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
 
-check_smart_git() {
-  local cmd="$1"
-
-  # git merge <branch> — extract branch name
-  if [[ "$cmd" =~ git[[:space:]]+merge[[:space:]]+([^[:space:]-][^[:space:]]*) ]]; then
-    local target="${BASH_REMATCH[1]}"
-    if is_protected_branch "$target"; then
-      deny "Blocked: git merge $target is not allowed. Protected branch. Use /merge-prep when ready for PR."
-    fi
-    # Non-protected branch merge is explicitly allowed
-    exit 0
-  fi
-
-  # git checkout <branch> — extract branch name (skip flags like -b, --)
-  if [[ "$cmd" =~ git[[:space:]]+checkout[[:space:]]+([^[:space:]-][^[:space:]]*) ]]; then
-    local target="${BASH_REMATCH[1]}"
-    if is_protected_branch "$target"; then
-      deny "Blocked: git checkout $target is not allowed. Protected branch."
-    fi
-    # Non-protected branch checkout is explicitly allowed
-    exit 0
-  fi
+# ---------- Helper: check if path is inside project ----------
+is_inside_project() {
+  local target="$1"
+  # Resolve to absolute path
+  local resolved
+  resolved="$(cd "$PROJECT_DIR" && realpath -m "$target" 2>/dev/null || echo "$target")"
+  local project_abs
+  project_abs="$(realpath -m "$PROJECT_DIR" 2>/dev/null || echo "$PROJECT_DIR")"
+  [[ "$resolved" == "$project_abs"* ]]
 }
 
-# Run smart git logic on all command variants (may exit early)
-for cmd_variant in "${COMMANDS_TO_CHECK[@]}"; do
-  check_smart_git "$cmd_variant"
-done
-
-# ---------- Check blocked_commands (substring match) ----------
+# ==========================================================
+# TIER 1: Always blocked (network ops, root deletion)
+# ==========================================================
 for cmd_variant in "${COMMANDS_TO_CHECK[@]}"; do
   for bc in "${BLOCKED_COMMANDS[@]}"; do
     if [[ "$cmd_variant" == *"$bc"* ]]; then
-      # Build a helpful suggestion
       suggestion=""
       case "$bc" in
         "git push"*)   suggestion=" Use /merge-prep when ready for PR." ;;
         "git fetch"*|"git pull"*|"git clone"*|"git ls-remote"*|"git remote update"*|"git submodule update --remote"*) suggestion=" Agents work locally only. No remote/network operations allowed." ;;
         "ssh "*|"scp "*|"sftp "*) suggestion=" SSH operations are not allowed. Agents work locally only." ;;
-        "rm -rf"*|"rm -r /"*) suggestion=" Specify exact paths or use git clean with caution." ;;
-        "git reset"*)  suggestion=" Consider git stash or git revert instead." ;;
-        "git clean"*)  suggestion=" Consider git stash instead." ;;
-        "--force"*)    suggestion=" Force operations are dangerous. Review changes first." ;;
-        "--hard"*)     suggestion=" Consider git stash or a softer reset." ;;
+        "rm -r /"*) suggestion=" Root deletion is never allowed." ;;
       esac
       deny "Blocked: ${bc} is not allowed.${suggestion}"
     fi
   done
 done
 
-# ---------- Check blocked_patterns (regex match) ----------
 for cmd_variant in "${COMMANDS_TO_CHECK[@]}"; do
   for bp in "${BLOCKED_PATTERNS[@]}"; do
     if printf '%s' "$cmd_variant" | python3 -c "
@@ -306,6 +264,62 @@ except re.error as e:
       deny "Blocked: command matches prohibited pattern. Review safeguards config for details."
     fi
   done
+done
+
+# ==========================================================
+# TIER 2: Branch-aware (only blocked on protected branches)
+# git checkout/merge protected, --force, --hard, git reset, git clean
+# ==========================================================
+for cmd_variant in "${COMMANDS_TO_CHECK[@]}"; do
+
+  # git merge <branch> — block only if target is protected
+  if [[ "$cmd_variant" =~ git[[:space:]]+merge[[:space:]]+([^[:space:]-][^[:space:]]*) ]]; then
+    local_target="${BASH_REMATCH[1]}"
+    if is_protected_branch "$local_target"; then
+      deny "Blocked: git merge $local_target is not allowed. Protected branch. Use /merge-prep when ready for PR."
+    fi
+    # Non-protected merge: allow and skip further checks
+    exit 0
+  fi
+
+  # git checkout <branch> — block only if target is protected
+  if [[ "$cmd_variant" =~ git[[:space:]]+checkout[[:space:]]+([^[:space:]-][^[:space:]]*) ]]; then
+    local_target="${BASH_REMATCH[1]}"
+    if is_protected_branch "$local_target"; then
+      deny "Blocked: git checkout $local_target is not allowed. Protected branch."
+    fi
+    exit 0
+  fi
+
+  # --force, --hard, git reset, git clean — block only on protected branches
+  if [[ -n "$CURRENT_BRANCH" ]] && is_protected_branch "$CURRENT_BRANCH"; then
+    if [[ "$cmd_variant" == *"--force"* ]]; then
+      deny "Blocked: --force is not allowed on protected branch '$CURRENT_BRANCH'."
+    fi
+    if [[ "$cmd_variant" == *"--hard"* ]]; then
+      deny "Blocked: --hard is not allowed on protected branch '$CURRENT_BRANCH'."
+    fi
+    if [[ "$cmd_variant" =~ git[[:space:]]+(reset|clean) ]]; then
+      deny "Blocked: git ${BASH_REMATCH[1]} is not allowed on protected branch '$CURRENT_BRANCH'."
+    fi
+  fi
+done
+
+# ==========================================================
+# TIER 3: Path-aware (rm -rf only blocked outside project)
+# ==========================================================
+for cmd_variant in "${COMMANDS_TO_CHECK[@]}"; do
+  if [[ "$cmd_variant" =~ rm[[:space:]]+-[rf]{2,}[[:space:]]+(.+) ]]; then
+    # Extract all path arguments (split on space, skip flags)
+    paths_str="${BASH_REMATCH[1]}"
+    for target_path in $paths_str; do
+      # Skip flags
+      [[ "$target_path" == -* ]] && continue
+      if ! is_inside_project "$target_path"; then
+        deny "Blocked: rm -rf outside project directory is not allowed. Target: $target_path"
+      fi
+    done
+  fi
 done
 
 # ---------- All checks passed ----------

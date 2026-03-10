@@ -72,13 +72,13 @@ Agents use configured paths to find and write documentation. Default paths (over
 
 | Agent | Model | Isolation | Purpose |
 |-------|-------|-----------|---------|
-| brainstorm | opus | — | Chunked interactive design exploration |
-| planner | opus | — | Execution graph with dependencies + file ownership. Verifies library APIs via Context7 |
+| brainstorm | sonnet | — | Conversational design exploration (what + why, not how) |
+| planner | opus | — | Execution graph with dependencies + file ownership + domain skills. Verifies library APIs via Context7 |
 | implementer | sonnet | worktree | TDD-first implementation with domain skill loading |
 | reviewer | sonnet | — | Per-task confidence-scored review. Verifies library API usage via Context7 |
 | security-reviewer | opus | — | OWASP top 10 systematic check |
-| code-quality-reviewer | opus | — | Clean code, type design, simplification |
-| test-coverage-reviewer | opus | — | Behavioral coverage, silent failure detection |
+| code-quality-reviewer | sonnet | — | Clean code, type design, simplification |
+| test-coverage-reviewer | sonnet | — | Behavioral coverage, silent failure detection |
 | docs-updater | sonnet | — | Living document updates |
 | docs-reviewer | opus | — | Documentation accuracy review |
 | debugger | opus | — | Systematic root cause analysis (four-phase methodology). Checks library docs via Context7 |

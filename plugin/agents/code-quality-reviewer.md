@@ -12,7 +12,7 @@ description: |
   User: Check the dashboard components for quality and design issues
   Result: The code quality reviewer finds an anemic DashboardWidget model that exposes all internals through getters with no behavior, detects Arial font usage in three components, identifies a 6-level deep ternary for conditional rendering that should use a component map, and notes that the color palette mixes unrelated hues without a cohesive theme. Also highlights a well-designed ChartAdapter as a positive example worth preserving.
   </example>
-model: opus
+model: sonnet
 color: blue
 tools:
   - Read

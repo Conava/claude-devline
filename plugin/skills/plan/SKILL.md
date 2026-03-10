@@ -21,7 +21,7 @@ Run the planning stage independently to produce a structured implementation plan
 
 4. **Determine interaction mode.** If `workflow.human_checkpoints` includes the plan stage (or is set to `all`), run in interactive mode. Otherwise, run autonomously.
 
-5. **Spawn the planner agent.** Launch the planner agent with the design document or inline summary as input. The agent breaks the work into ordered, atomic tasks with estimated complexity, dependencies, and file-touch predictions.
+5. **Spawn the planner agent.** Launch the planner agent with the design document or inline summary as input. The agent produces a comprehensive plan document with a scheduling table and detailed, self-contained task sections.
 
 6. **Run the chunked interaction loop (interactive mode only).** In interactive mode, enter a relay loop:
    - Present the draft plan to the user for review.

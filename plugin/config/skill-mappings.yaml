@@ -14,6 +14,7 @@ file_patterns:
   "*.cc": [cpp-patterns]
   "*.hpp": [cpp-patterns]
   "*.swift": [swift-patterns]
+  "*.swift": [swift-patterns]
   "*.sql": [postgres-patterns, database-design]
   "*.sh": [shell-patterns]
   "*.bash": [shell-patterns]

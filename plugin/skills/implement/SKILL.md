@@ -8,7 +8,7 @@ allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob
 
 # Standalone Implement Stage
 
-Run the implementation stage independently to write code for a single task or plan. Includes branch safety, domain skill detection, and an automatic review pass on completion.
+Run the implementation stage independently to write code for a single task or plan. Includes branch safety, worktree-isolated implementation, and an automatic review pass on completion.
 
 **Note:** If the user is asking to fix a bug, diagnose an issue, or investigate unexpected behavior (not implement a new feature), use `/systematic-debugging` instead. That skill spawns the debugger agent (opus) for root cause analysis and skips brainstorm+plan. Use `/implement` for building new things; use `/systematic-debugging` for fixing broken things.
 
@@ -18,48 +18,14 @@ Run the implementation stage independently to write code for a single task or pl
 
 2. **Branch safety check.** Before any code changes, verify the current Git branch. If on a protected branch (`main`, `master`, `develop`, or any branch listed in config under `git.protected_branches`), create a feature branch with a descriptive name derived from the task. Confirm the branch switch before proceeding.
 
-3. **Set up an isolated worktree.**
+3. **Record pre-implementation state.** Save the current commit hash (`git rev-parse HEAD`) for the reviewer to diff against later.
 
-   a. **Choose a directory** — check in this priority order:
-      - `.worktrees/` exists in the project root → use it
-      - `worktrees/` exists in the project root → use it
-      - CLAUDE.md mentions a worktree directory preference → use it
-      - Otherwise default to `.claude/worktrees/`
+4. **Spawn the implementer agent.** Launch the implementer agent with the task input. The agent has `isolation: worktree` in its frontmatter — Claude Code auto-creates a worktree and auto-merges changes back to the current branch when the agent finishes. Domain skills are loaded via frontmatter.
 
-   b. **Verify gitignored** (for any project-local directory — not needed for paths already outside the repo):
-      ```
-      git check-ignore -q <dir>
-      ```
-      If not ignored: add the directory to `.gitignore`, commit the change, then proceed.
+5. **Spawn the reviewer agent.** After the implementer returns and changes are auto-merged, spawn the reviewer agent. Pass the pre-implementation commit hash so it can run `git diff <pre-commit>...HEAD` to review the changes.
 
-   c. **Create the worktree:**
-      ```
-      git worktree add <dir>/<task-slug> -b task-<task-slug> HEAD
-      ```
-      Derive `<task-slug>` from the task description (lowercase, hyphens, max 40 chars). Record the absolute worktree path.
+6. **On PASS** — report results. Print a summary of files changed and the current branch name.
 
-4. **Resolve domain skills.** Before spawning the implementer, determine which domain skills apply:
-   - Read `${CLAUDE_PLUGIN_ROOT}/config/skill-mappings.yaml`.
-   - Identify the files the task will likely touch (from the task description or plan). Match their extensions and directories against `file_patterns` and `directory_patterns` in the mappings.
-   - For each matched skill, read the full content of `${CLAUDE_PLUGIN_ROOT}/skills/<skill-name>/SKILL.md`.
-   - Collect the content of all matched skills as inline context to pass to the implementer.
+7. **On FAIL** — report the reviewer's findings. Ask the user whether to retry (re-spawn implementer with feedback), revert (`git revert`), or escalate.
 
-5. **Spawn the implementer agent.** Launch the implementer agent with the task input, the absolute worktree path, and the inline domain skill content from step 4. The agent reads files, writes code, runs tests, self-reviews, and commits — all within the worktree.
-
-6. **Spawn the reviewer agent.** After the implementer returns, compute the diff:
-   ```
-   git diff <current-branch>...task-<task-slug>
-   ```
-   Spawn the reviewer agent with the diff, implementation summary, and the absolute worktree path. The reviewer reads files and runs tests from that path.
-
-7. **On PASS — merge and clean up:**
-   ```
-   git merge --no-ff task-<task-slug> -m "feat(<task-slug>): <description>"
-   git worktree remove <dir>/<task-slug> --force
-   git branch -D task-<task-slug>
-   ```
-   If `git worktree remove` fails: run `git worktree prune`, then `git branch -D task-<task-slug>`.
-
-8. **On FAIL** — leave the worktree in place and report the reviewer's findings. Ask the user whether to retry (re-spawn implementer with feedback), abandon (clean up worktree), or escalate.
-
-9. **Report results.** Print a summary of files created or modified, the review findings (if any), and the current branch name. If working from a plan, indicate which task was completed and what remains.
+8. **Report results.** Print a summary of files created or modified, the review findings (if any), and the current branch name. If working from a plan, indicate which task was completed and what remains.

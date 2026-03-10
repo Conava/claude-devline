@@ -100,6 +100,7 @@ skills:
   disabled: []
 
 safeguards:
+  # Always blocked (network operations, root deletion)
   blocked_commands:
     - "git push"
     - "git fetch"
@@ -108,16 +109,7 @@ safeguards:
     - "git ls-remote"
     - "git remote update"
     - "git submodule update --remote"
-    - "git checkout main"
-    - "git checkout master"
-    - "git merge main"
-    - "git merge master"
-    - "rm -rf"
     - "rm -r /"
-    - "--force"
-    - "--hard"
-    - "git reset"
-    - "git clean"
     - "ssh "
     - "scp "
     - "sftp "
@@ -128,8 +120,6 @@ safeguards:
     - "\\bssh\\s+"
     - "\\bscp\\s+"
     - "\\bsftp\\s+"
-    - "git\\s+(checkout\\s+(main|master|develop|staging|production|release|trunk)|merge\\s+(main|master|develop|staging|production|release|trunk))"
-    - "rm\\s+-[rf]{2,}"
-    - "--force"
-    - "--hard"
-    - "git\\s+(reset|clean)"
+  # Branch-aware: only blocked on protected branches (handled by guard.sh)
+  # --force, --hard, git reset, git clean, git checkout/merge <protected>
+  # Path-aware: rm -rf only blocked outside project directory (handled by guard.sh)

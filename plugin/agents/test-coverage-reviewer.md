@@ -12,7 +12,7 @@ description: |
   User: Check if our auth middleware tests are sufficient
   Result: The test coverage reviewer finds that token expiration is tested but token refresh is not, detects a Promise chain in the OAuth callback handler missing a .catch() that could crash the server on provider errors, identifies that all tests share a mutable user object causing intermittent failures, and flags that test names use technical jargon ("test case 4b") instead of describing behavior. Provides specific test case suggestions with names, inputs, and expected outcomes.
   </example>
-model: opus
+model: sonnet
 color: yellow
 tools:
   - Read
