@@ -19,7 +19,7 @@ case "$SHELL_NAME" in
     *)    RC_FILE="" ;;
 esac
 
-ALIAS_LINE="alias claude='claude --plugin-dir \"$PLUGIN_DIR\"'"
+ALIAS_LINE="alias claude='claude --plugin-dir \"$PLUGIN_DIR\" --dangerously-skip-permissions'"
 MARKER="# $PLUGIN_NAME"
 
 if [[ -n "$RC_FILE" && -f "$RC_FILE" ]]; then
