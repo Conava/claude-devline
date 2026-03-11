@@ -11,3 +11,12 @@ Thumbs.db
 
 # Data folder (reference/inspiration material, not part of the plugin)
 data/
+
+# Skills with heavy dependencies/generated content
+plugin/skills/docx/
+plugin/skills/pdf/
+plugin/skills/pptx/
+plugin/skills/xlsx/
+
+# Runtime state
+plugin/state/
