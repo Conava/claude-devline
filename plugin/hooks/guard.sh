@@ -6,7 +6,13 @@
 #   2. Branch-aware: --force, --hard, git reset, git clean — only on protected branches
 #   3. Path-aware: rm -rf — only outside the project directory
 # Exit 0 = allow, Exit 2 = block (message on stderr).
-set -euo pipefail
+set -eo pipefail
+
+# ---------- Dependency check ----------
+if ! command -v python3 &>/dev/null; then
+  echo "guard.sh: python3 not found — bash guard is disabled. Install python3 to enable it." >&2
+  exit 0
+fi
 
 # ---------- Read stdin (the hook payload) ----------
 INPUT="$(cat)"
@@ -89,9 +95,18 @@ def load_yaml_simple(path):
             parent = stack[-1][0]
             if content.startswith('- '):
                 val = content[2:].strip().strip('"').strip("'")
-                if current_key and current_key in parent:
-                    if isinstance(parent[current_key], list):
-                        parent[current_key].append(val)
+                # Search up the stack for the dict containing current_key.
+                # The key may be an empty dict (no inline value on the key line);
+                # the first list item tells us it's a list — convert it then append.
+                for frame_dict, _ in reversed(stack):
+                    if current_key and current_key in frame_dict:
+                        target = frame_dict[current_key]
+                        if isinstance(target, dict) and not target:
+                            frame_dict[current_key] = []
+                            target = frame_dict[current_key]
+                        if isinstance(target, list):
+                            target.append(val)
+                        break
                 continue
             if ':' in content:
                 key, _, val = content.partition(':')
@@ -103,8 +118,6 @@ def load_yaml_simple(path):
                     parent[key] = {}
                     stack.append((parent[key], indent))
                 current_key = key
-                if not val:
-                    parent[key] = []
     return data
 
 def deep_get(d, *keys):
@@ -178,19 +191,28 @@ if [[ -z "$CONFIG_JSON" ]]; then
 fi
 
 # ---------- Extract arrays from CONFIG_JSON ----------
-mapfile -t BLOCKED_COMMANDS < <(printf '%s' "$CONFIG_JSON" | python3 -c "
+BLOCKED_COMMANDS=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && BLOCKED_COMMANDS+=("$line")
+done < <(printf '%s' "$CONFIG_JSON" | python3 -c "
 import sys,json
 for c in json.load(sys.stdin).get('blocked_commands',[]):
     print(c)
 " 2>/dev/null || true)
 
-mapfile -t BLOCKED_PATTERNS < <(printf '%s' "$CONFIG_JSON" | python3 -c "
+BLOCKED_PATTERNS=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && BLOCKED_PATTERNS+=("$line")
+done < <(printf '%s' "$CONFIG_JSON" | python3 -c "
 import sys,json
 for p in json.load(sys.stdin).get('blocked_patterns',[]):
     print(p)
 " 2>/dev/null || true)
 
-mapfile -t PROTECTED_BRANCHES < <(printf '%s' "$CONFIG_JSON" | python3 -c "
+PROTECTED_BRANCHES=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && PROTECTED_BRANCHES+=("$line")
+done < <(printf '%s' "$CONFIG_JSON" | python3 -c "
 import sys,json
 for b in json.load(sys.stdin).get('protected_branches',[]):
     print(b)
@@ -223,11 +245,11 @@ CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
 # ---------- Helper: check if path is inside project ----------
 is_inside_project() {
   local target="$1"
-  # Resolve to absolute path
+  # Resolve to absolute path (using python3 for cross-platform compatibility)
   local resolved
-  resolved="$(cd "$PROJECT_DIR" && realpath -m "$target" 2>/dev/null || echo "$target")"
+  resolved="$(python3 -c "import os, sys; print(os.path.abspath(os.path.join(sys.argv[1], sys.argv[2])))" "$PROJECT_DIR" "$target" 2>/dev/null || echo "$target")"
   local project_abs
-  project_abs="$(realpath -m "$PROJECT_DIR" 2>/dev/null || echo "$PROJECT_DIR")"
+  project_abs="$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]))" "$PROJECT_DIR" 2>/dev/null || echo "$PROJECT_DIR")"
   [[ "$resolved" == "$project_abs"* ]]
 }
 

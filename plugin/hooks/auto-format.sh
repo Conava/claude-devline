@@ -3,6 +3,12 @@
 # Runs project-appropriate formatter on the modified file.
 set -euo pipefail
 
+# ---------- Dependency check ----------
+if ! command -v python3 &>/dev/null; then
+  echo "auto-format.sh: python3 not found — auto-formatter is disabled. Install python3 to enable it." >&2
+  exit 0
+fi
+
 INPUT="$(cat)"
 
 FILE_PATH="$(printf '%s' "$INPUT" | python3 -c "

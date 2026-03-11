@@ -3,6 +3,12 @@
 # Blocks writes to sensitive files (.env, credentials, secrets, lock files)
 set -euo pipefail
 
+# ---------- Dependency check ----------
+if ! command -v python3 &>/dev/null; then
+  echo "file-guard.sh: python3 not found — file guard is disabled. Install python3 to enable it." >&2
+  exit 0
+fi
+
 INPUT="$(cat)"
 
 FILE_PATH="$(printf '%s' "$INPUT" | python3 -c "
@@ -18,9 +24,11 @@ fi
 
 # Canonicalize the path: resolve symlinks, normalize ./ and redundant slashes
 # This prevents bypasses via symlinks or non-canonical paths
-if command -v realpath &>/dev/null; then
-  # Use --no-require-directory: resolve what we can even if target doesn't exist yet
-  CANONICAL_PATH="$(realpath -m "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
+if command -v python3 &>/dev/null; then
+  # python3 is already a dependency in these scripts and works cross-platform
+  CANONICAL_PATH="$(python3 -c "import os, sys; print(os.path.abspath(sys.argv[1]))" "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
+elif command -v realpath &>/dev/null; then
+  CANONICAL_PATH="$(realpath "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
 elif command -v readlink &>/dev/null; then
   CANONICAL_PATH="$(readlink -f "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")"
 else

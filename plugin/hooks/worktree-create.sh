@@ -5,6 +5,12 @@
 # Prints the absolute worktree path on stdout (required by Claude Code).
 set -euo pipefail
 
+# ---------- Dependency check ----------
+if ! command -v python3 &>/dev/null; then
+  echo "worktree-create.sh: python3 is required to parse worktree parameters. Install python3 (e.g. brew install python3) and restart Claude Code." >&2
+  exit 1
+fi
+
 INPUT="$(cat)"
 
 NAME="$(printf '%s' "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")"

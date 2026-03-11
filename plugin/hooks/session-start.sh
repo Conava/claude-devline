@@ -17,6 +17,33 @@ SKILLS_DIR="$PLUGIN_ROOT/skills"
 STATE_DIR="$PLUGIN_ROOT/state"
 
 # -----------------------------------------------------------------------
+# 0. Dependency check — report issues loudly before doing anything else
+# -----------------------------------------------------------------------
+DEP_WARNINGS=()
+
+# python3 is required by all hooks for JSON parsing and config loading
+if ! command -v python3 &>/dev/null; then
+  DEP_WARNINGS+=("MISSING: python3 — required by all hooks for JSON parsing. Install it via your package manager (e.g. brew install python3) or via https://python.org")
+fi
+
+# git is required by guard.sh and session-start for branch detection
+if ! command -v git &>/dev/null; then
+  DEP_WARNINGS+=("MISSING: git — required for branch safety checks. Install it via your package manager.")
+fi
+
+# bash version: mapfile is bash 4+, but we now use a compatible while-read loop.
+# Still warn if running ancient bash so users understand the context.
+BASH_MAJOR="${BASH_VERSINFO[0]:-0}"
+if [[ "$BASH_MAJOR" -lt 4 ]]; then
+  DEP_WARNINGS+=("WARNING: bash ${BASH_VERSION} detected ($(which bash)). Some hook features work best with bash 4+. On macOS, install via: brew install bash")
+fi
+
+# merge-config.py must be executable
+if [[ ! -x "$SCRIPTS_DIR/merge-config.py" ]]; then
+  DEP_WARNINGS+=("WARNING: $SCRIPTS_DIR/merge-config.py is not executable. Run: chmod +x '$SCRIPTS_DIR/merge-config.py'")
+fi
+
+# -----------------------------------------------------------------------
 # 1. Merged config
 # -----------------------------------------------------------------------
 CONFIG_JSON=$("$SCRIPTS_DIR/merge-config.py")
@@ -332,6 +359,14 @@ print('; '.join(parts) if parts else '')
 # 6. Build additional_context
 # -----------------------------------------------------------------------
 CONTEXT=""
+
+if [[ "${#DEP_WARNINGS[@]}" -gt 0 ]]; then
+  CONTEXT+="PLUGIN DEPENDENCY ISSUES — hooks may not work correctly:\n"
+  for warn in "${DEP_WARNINGS[@]}"; do
+    CONTEXT+="  • ${warn}\n"
+  done
+  CONTEXT+="\n"
+fi
 
 if [[ -n "$SKILLS_LINES" ]]; then
   CONTEXT+="SKILL USAGE RULES (mandatory — no exceptions):\n"
