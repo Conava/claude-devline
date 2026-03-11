@@ -213,9 +213,9 @@ def main():
         if user_cfg:
             deep_merge(merged, user_cfg)
 
-    # 3. Project config (optional)
+    # 3. Project config (optional) — lives in .claude/ to keep repo root clean
     if project_dir:
-        proj_cfg = load_yaml(os.path.join(project_dir, ".claude-plugin-config.yaml"))
+        proj_cfg = load_yaml(os.path.join(project_dir, ".claude", ".claude-plugin-config.yaml"))
         if proj_cfg:
             deep_merge(merged, proj_cfg)
 

@@ -16,13 +16,19 @@ The main chat acts as orchestrator: spawning agents directly, relaying questions
 
 | Thought | Correct action |
 |---------|---------------|
-| "Let me explore the codebase first" | No. Pass the task to the brainstorm agent. It explores. |
+| "Let me explore the codebase first" | No. Enter Stage 1 (brainstorm skill). It explores with the user. |
 | "I need to understand the current state" | No. That is Stage 1 (brainstorm) or Stage 2 (plan). |
 | "The task is too vague to brainstorm" | No. Vagueness is exactly what brainstorm resolves. |
 | "Let me check the branch first" | Yes — Stage 0 only. Then immediately enter Stage 1. |
 | "I'll invoke the merge-prep / plan / brainstorm skill" | No. **Never invoke other skills.** All stage logic is defined in this document. Use the Agent tool to spawn the relevant agent directly. |
 | "Let me summarise what the brainstorm/plan agent said" | No. Relay its full output verbatim. The user needs the complete text to choose an approach. |
 | "The reviewer found issues, I'll handle them in chat" | No. Spawn the implementer in fix mode. Then spawn the reviewer again. |
+| "I'll fix this while waiting for other reviewers" | No. Wait for ALL reviewers to complete. Then spawn the implementer with all findings. Never use Edit/Write yourself. |
+| "This is a simple fix, I'll do it directly" | No. ALL code changes go through agents. The orchestrator never edits files. |
+| "The agent hit a permission wall, I'll implement it myself" | No. A permission failure means a configuration problem — investigate and fix it. Never fall back to editing files directly. |
+| "The agent failed, it was just a trivial change" | No. Triviality is irrelevant. All code changes go through agents. Escalate to user if agents cannot run. |
+| "I'll skip the domain agent, the planner already covered this" | No. Domain agents provide a deeper, domain-specific pass the planner cannot replicate. If the agent is listed, run it. |
+| "I'll run domain agents in parallel to save time" | No. Domain agents run sequentially — each builds on the previous agent's refinements. |
 
 Enter Stage 0 now.
 
@@ -57,18 +63,19 @@ Run `git rev-parse --abbrev-ref HEAD`.
 
 Skip if: brainstorm is not needed (see Pre-Pipeline Options above).
 
-Read `workflow.human_checkpoints` from config.
+Run this conversational design exploration directly in main chat — no agent spawn.
 
-**Interactive mode** (`brainstorm` in `human_checkpoints`):
-1. Spawn the **brainstorm agent**. Pass the task description and any referenced files.
-2. Relay the agent's **full output** to the user verbatim — approaches, trade-offs, recommendations, and questions. Do not summarise, filter, or condense. The user must see the complete output to make informed choices.
-3. Collect the user's answers and any approach selection.
-4. Re-spawn the brainstorm agent with the full Q&A history. Repeat until the agent produces a design document.
+### Process
 
-**Autonomous mode**:
-1. Spawn the **brainstorm agent** with `autonomous: true`. It produces a design document in one pass.
+1. **Explore context.** Read README, CLAUDE.md, architecture docs, and relevant source files. Stop when you can ask informed questions.
 
-Save the design document to `docs/plans/YYYY-MM-DD-<slug>-design.md`. Commit: `git add docs/plans/...-design.md && git commit -m "docs: add design document for <task>"`.
+2. **Clarify one question at a time.** Prefer multiple choice when options are knowable. Focus on purpose, constraints, and success criteria.
+
+3. **Propose 2-3 approaches.** Lead with your recommendation. For each: one-sentence summary, pros/cons, relative effort. YAGNI ruthlessly — call out over-engineering.
+
+4. **Get explicit approval on the approach.** Present a short summary of the chosen direction — a few bullet points covering what's being built and why. Ask: "Does this direction look right before I hand it to the planner?" Wait for confirmation.
+
+   Keep this summary in-chat only. Do **not** write a design document — that is the planner's job. The planner receives the confirmed approach as context and produces the full plan.
 
 ---
 
@@ -79,9 +86,11 @@ Skip for bug mode — use the debugger agent in Stage 3 instead.
 Read `workflow.human_checkpoints` from config.
 
 **Interactive mode** (`plan` in `human_checkpoints`):
-1. Spawn the **planner agent**. Pass the design document path (or task description if no design doc exists).
+1. Spawn the **planner agent**. Pass the task description and the confirmed approach from Stage 1 (Q&A summary and approved direction, inlined as context). Do not pass a design document — brainstorm does not produce one.
 2. Relay the agent's **full output** to the user verbatim — proposed task breakdown, groupings, dependency decisions, and questions. Do not summarise or filter.
-3. Collect answers and re-spawn with the full Q&A history until the planner produces a finalized execution graph.
+3. If the planner asked questions, collect answers and re-spawn with the full Q&A history.
+4. When the planner produces a draft plan, **read the plan file** and present its full contents to the user. Do not summarise — show the entire document. Then ask: **"Does this plan look good, or do you want changes?"** Do not proceed until the user explicitly approves.
+5. If the user requests changes, re-spawn the planner with the feedback appended. Repeat until approved.
 
 **Autonomous mode**:
 1. Spawn the **planner agent** once with `autonomous: true`. It produces the plan in one pass.
@@ -90,7 +99,60 @@ The planner writes a comprehensive markdown plan document containing:
 - A `<!-- SCHEDULING -->` table (parsed by the orchestrator for task scheduling)
 - Detailed `## Task T<N>` sections (self-contained context for each implementer)
 
-Save to `docs/plans/YYYY-MM-DD-<slug>-plan.md`. Commit: `git add docs/plans/...-plan.md && git commit -m "docs: add implementation plan for <task>"`.
+Save to `docs/plans/YYYY-MM-DD-<slug>-plan.md`. Do not commit it — it is a temporary pipeline artifact.
+
+---
+
+## Stage 2.5: Domain Agent Refinement
+
+Skip if the plan's `## Domain Agents Needed` section is empty or absent.
+
+Domain agents are second-pass experts. Each reads the entire plan, takes ownership of its domain, challenges decisions, and refines task descriptions with specificity. They run **sequentially** — one completes before the next begins, because later agents can build on earlier ones' additions.
+
+Available domain agents:
+
+| Agent | Domain |
+|-------|--------|
+| `design-agent` | UI/UX, React, CSS, visual design, accessibility, theme-factory, Next.js |
+| `java-agent` | Java, Spring Boot layering, JPA entities, Spring Security, backend patterns |
+| `python-agent` | Python, Django, FastAPI/Flask, Celery, pytest, DRF |
+| `rust-agent` | Rust, Actix-web/Axum, ownership design, async concurrency |
+| `cpp-agent` | C/C++, RAII, CMake, GoogleTest, service architecture |
+| `database-agent` | Schema design, migrations, indexing, query optimization, PostgreSQL |
+| `api-agent` | REST contract, URL design, status codes, error format, versioning, pagination |
+| `deployment-agent` | CI/CD, Docker, Kubernetes, Terraform, health checks, observability |
+
+### Per-Agent Loop
+
+For each agent listed in `## Domain Agents Needed` (in order, skipping any already marked `[x]`):
+
+#### 1. Spawn the domain agent
+
+Pass the plan file path. Example prompt:
+
+> "Read the full plan at `docs/plans/YYYY-MM-DD-<slug>-plan.md`. Apply your domain expertise, challenge all decisions in your domain, add or refine tasks as needed, take ownership of all [domain] decisions. When done, update the plan and mark yourself complete."
+
+Wait for the agent to complete (these run **in the foreground**, not background — the next agent depends on the result).
+
+#### 2. Handle Q&A
+
+If the agent outputs a `DOMAIN_AGENT_QUESTIONS:` block, relay each question to the user verbatim. Collect answers, then **re-spawn the agent** with the questions and answers appended to the prompt. Repeat until the agent outputs `DOMAIN_AGENT_COMPLETE`.
+
+#### 3. Confirm completion
+
+When the agent outputs `DOMAIN_AGENT_COMPLETE: <agent-name>`, mark it done and move to the next.
+
+### Final Planner Validation Pass
+
+After all domain agents complete, **re-spawn the planner agent** in validation mode. Pass the plan file path and:
+
+> "The plan has been refined by domain agents. Validate the updated plan: verify task ordering, parallel group correctness, file ownership conflicts, and that all domain agent additions are internally consistent. Apply Step 8 (Critical Self-Challenge) to the full updated plan. Do not add new features — only fix planning defects introduced during domain agent refinement."
+
+In **interactive mode** (`plan` in `human_checkpoints`): read the plan file and present its full contents to the user. Do not summarise. Then ask: **"The plan has been refined by domain experts. Does this final plan look good?"** Wait for approval.
+
+In **autonomous mode**: accept the planner's validation result directly.
+
+The plan is now final. Proceed to Stage 3.
 
 ---
 
@@ -142,22 +204,22 @@ Process one parallel group at a time:
 
 #### 1. Spawn implementers
 
-For each eligible task in the group, spawn the **implementer agent** (which has `isolation: worktree` in frontmatter — Claude Code auto-creates and auto-merges worktrees). Pass the task object, plan file path, and design document path. Spawn tasks in parallel up to `max_parallel_tasks`.
+For each eligible task in the group, spawn the **implementer agent** using `run_in_background: true` (which has `isolation: worktree` in frontmatter — Claude Code auto-creates and auto-merges worktrees). Pass only the **plan file path** and **task ID** (e.g. `T03`). Do not pass inline task descriptions, design summaries, or any other context — the plan file is the implementer's sole source of truth and adding extra context risks conflicting with it. Spawn all eligible tasks simultaneously up to `max_parallel_tasks`.
 
-The implementer works in its isolated worktree, runs its self-check gate, commits, and finishes. On finish, changes are **auto-merged** to the feature branch.
+The implementer works in its isolated worktree, runs its self-check gate, commits, and finishes. On finish, changes are **auto-merged** to the feature branch by Claude Code — the root session does not handle this.
 
-Wait for all implementers in the group to complete. Mark completed tasks `✅ merged` in the status table.
+Wait for all background implementers in the group to complete. Mark completed tasks `✅ merged` in the status table.
 
 #### 2. Batch review
 
-After all tasks in the group have merged, spawn the **reviewer agent** for the entire group. Pass:
+After all tasks in the group have merged, spawn the **reviewer agent** using `run_in_background: true`. Pass:
 - The plan file path and the list of task IDs in this group
 - The review document path
 - The base branch name (feature branch before this group started — use a tag or commit hash saved before step 1)
 
 The reviewer runs `git diff <pre-group-commit>...HEAD` to see the combined diff of all tasks in the group. It reviews against the plan requirements for all tasks in the batch.
 
-After the reviewer returns, **append findings to the review document** under `### Group <N>: <task list>`, each marked `[OPEN]` or `[DEFERRED]`.
+Wait for the reviewer to complete. Then **append findings to the review document** under `### Group <N>: <task list>`, each marked `[OPEN]` or `[DEFERRED]`.
 
 #### 3. On PASS
 
@@ -166,12 +228,12 @@ Continue to the next group.
 #### 4. On FAIL (attempt 1 — targeted retry)
 
 For each task with in-scope findings:
-- Re-spawn the **implementer** with the reviewer findings for that specific task appended to context.
+- Re-spawn the **implementer** using `run_in_background: true` with the plan file path, task ID, and the reviewer findings for that specific task appended. Reviewer findings are the only additional context — do not add summaries or re-descriptions of the task.
 - After all retries complete and auto-merge, re-run the batch reviewer on the same scope.
 
 #### 5. On FAIL (attempt 2 — systematic debugging)
 
-For tasks still failing: spawn the **debugger agent** instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence.
+For tasks still failing: spawn the **debugger agent** using `run_in_background: true` instead of the implementer. Pass the task context, reviewer feedback history, and prior attempt evidence.
 
 After debugger fixes auto-merge, re-run the batch reviewer.
 
@@ -185,7 +247,7 @@ Stop. Spawn the **planner agent** in `debug_plan` mode with full failure evidenc
 
 **Distinct from Stage 3 per-task review.** This audits the entire diff holistically.
 
-Pass the base branch name and HEAD to each reviewer — **do not compute the full diff yourself**. Each reviewer runs `git diff <base-branch>...HEAD` itself.
+**Every reviewer computes its own diff.** Include the base branch name in each reviewer's spawn prompt (e.g., "Base branch: main"). Each reviewer runs `git diff <base-branch>...HEAD` itself. Do not compute or pass the diff inline — the reviewers have Bash access and must run git diff themselves.
 
 All findings from Stage 4 are appended to the review document under `## Stage 4: Deep Review`, each marked `[OPEN]` or `[DEFERRED]`.
 
@@ -208,13 +270,13 @@ Read `review.deep_review_mode` from config (default: `"auto"`).
 
 ### Light Mode
 
-Replace Steps 1 and 2 with a single **reviewer agent** (Sonnet):
+Replace Steps 1 and 2 with a single **reviewer agent** (Sonnet) using `run_in_background: true`:
 
 > "Review this diff as a combined holistic + security + quality + coverage check. First verify the plan was followed and all prior review findings are resolved. Then scan for injection risks, hardcoded secrets, OWASP Top 10 patterns, naming clarity, DRY violations, dead code, error handling, behavioral test coverage, and silent failures. Report findings with severity (critical/important) and confidence ≥ 0.8."
 
 ### Step 1: Holistic Compliance (full + targeted modes)
 
-**Spawn the reviewer agent (Sonnet)** with the base branch name, the plan file path, the design document path, and the review document path. Its job is to answer:
+**Spawn the reviewer agent (Sonnet)** using `run_in_background: true` with the base branch name, the plan file path, and the review document path. Its job is to answer:
 - Was the plan followed? Are all tasks accounted for in the diff?
 - Were issues from Stage 3 per-task reviews actually resolved, or do they still appear in the final diff?
 - Does the overall feature behave as designed end-to-end?
@@ -235,12 +297,18 @@ Each reviewer returns findings with `severity` (critical/important) and `confide
 
 ### Escalation
 
-- **Critical finding**: Spawn the **implementer in fix mode** with all critical findings (plus any actionable important findings). After the fix agent returns, **spawn the reviewer agent again** with the same scope (full diff, base branch, review document path) to verify the fixes. If reviewer passes → mark fixed findings `[RESOLVED]` in the review document and continue. If reviewer fails again → escalate to planner (architectural) or pause for user (business logic).
-- **Important finding (first occurrence)**: Include in the fix mode batch **only if directly actionable within the current scope**. Mark as `[DEFERRED]` for findings that require external infrastructure, architectural changes outside scope, or would substantially expand the work.
-- **Important finding (second occurrence for same issue)**: Escalate to planner or user.
-- **Minor findings**: Log in the review document as `[DEFERRED]` and continue to Stage 5.
+**The orchestrator MUST NOT edit files or fix findings directly.** All fixes go through the implementer agent in fix mode. The orchestrator's job is to collect findings, decide disposition, and spawn the fix agent.
 
-**Code simplifier**: Do not auto-invoke. If Stage 4 surfaces significant simplification opportunities (dead code clusters, over-engineered abstractions, excessive duplication), note them in the review document as `[DEFERRED]` recommendations. The user can invoke `/simplify` as a follow-up after merge.
+**Fix everything actionable. Do not defer findings that can be fixed now.**
+
+Wait for **all** reviewers to complete before proceeding. Then spawn the **implementer in fix mode** using `run_in_background: true` with all findings above the confidence threshold — critical and important. The fix agent addresses them all in one pass: dead code removal, naming fixes, incorrect test assertions, missing edge case tests, DRY refactors, silent error handling. Wait for the fix agent to complete, then **spawn the reviewer agent again** using `run_in_background: true` with the same scope (full diff, base branch, review document path) to verify. If reviewer passes → mark findings `[RESOLVED]` in the review document and continue. If reviewer fails → one more retry, then escalate to user.
+
+The only findings that get `[DEFERRED]` are those that **cannot** be fixed within the current scope:
+- Requires changes to code outside the feature branch's touched files
+- Requires external infrastructure not yet available (e.g., a CI pipeline, a third-party service)
+- Represents an architectural decision that needs user input
+
+Everything else gets fixed now. "We'll clean it up later" is not an acceptable disposition for actionable findings.
 
 ---
 
@@ -248,23 +316,38 @@ Each reviewer returns findings with `severity` (critical/important) and `confide
 
 **Mandatory. Do not skip. Runs after deep review so the review document is complete.**
 
-Spawn the **docs-updater agent**. Pass the list of completed tasks, the design document path, the review document path, and paths to existing documentation files that reference modified code. The docs-updater reads the review document directly and records only `[OPEN]` and `[DEFERRED]` findings — it ignores `[RESOLVED]` ones.
+Before spawning the docs-updater, check if `docs/architecture.md` (or the configured `architecture` path) exists. Pass `architecture_missing: true` in the agent prompt if it does not — the docs-updater will create a stub and note it in its output.
 
-Spawn the **docs-reviewer agent**. Pass the docs-updater output and implementation context.
+Spawn the **docs-updater agent** using `run_in_background: true`. Pass:
+- The list of completed tasks
+- The review document path
+- Paths to existing Tier 1 and Tier 2 documentation files that reference modified code
+- `architecture_missing: true/false`
+
+The docs-updater:
+1. Creates the architecture stub if missing (Step 0)
+2. Updates Tier 1 and relevant Tier 2 docs, with active pruning (Mode 1)
+3. Records `[OPEN]`/`[DEFERRED]` findings from the review document and closes any resolved prior findings (Mode 1b)
+
+Wait for the docs-updater to complete. If it reported `architecture_stub_created: true`, notify the user: **"The architecture doc didn't exist — a stub was created at `docs/architecture.md`. Run `/docs-generate architecture` when ready to fill it in."**
+
+Spawn the **docs-reviewer agent** using `run_in_background: true`. Pass the docs-updater output and implementation context. Wait for it to complete.
 
 - **PASS**: Commit documentation changes.
-- **FAIL**: Re-spawn docs-updater with reviewer feedback. Retry up to 3 times, then escalate to user.
+- **FAIL**: Re-spawn docs-updater using `run_in_background: true` with reviewer feedback. Wait for completion. Retry up to 3 times, then escalate to user.
 
 ---
 
 ## Stage 6: Verification
 
-**Do not run test commands directly.** Spawn the **verifier agent**.
+**Do not run test commands directly.** Spawn the **verifier agent** using `run_in_background: true`.
 
-Pass the execution graph, all implementation summaries, design document, and current branch state. The verifier uses `workflow.verification_commands` from config or auto-detects: Maven/Gradle → `mvn test` / `./gradlew test`; Node → `npm test`; Python → `pytest`; Rust → `cargo test`; Go → `go test ./...`.
+Pass the execution graph, all implementation summaries, and current branch state. The verifier uses `workflow.verification_commands` from config or auto-detects: Maven/Gradle → `mvn test` / `./gradlew test`; Node → `npm test`; Python → `pytest`; Rust → `cargo test`; Go → `go test ./...`.
+
+Wait for the verifier to complete, then:
 
 - **PASS**: Continue to Stage 7.
-- **FAIL (build/type errors)**: Spawn **build-fixer agent** with the failure output. Re-run verification. If still failing, fall through to test/lint path.
+- **FAIL (build/type errors)**: Spawn **build-fixer agent** using `run_in_background: true` with the failure output. Wait for it to complete, then re-spawn the verifier. If still failing, fall through to test/lint path.
 - **FAIL (test/lint)**: Loop back to Stage 3 for failing components. Second failure → escalate to planner. Third failure → pause for user.
 
 ---
@@ -277,9 +360,7 @@ Pass the execution graph, all implementation summaries, design document, and cur
 
 3. **Present for approval**: Show the user both. Wait for explicit confirmation before proceeding.
 
-4. **Clean up plan artifacts**:
-   - If plan files are git-tracked: `git rm docs/plans/<design-doc> docs/plans/<plan-md> && git commit -m "chore: remove pipeline plan artifacts"`
-   - If plan files are untracked (were never committed): delete the files without a commit.
+4. **Clean up plan artifacts**: Delete the plan doc and review doc: `rm -f docs/plans/<plan-md> docs/plans/<review-md>`. These are never committed, so no git operation needed.
 
 5. **Report**: `"Pipeline complete. Ready for PR."` with task count, review iterations, findings addressed, and agent spawns.
 

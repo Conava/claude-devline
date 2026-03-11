@@ -3,6 +3,7 @@ name: error-detective
 description: "Error pattern analysis for production systems. Log parsing, stack trace correlation, error timeline analysis, and monitoring query generation. Use for post-incident analysis or investigating error patterns across services."
 argument-hint: "[error message, log file, or service name]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Bash, Grep, Glob
 ---
 

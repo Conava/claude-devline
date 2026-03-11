@@ -28,7 +28,7 @@ disallowedTools:
   - Write
   - Edit
   - NotebookEdit
-permissionMode: plan
+permissionMode: bypassPermissions
 maxTurns: 30
 memory: project
 skills:

@@ -1,7 +1,7 @@
 ---
 name: content-engine
 description: "Create platform-native content for X/Twitter, LinkedIn, TikTok, YouTube, and newsletters. Repurpose one source asset into multi-platform campaigns with strong hooks and clear CTAs."
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 ---
 

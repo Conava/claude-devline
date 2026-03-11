@@ -56,7 +56,7 @@ fi
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 DEFAULTS_CONFIG="$PLUGIN_ROOT/config/defaults.yaml"
 USER_CONFIG="${HOME}/.claude-plugin-config.yaml"
-PROJECT_CONFIG="${CLAUDE_PROJECT_DIR:+${CLAUDE_PROJECT_DIR}/.claude-plugin-config.yaml}"
+PROJECT_CONFIG="${CLAUDE_PROJECT_DIR:+${CLAUDE_PROJECT_DIR}/.claude/plugin-config.yaml}"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
 # ---------- Parse configs with python3 ----------

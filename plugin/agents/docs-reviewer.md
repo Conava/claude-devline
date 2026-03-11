@@ -11,7 +11,7 @@ disallowedTools:
   - Edit
   - NotebookEdit
   - Bash
-permissionMode: plan
+permissionMode: bypassPermissions
 maxTurns: 30
 description: |
   Use this agent for reviewing documentation changes for accuracy, completeness, and clarity.

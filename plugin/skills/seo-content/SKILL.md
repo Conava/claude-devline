@@ -3,6 +3,7 @@ name: seo-content
 description: "SEO content planning, writing, and auditing. Topic cluster architecture, keyword-optimized articles with E-E-A-T signals, content calendars, and quality scoring. Use only when explicitly requested."
 argument-hint: "<task: topic-clusters | outline | write | audit>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 

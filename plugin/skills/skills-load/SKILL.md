@@ -1,6 +1,6 @@
 ---
 name: skills-load
-description: "Use when the user asks to 'load skill', 'load skills', 'activate skill', 'I need kotlin patterns', or wants to load domain skills ad-hoc. Also invoked automatically by the brainstorm agent when it detects missing skills."
+description: "Use when the user asks to 'load skill', 'load skills', 'activate skill', 'I need kotlin patterns', or wants to load domain skills ad-hoc."
 argument-hint: "[skill name or technology]"
 user-invocable: true
 allowed-tools: Read, Grep, Glob
@@ -12,10 +12,11 @@ Intelligently detect, load, and persist domain skills based on natural language 
 
 ## Trigger Sources
 
-This skill is invoked in three ways:
+This skill is invoked in two ways:
 1. **User request**: "/skills-load kotlin and api design" or "I need rust patterns"
 2. **Natural language**: "I'm building a REST API with Spring Boot and PostgreSQL"
-3. **Brainstorm auto-trigger**: Brainstorm agent detects technologies not covered by loaded skills
+
+Note: pipeline agents (implementer, etc.) load domain skills automatically via frontmatter — this skill is for loading knowledge into the **main chat** session.
 
 ## Procedure
 
@@ -54,7 +55,7 @@ Fuzzy name resolution:
 - "pitch" / "deck" / "investor" / "fundraising" → investor-materials, investor-outreach
 - "research" / "market" / "competitor" → market-research
 - "debug" / "debugging" / "bug" / "investigate" / "root cause" → systematic-debugging
-- "claude-md" / "project-memory" → claude-md-management
+- "claude-md" / "project-memory" / "docs" / "documentation" → docs-update
 
 ### Step 2: Check What's Already Loaded
 
@@ -75,9 +76,11 @@ Not found: custom-framework (use /skills-list to see available skills)
 
 After loading, automatically persist the skills to the project config so they're available in future sessions without needing `/skills-load` again.
 
-1. Check if `${CLAUDE_PROJECT_DIR}/.claude-plugin-config.yaml` exists
+The project config lives at `${CLAUDE_PROJECT_DIR}/.claude/plugin-config.yaml` (inside `.claude/` to keep the repo root clean).
+
+1. Check if `${CLAUDE_PROJECT_DIR}/.claude/plugin-config.yaml` exists
 2. If it exists, read it and merge new skills into `skills.enabled` (don't duplicate)
-3. If it doesn't exist, create it with:
+3. If it doesn't exist, create `.claude/` directory if needed, then create the file with:
 ```yaml
 skills:
   enabled:
@@ -86,24 +89,24 @@ skills:
 ```
 4. Confirm to the user:
 ```
-Persisted to .claude-plugin-config.yaml — these skills will auto-load in future sessions.
+Persisted to .claude/plugin-config.yaml — these skills will auto-load in future sessions.
 ```
 
-Use the Edit tool for existing files, Write tool for new files. Add `.claude-plugin-config.yaml` to `.gitignore` if not already there (this is personal/local config).
+Use the Edit tool for existing files, Write tool for new files.
 
 ### Step 5: Update .gitignore if Needed
 
-If `.claude-plugin-config.yaml` was just created, check if it's in `.gitignore`. If not, append it:
+`.claude/` is typically already gitignored or committed intentionally. Check if `.claude/plugin-config.yaml` or `.claude/` is in `.gitignore`. If neither is, append:
 ```
 # Claude Code plugin config (local overrides)
-.claude-plugin-config.yaml
+.claude/plugin-config.yaml
 ```
 
 ## Unloading
 
 Skills in context can't be removed mid-session. To prevent a skill from loading in future sessions:
 ```yaml
-# .claude-plugin-config.yaml
+# .claude/plugin-config.yaml
 skills:
   disabled: [frontend-design, cpp-patterns]
 ```

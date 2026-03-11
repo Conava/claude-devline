@@ -3,6 +3,7 @@ name: seo-audit
 description: "SEO site audit: E-E-A-T scoring, keyword cannibalization detection, content freshness analysis, technical SEO checks, and authority building recommendations. Use only when explicitly requested."
 argument-hint: "<task: eeat-audit | cannibalization | freshness | technical | full-audit>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 

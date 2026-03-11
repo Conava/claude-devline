@@ -3,6 +3,7 @@ name: hr-legal
 description: "HR operations and legal document generation. Structured hiring (JDs, interview rubrics, scorecards), onboarding plans, PTO policies, performance management, and legal templates (privacy policies, ToS, DPA). Use only when explicitly requested."
 argument-hint: "<task: job-description | interview-kit | onboarding | pto-policy | performance-review | privacy-policy | terms-of-service>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 

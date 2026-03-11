@@ -3,6 +3,7 @@ name: threat-modeling
 description: "STRIDE-based threat modeling for system design. Analyzes attack surfaces, data flows, trust boundaries, and generates threat matrices with mitigations. Use only when explicitly requested for security-critical design."
 argument-hint: "<system or component to model>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Grep, Glob
 ---
 

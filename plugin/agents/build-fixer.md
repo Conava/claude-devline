@@ -25,7 +25,7 @@ tools:
   - Bash
   - Grep
   - Glob
-permissionMode: acceptEdits
+permissionMode: bypassPermissions
 maxTurns: 40
 memory: project
 ---

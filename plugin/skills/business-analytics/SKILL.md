@@ -3,6 +3,7 @@ name: business-analytics
 description: "KPI framework design, dashboard architecture, data storytelling, cohort analysis, and business metrics. OKR integration, A/B testing design, and industry-specific analytics (SaaS, marketplace, e-commerce). Use only when explicitly requested."
 argument-hint: "<task: kpi-design | dashboard | data-story | cohort-analysis | ab-test | metrics-audit>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 

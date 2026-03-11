@@ -86,18 +86,26 @@ except ImportError:
 if 'file_patterns' in mappings:
     ext_to_skills = mappings['file_patterns']
 
-# Scan project for file extensions (max 500 files, top 3 levels)
+# Scan project for file extensions and filenames (max 500 files, top 3 levels)
 scanned = 0
 found_exts = set()
-for depth_glob in ['*', '*/*', '*/*/*', 'src/*', 'src/*/*', 'src/*/*/*', 'lib/*', 'app/*', 'cmd/*']:
+found_names = set()
+depth_globs = [
+    '*', '*/*', '*/*/*',
+    'src/*', 'src/*/*', 'src/*/*/*', 'src/*/*/*/*', 'src/*/*/*/*/*',
+    'lib/*', 'lib/*/*', 'app/*', 'app/*/*', 'cmd/*', 'cmd/*/*',
+]
+for depth_glob in depth_globs:
     for f in glob.glob(os.path.join(project_dir, depth_glob)):
         if scanned > 500:
             break
         if os.path.isfile(f):
             scanned += 1
+            basename = os.path.basename(f)
             _, ext = os.path.splitext(f)
             if ext:
                 found_exts.add('*' + ext)
+            found_names.add(basename)
 
 # Also check for framework markers in key files
 framework_markers = {}
@@ -117,10 +125,15 @@ for kf in key_files:
         except:
             pass
 
-# Match file extensions to skills
+# Match file extensions and full filenames to skills
 for ext_pattern, skills_list in ext_to_skills.items():
-    if ext_pattern in found_exts:
-        detected.update(skills_list)
+    if ext_pattern.startswith('*'):
+        if ext_pattern in found_exts:
+            detected.update(skills_list)
+    else:
+        # Full filename pattern (e.g. pom.xml, Makefile, Cargo.toml)
+        if ext_pattern in found_names:
+            detected.update(skills_list)
 
 # Match framework markers
 for marker, skills_list in framework_markers.items():
@@ -151,6 +164,8 @@ PYEOF
 DETECTED_SKILLS=$(detect_project_skills 2>/dev/null || echo "")
 
 # 2b. Build filtered skill listing
+# Skills with disable-model-invocation: true are listed by name only (no description injected)
+# — they're explicit-invocation skills and don't need to prime Claude's auto-suggestion.
 SKILLS_LINES=""
 if [[ -d "$SKILLS_DIR" ]]; then
   for skill_file in "$SKILLS_DIR"/*/SKILL.md; do
@@ -158,6 +173,7 @@ if [[ -d "$SKILLS_DIR" ]]; then
 
     skill_name=""
     skill_desc=""
+    disable_model_invocation="false"
     in_frontmatter=0
     while IFS= read -r line; do
       if [[ "$line" == "---" ]]; then
@@ -175,12 +191,28 @@ if [[ -d "$SKILLS_DIR" ]]; then
           skill_name="${skill_name%\'}"
           skill_name="${skill_name#\'}"
         fi
+        if [[ "$line" =~ ^disable-model-invocation:[[:space:]]*(.*) ]]; then
+          disable_model_invocation="${BASH_REMATCH[1]}"
+        fi
         if [[ "$line" =~ ^description:[[:space:]]*(.*) ]]; then
-          skill_desc="${BASH_REMATCH[1]}"
-          skill_desc="${skill_desc%\"}"
-          skill_desc="${skill_desc#\"}"
-          skill_desc="${skill_desc%\'}"
-          skill_desc="${skill_desc#\'}"
+          raw="${BASH_REMATCH[1]}"
+          # Strip quotes and block scalar indicator (|, |-, >)
+          raw="${raw%\"}"
+          raw="${raw#\"}"
+          raw="${raw%\'}"
+          raw="${raw#\'}"
+          raw="${raw#|}"
+          raw="${raw#|-}"
+          raw="${raw#>}"
+          raw="$(echo "$raw" | tr -s ' ' | sed 's/^[[:space:]]*//')"
+          skill_desc="$raw"
+        elif [[ $in_frontmatter -eq 1 && -z "$skill_desc" && "$line" =~ ^[[:space:]]+(.*) ]]; then
+          # Continuation line for block scalar description
+          cont="${BASH_REMATCH[1]}"
+          cont="$(echo "$cont" | tr -s ' ' | sed 's/^[[:space:]]*//')"
+          if [[ -n "$cont" ]]; then
+            skill_desc="$cont"
+          fi
         fi
       fi
     done < "$skill_file"
@@ -188,7 +220,12 @@ if [[ -d "$SKILLS_DIR" ]]; then
     if [[ -n "$skill_name" ]]; then
       # Filter: only show if in detected skills list (or if detection failed, show all)
       if [[ -z "$DETECTED_SKILLS" ]] || echo "$DETECTED_SKILLS" | grep -qx "$skill_name"; then
-        SKILLS_LINES="${SKILLS_LINES}- ${skill_name}: ${skill_desc}\n"
+        if [[ "$disable_model_invocation" == "true" ]]; then
+          # Explicit-invocation only: list name without description to save context
+          SKILLS_LINES="${SKILLS_LINES}- ${skill_name}\n"
+        else
+          SKILLS_LINES="${SKILLS_LINES}- ${skill_name}: ${skill_desc}\n"
+        fi
       fi
     fi
   done
@@ -297,10 +334,13 @@ print('; '.join(parts) if parts else '')
 CONTEXT=""
 
 if [[ -n "$SKILLS_LINES" ]]; then
-  CONTEXT+="SKILL USAGE RULES (follow exactly):\n"
-  CONTEXT+="1. Before responding to any development task, check whether a skill applies. If there is even a 10%% chance a skill fits, invoke it via the Skill tool BEFORE doing anything else — including asking clarifying questions.\n"
-  CONTEXT+="2. When invoking a skill, announce it first: \"I'm using the [skill-name] skill to [one-line purpose].\"\n"
-  CONTEXT+="3. Once a skill is loaded, follow it exactly. Do not summarise it, skip steps, or deviate.\n"
+  CONTEXT+="SKILL USAGE RULES (mandatory — no exceptions):\n"
+  CONTEXT+="Never implement code, fix bugs, or make code changes directly in the main session. All development work goes through a skill.\n"
+  CONTEXT+="- Bug, error, crash, unexpected behavior, test failure → MUST use: systematic-debugging\n"
+  CONTEXT+="- New feature, refactor, task implementation → MUST use: pipeline or implement\n"
+  CONTEXT+="- Code review request → MUST use: review\n"
+  CONTEXT+="- Documentation update → MUST use: docs-update or docs-generate\n"
+  CONTEXT+="Invoke the matching skill via the Skill tool BEFORE doing anything else — including asking clarifying questions. Announce it first: \"I'm using the [skill-name] skill to [one-line purpose].\" Once loaded, follow it exactly.\n"
   CONTEXT+="\nAvailable skills:\n${SKILLS_LINES}"
 fi
 

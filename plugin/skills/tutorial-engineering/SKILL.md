@@ -3,6 +3,7 @@ name: tutorial-engineering
 description: "Create pedagogical learning experiences from code — tutorials, workshops, and guides with progressive difficulty, hands-on exercises, and fail-forward teaching. Use only when explicitly requested."
 argument-hint: "<topic or codebase area to create tutorial for>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 

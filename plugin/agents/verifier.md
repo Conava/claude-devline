@@ -11,6 +11,7 @@ disallowedTools:
   - Write
   - Edit
   - NotebookEdit
+permissionMode: bypassPermissions
 maxTurns: 20
 description: |
   Use this agent as a hard verification gate before claiming work is complete. Runs tests, lint, and build with evidence-based reporting.

@@ -26,7 +26,7 @@ tools:
   - Grep
   - Glob
   - Bash
-permissionMode: acceptEdits
+permissionMode: bypassPermissions
 isolation: worktree
 maxTurns: 60
 memory: project

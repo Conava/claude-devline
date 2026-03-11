@@ -1,7 +1,7 @@
 ---
 name: article-writing
 description: "Write articles, guides, blog posts, tutorials, newsletter issues, and other long-form content in a distinctive voice derived from supplied examples or brand guidance."
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 ---
 

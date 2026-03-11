@@ -25,7 +25,7 @@ plugin/                              # The plugin (registered path)
 │   └── session-end.sh               # No-op stub
 ├── scripts/
 │   └── merge-config.py              # Merges YAML configs (defaults → user → repo)
-├── agents/                          # 15 agents with model/tools in frontmatter
+├── agents/                          # 23 agents with model/tools in frontmatter
 └── skills/                          # 49 skills (8 pipeline, 18 domain, 3 management, 5 business, 10 extended, 5 business-ops)
 data/                                # Reference material (gitignored)
 docs/plans/                          # Pipeline artifacts (temporary, never committed)
@@ -33,7 +33,7 @@ docs/plans/                          # Pipeline artifacts (temporary, never comm
 
 ## Pipeline (invoked via `/build` or natural language)
 
-Stage 0: Branch safety → Stage 1: Brainstorm (main chat Q&A, no agent) → Stage 2: Plan (opus) → Stage 3: Implement per group (sonnet, worktrees, `run_in_background`) + batch review → Stage 4: Deep review (holistic + specialist reviewers) → Stage 5: Docs update → Stage 6: Verification → Stage 7: Merge prep
+Stage 0: Branch safety → Stage 1: Brainstorm (main chat Q&A, no agent) → Stage 2: Plan (opus) → Stage 2.5: Domain agent refinement (design/java/python/rust/cpp/database/api/deployment agents, sequential) → Stage 3: Implement per group (sonnet, worktrees, `run_in_background`) + batch review → Stage 4: Deep review (holistic + specialist reviewers) → Stage 5: Docs update → Stage 6: Verification → Stage 7: Merge prep
 
 Trivial tasks skip stages 1-2. Bug-fix tasks use `/systematic-debugging` which skips brainstorm+plan and goes straight to diagnosis via the debugger agent (opus).
 
@@ -49,7 +49,7 @@ Trivial tasks skip stages 1-2. Bug-fix tasks use `/systematic-debugging` which s
 
 1. `plugin/config/defaults.yaml` — ships with plugin
 2. `~/.claude-plugin-config.yaml` — personal overrides
-3. `repo/.claude-plugin-config.yaml` — project/team overrides
+3. `repo/.claude/plugin-config.yaml` — project/team overrides
 
 Deep merge. Safeguard overrides are additive only. Models are set in agent frontmatter, not config.
 
@@ -74,6 +74,14 @@ Agents use configured paths to find and write documentation. Default paths (over
 | Agent | Model | Isolation | Purpose |
 |-------|-------|-----------|---------|
 | planner | opus | — | Comprehensive plan document with dependencies + domain skills. Verifies library APIs via Context7 |
+| design-agent | opus | — | Stage 2.5: UI/UX, React, CSS, visual design, theme-factory |
+| java-agent | opus | — | Stage 2.5: Java, Spring Boot, JPA, Spring Security, backend patterns |
+| python-agent | opus | — | Stage 2.5: Python, Django, FastAPI, Celery, pytest |
+| rust-agent | opus | — | Stage 2.5: Rust, Actix/Axum, ownership design, async concurrency |
+| cpp-agent | opus | — | Stage 2.5: C/C++, RAII, CMake, GoogleTest, service architecture |
+| database-agent | opus | — | Stage 2.5: schema design, migrations, indexing, query optimization |
+| api-agent | opus | — | Stage 2.5: REST contract, URL design, error format, versioning, pagination |
+| deployment-agent | opus | — | Stage 2.5: CI/CD, Docker, Kubernetes, Terraform, health checks, observability |
 | implementer | sonnet | worktree | TDD-first implementation with domain skill loading |
 | reviewer | sonnet | — | Per-task confidence-scored review. Verifies library API usage via Context7 |
 | security-reviewer | opus | — | OWASP top 10 systematic check |
@@ -129,3 +137,5 @@ Context7 tools used: `mcp__context7__resolve-library-id`, `mcp__context7__query-
 - `/implement` for building new things; `/systematic-debugging` for fixing broken things (skips brainstorm+plan)
 - Planner, reviewer, and debugger verify external library APIs via Context7 MCP to prevent hallucinated or deprecated API usage
 - Docs-updater uses tier model (Tier 1 always current, Tier 2 on change, Tier 3 on demand) with active pruning and deferred findings lifecycle
+- Domain agents (Stage 2.5) run sequentially after the planner — each takes ownership of their domain slice, challenges decisions, edits the plan, and signals complete before the next runs. Planner does a final validation pass after all domain agents complete.
+- Domain agents are foreground (not background) — each must complete before the next starts, since they build on each other's refinements

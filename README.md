@@ -37,7 +37,7 @@ The plugin's hooks (`guard.sh`, `file-guard.sh`) are the safety net — interact
 }
 ```
 
-Review `plugin/hooks/guard.sh` and `plugin/hooks/file-guard.sh` before enabling this. The defaults block network operations, protected branch mutations, sensitive file writes, and `rm -rf` outside the project directory. Extend the blocked command/pattern lists in your `~/.claude-plugin-config.yaml` or `repo/.claude-plugin-config.yaml` if your project has additional operations that should never run automatically.
+Review `plugin/hooks/guard.sh` and `plugin/hooks/file-guard.sh` before enabling this. The defaults block network operations, protected branch mutations, sensitive file writes, and `rm -rf` outside the project directory. Extend the blocked command/pattern lists in your `~/.claude-plugin-config.yaml` or `repo/.claude/plugin-config.yaml` if your project has additional operations that should never run automatically.
 
 ### Updating
 
@@ -70,13 +70,14 @@ Skills are namespaced with `claude-devline:` prefix. Domain skills (python-patte
 
 ## How the Pipeline Works
 
-The full pipeline runs 8 stages. Trivial tasks (single file, obvious change) skip stages 1-2 and enter directly at implementation.
+The full pipeline runs 9 stages. Trivial tasks (single file, obvious change) skip stages 1-2 and enter directly at implementation.
 
 | Stage | What happens | Agent | Model |
 |-------|-------------|-------|-------|
 | 0. Branch safety | Creates feature branch if on a protected branch | — | — |
 | 1. Brainstorm | Conversational design exploration in main chat (no agent, no design doc) | — | — |
 | 2. Plan | Execution graph with task dependencies, file ownership, parallel groups | planner | opus |
+| 2.5. Domain refinement | Domain experts review and own their slice of the plan (sequentially) | design/java/database agents | opus |
 | 3. Implement + Review | Per-task TDD implementation in worktrees, then confidence-scored review | implementer + reviewer | sonnet |
 | 4. Deep review | Security, code quality, and test coverage analysis (auto/full/targeted/light) | security/quality/coverage reviewers | opus/sonnet |
 | 5. Docs update | Updates project documentation to reflect changes | docs-updater | opus |
@@ -99,8 +100,6 @@ Use `/claude-devline:systematic-debugging` for bug-fix tasks. It skips brainstor
 
 All skills are namespaced: `/claude-devline:skill-name`.
 
-> **Some skills not included.** `pdf`, `docx`, `pptx`, and `xlsx` are licensed by Anthropic and cannot be redistributed. Download them from the [claude-code-skills](https://github.com/anthropics/claude-code-skills) repo and place them in `plugin/skills/`.
-
 ### Pipeline Stages (individually invocable)
 
 | Skill | What it does |
@@ -111,68 +110,88 @@ All skills are namespaced: `/claude-devline:skill-name`.
 | `implement` | Implement a single task or feature (new things) |
 | `systematic-debugging` | Diagnose and fix bugs with root cause analysis (broken things) |
 | `review` | Deep review: security, code quality, test coverage |
-| `docs-update` | Update docs to reflect code changes |
+| `docs-update` | Update docs to reflect code changes (run on a feature branch or pass a commit hash — see note below) |
 | `merge-prep` | Clean up artifacts, generate merge commit + PR title |
 
-### Management
+> **`docs-update` requires a diff base.** It works by comparing your current HEAD against a base ref to find what changed. Run it on a feature branch (base is auto-detected as `origin/main`) or pass an explicit commit hash or range: `/docs-update HEAD~10` or `/docs-update v1.2.0`. Running it on `main` without an argument produces no useful diff — the skill will prompt you in that case.
+
+### Utilities
 
 | Skill | What it does |
 |-------|-------------|
-| `skills-list` | List all available domain skills |
-| `skills-load` | Load domain skills ad-hoc by name or technology |
-| `claude-md-management` | Audit and improve CLAUDE.md files |
-
-### Standalone Utilities
-
-| Skill | What it does |
-|-------|-------------|
-| `docs-generate` | Generate comprehensive technical documentation |
-| `perf-review` | Performance review of code changes |
+| `docs-generate` | Generate comprehensive technical documentation from codebase |
+| `perf-review` | Performance analysis and optimization |
 | `dx-audit` | Developer experience audit |
-| `error-detective` | Investigate error patterns and logs |
-| `cloud-infrastructure` | Cloud/infrastructure review |
-| `threat-modeling` | Security threat modeling (explicit invocation only) |
-| `tutorial-engineering` | Create technical tutorials (explicit invocation only) |
-| `compliance-audit` | Regulatory compliance review (explicit invocation only) |
+| `error-detective` | Production error pattern and log analysis |
+| `threat-modeling` | STRIDE threat modeling (explicit invocation only) |
+| `tutorial-engineering` | Create pedagogical tutorials (explicit invocation only) |
+| `compliance-audit` | GDPR/HIPAA/SOC2 compliance audit (explicit invocation only) |
+| `skills-load` | Load domain skills ad-hoc into the main chat session |
+
+### Writing & Content
+
+| Skill | What it does |
+|-------|-------------|
+| `article-writing` | Long-form articles, guides, blog posts |
+| `content-engine` | Multi-platform content campaigns (X, LinkedIn, YouTube, newsletters) |
+| `humanizer` | Remove AI-writing patterns from text |
+| `doc-coauthoring` | Structured co-authoring workflow for docs, specs, proposals |
 
 ### Business
 
 | Skill | What it does |
 |-------|-------------|
-| `startup-analysis` | Startup viability and strategy analysis |
-| `business-analytics` | Business metrics and data analysis |
-| `market-research` | Market and competitor research |
-| `investor-materials` | Pitch decks and investor materials |
-| `investor-outreach` | Investor communication strategy |
-| `hr-legal` | HR and legal document review |
-| `seo-content` | SEO-optimized content creation |
-| `seo-audit` | SEO audit and recommendations |
-| `article-writing` | Long-form article writing |
-| `content-engine` | Content strategy and production |
-| `humanizer` | Remove AI-generated writing patterns from text |
+| `startup-analysis` | TAM/SAM/SOM, unit economics, financial modeling |
+| `business-analytics` | KPIs, dashboards, cohort analysis |
+| `market-research` | Competitor and market research |
+| `investor-materials` | Pitch decks, investor memos, fundraising materials |
+| `investor-outreach` | Investor cold emails, follow-ups, update emails |
+| `hr-legal` | HR docs, legal templates (privacy policy, ToS, DPA) |
+| `seo-content` | SEO-optimized content planning and writing |
+| `seo-audit` | SEO site audit and recommendations |
 
 ### Domain Skills
 
-Domain skills provide specialized knowledge for specific technologies. They load automatically based on file types being touched, or load them manually:
+Domain skills provide specialized knowledge for specific technologies. They all load automatically based on file types, framework markers, and directory patterns detected in the project. Use `/claude-devline:skills-load` to load any skill on demand in the current session.
 
-```
-/claude-devline:skills-load kotlin and api design
-/claude-devline:frontend-design
-```
+api-design, backend-patterns, cloud-infrastructure, cpp-patterns, database-design, database-migrations, deployment-patterns, django-patterns, docker-patterns, e2e-testing, frontend-design, frontend-patterns, golang-patterns, java-coding-standards, jpa-patterns, postgres-patterns, python-patterns, rust-patterns, shell-patterns, springboot-patterns, swift-patterns
 
-**18 domain skills:** api-design, backend-patterns, cpp-patterns, database-design, database-migrations, deployment-patterns, django-patterns, docker-patterns, e2e-testing, frontend-design, frontend-patterns, golang-patterns, java-coding-standards, jpa-patterns, postgres-patterns, python-patterns, rust-patterns, springboot-patterns
+### Anthropic Skills (installed separately)
 
-**8 LSP skills:** clangd-lsp, csharp-lsp, gopls-lsp, jdtls-lsp, kotlin-lsp, pyright-lsp, rust-analyzer-lsp, typescript-lsp
+> These skills are licensed by Anthropic and cannot be redistributed. Download from the [claude-code-skills](https://github.com/anthropics/claude-code-skills) repo and place in `plugin/skills/`.
 
-**Additional:** shell-patterns, swift-patterns, cloud-infrastructure
+| Skill | What it does |
+|-------|-------------|
+| `pdf` | Read, extract, combine, split, OCR PDFs |
+| `docx` | Create and edit Word documents |
+| `pptx` | Create and edit PowerPoint presentations |
+| `xlsx` | Create and edit spreadsheets |
+| `canvas-design` | Visual art and poster design (PNG/PDF output) |
+| `algorithmic-art` | Generative art with p5.js |
+| `theme-factory` | Apply visual themes to slides, docs, HTML artifacts |
+| `brand-guidelines` | Anthropic brand colors and typography |
+| `claude-api` | Build apps with the Anthropic SDK |
+| `mcp-builder` | Build MCP servers (Python/TypeScript) |
+| `skill-creator` | Create, modify, and benchmark skills |
+| `webapp-testing` | Test local web apps with Playwright |
+| `web-artifacts-builder` | Complex HTML artifacts with React + Tailwind + shadcn |
+| `internal-comms` | Internal communication templates (status reports, newsletters) |
 
 ## Agents
 
-15 specialized agents with models and tools defined in YAML frontmatter.
+23 specialized agents with models and tools defined in YAML frontmatter.
 
 | Agent | Model | Isolation | Purpose |
 |-------|-------|-----------|---------|
 | planner | opus | — | Execution graph with dependencies + file ownership |
+| design-agent | opus | — | Domain planning: UI/UX, React, CSS, visual design, theme-factory (Stage 2.5) |
+| java-agent | opus | — | Domain planning: Java, Spring Boot, JPA, Spring Security, backend patterns (Stage 2.5) |
+| python-agent | opus | — | Domain planning: Python, Django, FastAPI, Celery, pytest (Stage 2.5) |
+| rust-agent | opus | — | Domain planning: Rust, Actix/Axum, ownership design, concurrency (Stage 2.5) |
+| cpp-agent | opus | — | Domain planning: C/C++, RAII, CMake, GoogleTest (Stage 2.5) |
+| database-agent | opus | — | Domain planning: schema design, migrations, indexing, PostgreSQL (Stage 2.5) |
+| api-agent | opus | — | Domain planning: REST contract, URL design, error format, versioning (Stage 2.5) |
+| deployment-agent | opus | — | Domain planning: CI/CD, Docker, Kubernetes, Terraform, observability (Stage 2.5) |
 | implementer | sonnet | worktree | TDD-first implementation with domain skill loading |
 | reviewer | sonnet | — | Per-task confidence-scored review |
 | security-reviewer | opus | — | OWASP top 10 systematic check |
@@ -192,7 +211,9 @@ Domain skills provide specialized knowledge for specific technologies. They load
 
 **Isolation:** Implementer and code-simplifier use git worktrees for isolated changes. Implementers spawn with `run_in_background: true` and auto-merge on completion. Debugger works in the current branch (debugs where the bug lives).
 
-**Permissions:** Implementer and debugger use `bypassPermissions` mode — hooks enforce safety, not interactive prompts. Other agents use `acceptEdits`.
+**Permissions:** All pipeline execution agents use `bypassPermissions` — hooks enforce safety, not interactive prompts. Planning and domain agents (planner, design/java/python/rust/cpp/database/api/deployment agents) use `acceptEdits` since they interact with the user.
+
+> **Background agents require `bypassPermissions`.** All pipeline execution agents run with `run_in_background: true` and cannot pause to prompt for permission — they will stall indefinitely if `defaultMode` is not set to `bypassPermissions`. The pipeline will not function correctly without it. See [Recommended: bypass permissions mode](#recommended-bypass-permissions-mode) above.
 
 ## MCP Integration
 
@@ -210,7 +231,7 @@ Config is layered (deep merge, most specific wins):
 
 1. **`plugin/config/defaults.yaml`** — Plugin defaults (ships with plugin)
 2. **`~/.claude-plugin-config.yaml`** — Personal overrides
-3. **`repo/.claude-plugin-config.yaml`** — Project/team overrides
+3. **`repo/.claude/plugin-config.yaml`** — Project/team overrides
 
 ### What you can configure
 
@@ -229,7 +250,7 @@ Config is layered (deep merge, most specific wins):
 Agents use configured paths to locate documentation. Override per-project:
 
 ```yaml
-# repo/.claude-plugin-config.yaml
+# repo/.claude/plugin-config.yaml
 project_structure:
   architecture: docs/arch/system-overview.md
   api_spec: src/main/resources/openapi.yaml
@@ -242,7 +263,7 @@ Default paths: `README.md`, `CLAUDE.md`, `CHANGELOG.md`, `docs/`, `docs/architec
 ### Example: fully autonomous team config
 
 ```yaml
-# repo/.claude-plugin-config.yaml
+# repo/.claude/plugin-config.yaml
 git:
   commit_format: gitmoji
   branch_prefixes: [feat/, fix/, chore/]

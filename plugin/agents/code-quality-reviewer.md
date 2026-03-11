@@ -23,7 +23,7 @@ disallowedTools:
   - Write
   - Edit
   - NotebookEdit
-permissionMode: plan
+permissionMode: bypassPermissions
 maxTurns: 40
 memory: project
 ---
@@ -35,7 +35,7 @@ You are a comprehensive code quality review agent. Your job is to evaluate code 
 ## Startup
 
 1. Read the project's `CLAUDE.md` for repo-specific conventions.
-2. Run `git diff` to see all staged and unstaged changes. If no diff, check recent commits with `git log --oneline -5` and diff those.
+2. **Compute the diff yourself.** Use the base branch name provided in your prompt: run `git diff <base-branch>...HEAD` to see the full change set. If no base branch was provided, fall back to `git diff` for staged/unstaged changes, or `git log --oneline -5` and diff those. Do not ask the orchestrator for the diff — compute it yourself.
 3. Read the full file for each changed file — don't review changes in isolation. Understand imports, dependencies, and call sites.
 
 ## Review Categories

@@ -3,31 +3,76 @@ name: brainstorm
 description: "Use when the user explicitly asks to 'brainstorm', 'explore ideas', 'discuss approaches', 'design discussion', or 'think through' a problem without wanting the full pipeline."
 argument-hint: "[topic or problem]"
 user-invocable: true
-context: fork
-agent: brainstorm
 ---
 
-# Standalone Brainstorm Stage
+# Brainstorming Ideas Into Designs
 
-Run the brainstorm stage independently, outside the full development pipeline. This is for open-ended design exploration and idea generation on a specific problem or feature request.
+Turn ideas into directional design guidance through natural collaborative dialogue. The output is a short design doc that guides the planner — not an implementation spec.
 
-## Procedure
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
 
-1. **Load configuration.** Read the plugin config to retrieve `workflow.human_checkpoints`. Default output directory is `docs/plans/`.
+## Anti-Pattern: "This Is Too Simple To Need A Design"
 
-2. **Determine interaction mode.** If `workflow.human_checkpoints` includes `brainstorm`, run in interactive mode. Otherwise, run in autonomous mode.
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
 
-3. **Spawn the brainstorm agent.** Pass the user's problem statement and any referenced files. The brainstorm agent will auto-detect if domain skills are missing and trigger `/skills-load` as needed.
+## Process
 
-4. **Run the interaction loop.** In interactive mode:
-   - Receive the agent's questions or trade-off proposals.
-   - Present them to the user and collect answers.
-   - Re-spawn the brainstorm agent with the full Q&A history in context.
-   - Repeat until the agent produces a design document.
-   In autonomous mode, let the agent run to completion in a single pass.
+### 1. Explore project context
 
-5. **Save the design document.** Write the final design doc to `docs/plans/brainstorm-<slug>.md`, where `<slug>` is derived from the problem statement.
+Before asking anything, understand what exists:
+- Read the project README and CLAUDE.md for conventions and structure
+- Check `project_structure` config paths — read the architecture doc, API spec, existing ADRs if they exist
+- Use Glob and Grep to find relevant files. Read entry points and modules related to the task.
+- Stop when you have enough to ask good questions.
 
-6. **Report and suggest next step.** Print the path to the saved design doc and its summary. Suggest the logical next step:
+Reference specific files and patterns you find. Do not speak in abstractions when concrete code exists.
 
-   > Run `/plan` to create an implementation plan from this design document.
+### 2. Ask clarifying questions
+
+Ask questions **one at a time** to refine the idea:
+- Prefer multiple choice when the options are knowable
+- Open-ended when the answer space is too broad to enumerate
+- Focus on understanding: **purpose**, **constraints**, **success criteria**
+- If a topic needs more exploration, break it into multiple questions across rounds
+
+### 3. Propose 2-3 approaches
+
+When you have enough context:
+- Lead with your recommended approach and explain why
+- For each approach: one-sentence summary, high-level how, pros/cons, relative effort (small/medium/large)
+- **YAGNI ruthlessly** — identify speculative features, call out over-engineering, prefer the simplest solution
+
+### 4. Present the design
+
+Once you believe you understand what you're building, present it for approval. Scale each section to its complexity — a few sentences if straightforward, up to a paragraph if nuanced. Ask after each section whether it looks right.
+
+Sections (use only what is relevant):
+
+- **Overview**: Problem statement and chosen approach
+- **Architecture**: High-level structure — main pieces and how they relate
+- **Tech Stack / Patterns**: Which technologies or patterns and why
+- **Data Model**: What data needs to exist and how it relates (shape, not column types)
+- **Key Behaviors**: Important non-obvious behaviors and design decisions
+- **Open Questions**: Anything the planner or user still needs to decide
+
+The entire design for a medium feature should be **1-2 pages max**. Bullet points over prose. Skip obvious sections.
+
+### 5. Write design doc
+
+Save the approved design to `docs/plans/YYYY-MM-DD-<topic>-design.md`. Commit it.
+
+### 6. Suggest next step
+
+> Design approved. Run `/plan` to create an implementation plan from this design document.
+
+## Key Principles
+
+- **One question at a time** — don't overwhelm with multiple questions
+- **Multiple choice preferred** — easier to answer than open-ended when possible
+- **YAGNI ruthlessly** — remove unnecessary features from all designs
+- **Explore alternatives** — always propose 2-3 approaches before settling
+- **Incremental validation** — present design, get approval section by section
+- **Be flexible** — go back and clarify when something doesn't make sense
+- **Stay directional** — the planner handles implementation detail, domain patterns, file paths, and task decomposition. Your job is the what and why.

@@ -1,7 +1,7 @@
 ---
 name: investor-outreach
 description: "Draft investor cold emails, warm intro requests, follow-ups, update emails, and fundraising communications with personalization based on fund thesis and partner fit."
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 ---
 

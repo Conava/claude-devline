@@ -3,6 +3,7 @@ name: startup-analysis
 description: "Market sizing (TAM/SAM/SOM), unit economics, financial modeling, competitive analysis, and investor-ready business planning. Uses real frameworks: Porter's Five Forces, Blue Ocean, cohort-based revenue modeling. Use only when explicitly requested."
 argument-hint: "<task: market-sizing | financials | competitive | metrics | team-planning | full-business-case>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ---
 

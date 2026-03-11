@@ -1,7 +1,7 @@
 ---
 name: investor-materials
 description: "Create and update pitch decks, one-pagers, investor memos, accelerator applications, financial models, and fundraising materials with internal consistency across all assets."
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 ---
 

@@ -35,7 +35,7 @@ git:
 
 project_structure:
   # Where agents read/write project documentation and artifacts.
-  # Override per-project in repo/.claude-plugin-config.yaml.
+  # Override per-project in repo/.claude/plugin-config.yaml.
   readme: README.md
   claude_md: CLAUDE.md
   changelog: CHANGELOG.md
@@ -49,6 +49,7 @@ project_structure:
 code:
   require_tests: true
   test_approach: tdd
+  require_javadoc: true
   untestable_strategies:
     - manual-verification
     - screenshot-comparison
@@ -87,9 +88,7 @@ skills:
     - review
     - docs-update
     - merge-prep
-    - skills-list
     - skills-load
-    - claude-md-management
     - systematic-debugging
     - dx-audit
     - docs-generate

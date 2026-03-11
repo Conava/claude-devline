@@ -154,7 +154,19 @@ Checklist of conditions that must be true when the task is done. Written as test
 
 ### Additional Plan Sections
 
-After all tasks, include:
+After all tasks, include (in this order):
+
+#### Domain Agents Needed
+
+A checklist of domain agents to refine the plan (populated in Step 9). Format:
+```markdown
+## Domain Agents Needed
+
+- [ ] design-agent — Tasks T03, T07, T09 involve React components and CSS layout
+- [ ] java-agent — Tasks T01–T06 involve Spring Boot services and JPA entities
+```
+
+Leave empty with a note if no domain agents are relevant.
 
 #### Dependency Graph
 A textual or visual representation showing task dependencies and parallel groups. Make it clear which tasks block which.
@@ -207,7 +219,9 @@ Skip for pure internal code, standard language features, and APIs already establ
 - **One logical unit per task.** "Add the User model and write CRUD endpoints" is two tasks.
 - **Actionable detail.** Not "update the config" but "add the `notifications` section to `config/default.yaml` with fields for `provider`, `retryCount`, and `batchSize`."
 - **Bottom-up ordering.** Infrastructure and types first, then core logic, then integration, then UI, then polish.
-- **Tests are part of implementation.** Never create separate "write tests for X" tasks.
+- **Tests are part of implementation.** Never create separate "write tests for X" tasks. But be specific about what to test — list concrete test cases with exact assertions, not vague "add tests for error handling."
+- **Dead code cleanup is part of implementation.** If a task replaces existing code, the task description must list the specific old code to remove. Don't leave dead code for reviewers to find.
+- **Error handling is explicit.** Every task that handles invalid input must specify: throw an exception (which type?) or return an error (which shape?). Never leave it to the implementer to decide — "handle errors appropriately" produces silent fallbacks.
 - **DX awareness.** If a task introduces new setup steps, note that automation should be part of the deliverable.
 
 ### Step 5: Compute Dependencies and Parallel Groups
@@ -237,6 +251,8 @@ Systematically verify:
 - For every new function/class/type introduced in one task and consumed in another: is the producer task a dependency of the consumer task? Will the import path exist when the consumer runs?
 - For every existing function/class/type that a task modifies: what else in the codebase calls it? Will those callers still work? Do they need their own tasks?
 - For every file in `touches`: is it claimed by exactly one task per group? Are there hidden overlaps (e.g., two tasks both need to modify the same barrel export file)?
+- **Shared infrastructure files**: identify central files that multiple parallel tasks all need to modify (e.g., a `DatabaseManager`, a `Server` class, a config file, a DI container, a barrel export). These must not be parallelized — either (a) assign the shared file to one task in an earlier group and have parallel tasks depend on it, or (b) assign the shared file to exactly one task per group and serialize those tasks. Listing a shared file in only one task's `touches` while other tasks silently modify it is a plan defect.
+- **Compilation dependencies between parallel tasks**: if Task A creates a class that Task B (in the same group) needs to compile, Task B will fail or create the file itself to unblock. Restructure so the producer is in an earlier group, or merge the tasks.
 
 **Ripple effects — what becomes unused or broken?**
 - If a task renames or removes a function/method/type: grep the codebase. List every call site. Are they all covered by tasks?
@@ -248,6 +264,14 @@ Systematically verify:
 - Does every task with behavioral changes have test cases that would catch a regression?
 - Are error paths tested, not just happy paths?
 - If Task B depends on Task A's output: is there a test that verifies the integration, or do we only test each in isolation?
+- Do test cases actually assert the right thing? A test named `_throwsException` must use `assertThrows` (or equivalent), not just call the method. A test for castling must test castling legality, not just piece placement. Spell out the assertion in the test case description.
+- Are enum/constant exhaustiveness tests included? If a task adds enum values, include a test that verifies the count matches expectations so new values can't be silently added without updating consumers.
+
+**Code hygiene — will the reviewer find avoidable issues?**
+- If a task replaces or supersedes existing code: does it explicitly remove the dead code? List the specific functions/methods/files to delete. Don't leave orphaned code for the reviewer to flag.
+- Are names accurate? If a concept has a well-known name (e.g., "pseudo-legal" in chess, "idempotent" in APIs), use it. Misspellings and non-standard terminology will be flagged.
+- If a task introduces error handling: does it throw/raise proper exceptions, or does it silently return a fallback value? Silent fallbacks (returning a default instead of throwing on invalid input) are bugs. Specify the error behavior explicitly in the task description.
+- Are there DRY violations across tasks? If two tasks implement similar logic (e.g., move validation patterns, serialization), factor out the shared abstraction as a dependency task or note the shared pattern in both task descriptions.
 
 **Ordering — can this actually execute?**
 - Walk through the groups in order. At each group boundary, verify that everything a task needs (types, functions, files, config) has been produced by a completed earlier group.
@@ -255,13 +279,44 @@ Systematically verify:
 
 **If you find issues, fix the plan now.** Add missing tasks, fix dependencies, update `touches`, adjust groups. Do not note problems and move on — resolve them. Then re-verify.
 
-### Step 9: Return Summary
+### Step 9: Identify Relevant Domain Agents
+
+Before returning your summary, identify which domain agents should refine this plan. Each domain agent is a second-pass expert that takes ownership of its domain — it will challenge your decisions, add specificity, and rewrite vague task descriptions with precise guidance.
+
+Available domain agents and their triggers:
+
+| Agent | Trigger |
+|-------|---------|
+| `design-agent` | Any task involving UI components, CSS, visual design, accessibility, React hooks, Next.js pages, or user interactions |
+| `java-agent` | Any task involving Java, Spring Boot controllers/services/repositories, JPA entities, Spring Security, or Java testing |
+| `python-agent` | Any task involving Python, Django, FastAPI, Flask, Celery, pytest, or Python ORM models |
+| `rust-agent` | Any task involving Rust code, Cargo, Actix-web, Axum, or Rust concurrency |
+| `cpp-agent` | Any task involving C or C++ code, CMake, memory management, or systems programming |
+| `database-agent` | Any task involving schema changes, database migrations, SQL queries, ORM models, indexes, or connection configuration |
+| `api-agent` | Any task defining or modifying HTTP API endpoints, request/response shapes, error formats, or API versioning |
+| `deployment-agent` | Any task involving CI/CD pipelines, Docker, Kubernetes, Terraform, cloud infrastructure, health checks, or environment configuration |
+
+Add a `## Domain Agents Needed` section to the plan **before** the Dependency Graph section, listing only the relevant agents. If no agents are relevant (pure config change, documentation-only task), write an empty section with a note.
+
+```markdown
+## Domain Agents Needed
+
+- [ ] design-agent — [which tasks and why]
+- [ ] api-agent — [which tasks and why]
+- [ ] database-agent — [which tasks and why]
+- [ ] deployment-agent — [which tasks and why]
+```
+
+The orchestrator will spawn each listed agent in sequence after you finish. They will read the entire plan, challenge and refine it, and mark themselves complete before the orchestrator runs the next one.
+
+### Step 10: Return Summary
 
 Return:
 - **Task count** and **parallel groups** (count and tasks per group)
 - **Complexity estimate** with brief rationale
 - **Concerns** if any
 - **Plan location**: path to the written file
+- **Domain agents identified**: list of agents that will refine the plan
 
 ## Guidelines
 

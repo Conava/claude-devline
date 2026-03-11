@@ -14,3 +14,9 @@ data/
 
 # Plugin runtime state
 plugin/state/
+
+# Anthropic-licensed skills (redistribution prohibited — download from https://github.com/anthropics/claude-code-skills)
+plugin/skills/pdf/
+plugin/skills/docx/
+plugin/skills/pptx/
+plugin/skills/xlsx/

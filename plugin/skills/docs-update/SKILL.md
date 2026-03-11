@@ -11,7 +11,29 @@ Run the documentation update stage independently to bring project documentation 
 
 ## Procedure
 
-1. **Determine the base branch.** Auto-detect the remote default branch (`origin/main` or `origin/master`). If the user provided a specific base branch or commit range as an argument, use that instead. Compute the diff between the base and current HEAD to identify what changed.
+1. **Check branch and base ref.**
+
+   Run `git rev-parse --abbrev-ref HEAD` to get the current branch.
+
+   - **Feature branch, no argument**: diff against `origin/main` (or `origin/master`). This is the ideal case — the diff covers exactly the work on this branch.
+   - **Feature branch, argument provided**: use the provided base branch or commit hash instead.
+   - **Main/master branch, argument provided**: use the provided commit hash or range as the base. Proceed.
+   - **Main/master branch, no argument**: warn the user before proceeding:
+
+     > ⚠️ **You are on the default branch with no base ref specified.**
+     >
+     > The docs-updater works by diffing your current HEAD against a base. On `main` without a base, there is no meaningful diff — it will see zero changes and update nothing, or diff against an arbitrary point.
+     >
+     > **Options:**
+     > - Run from a feature branch (recommended — the diff covers exactly your changes)
+     > - Provide a specific commit hash or range: `/docs-update <commit-hash>` or `/docs-update HEAD~5..HEAD`
+     > - Provide a tag: `/docs-update v1.2.0`
+     >
+     > Do you want to proceed anyway with a manually specified range, or cancel?
+
+     Wait for the user's response. If they provide a range, use it. If they cancel, stop.
+
+   Once the base ref is established, compute the diff: `git diff <base>...HEAD`.
 
 2. **Load configuration.** Read `plugin/config/workflow.yaml` to retrieve documentation settings such as `docs.tracked_files` (list of doc files to consider, e.g., `README.md`, `CLAUDE.md`, `docs/**/*.md`), `docs.max_review_attempts` (default: 2), and `docs.style_guide` if one is configured.
 

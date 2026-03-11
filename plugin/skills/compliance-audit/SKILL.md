@@ -3,6 +3,7 @@ name: compliance-audit
 description: "Security compliance validation against GDPR, HIPAA, SOC 2, PCI-DSS, and ISO 27001 frameworks. Data classification, access control audit, encryption verification, and regulatory checklist generation. Use only when explicitly requested."
 argument-hint: "<framework: gdpr | hipaa | soc2 | pci-dss | iso27001 | all>"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Bash, Grep, Glob
 ---
 

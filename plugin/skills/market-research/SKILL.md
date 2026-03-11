@@ -1,7 +1,7 @@
 ---
 name: market-research
 description: "Conduct market research, competitor analysis, fund/investor research, and technology scans with source attribution, contrarian evidence, and decision-oriented summaries."
-disable-model-invocation: false
+disable-model-invocation: true
 user-invocable: true
 ---
 

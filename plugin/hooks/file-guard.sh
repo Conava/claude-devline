@@ -49,6 +49,14 @@ SENSITIVE_PATTERNS=(
   "firebase-adminsdk"
 )
 
+# Allow template/example files (no real secrets)
+SAFE_SUFFIXES=(".template" ".example" ".sample" ".dist")
+for suffix in "${SAFE_SUFFIXES[@]}"; do
+  if [[ "$BASENAME" == *"$suffix"* ]]; then
+    exit 0
+  fi
+done
+
 for pattern in "${SENSITIVE_PATTERNS[@]}"; do
   if [[ "$BASENAME" == *"$pattern"* ]]; then
     echo "Blocked: writing to sensitive file $BASENAME. Secrets and credentials should not be modified by automation." >&2

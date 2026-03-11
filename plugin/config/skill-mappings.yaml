@@ -1,66 +1,187 @@
 file_patterns:
-  "*.java": [java-coding-standards]
-  "*.ts": [frontend-design, frontend-patterns]
-  "*.tsx": [frontend-design, frontend-patterns]
-  "*.jsx": [frontend-design, frontend-patterns]
+  # Frontend (web)
+  "*.ts": [frontend-patterns, frontend-design]
+  "*.tsx": [frontend-patterns, frontend-design]
+  "*.jsx": [frontend-patterns, frontend-design]
+  "*.js": [frontend-patterns]
+  "*.vue": [frontend-patterns, frontend-design]
+  "*.svelte": [frontend-patterns]
   "*.css": [frontend-design]
   "*.scss": [frontend-design]
+  "*.sass": [frontend-design]
+  "*.html": [frontend-patterns, frontend-design]
+
+  # Frontend markup — Java/Android
+  "*.fxml": [frontend-design, java-coding-standards]
+  "*.xml": [frontend-design]
+
+  # Frontend markup — Swift/iOS/macOS
+  "*.xib": [frontend-design, swift-patterns]
+  "*.storyboard": [frontend-design, swift-patterns]
+
+  # Frontend markup — .NET (WPF, MAUI, Blazor)
+  "*.xaml": [frontend-design]
+  "*.axaml": [frontend-design]
+  "*.razor": [frontend-design]
+  "*.cshtml": [frontend-design]
+
+  # Frontend templates — Python
+  "*.jinja": [frontend-design, python-patterns]
+  "*.jinja2": [frontend-design, python-patterns]
+  "*.j2": [frontend-design, python-patterns]
+
+  # Frontend templates — Ruby
+  "*.erb": [frontend-design]
+  "*.haml": [frontend-design]
+  "*.slim": [frontend-design]
+
+  # Frontend templates — PHP
+  "*.blade.php": [frontend-design]
+  "*.twig": [frontend-design]
+
+  # Frontend templates — Node.js / general
+  "*.hbs": [frontend-design, frontend-patterns]
+  "*.handlebars": [frontend-design, frontend-patterns]
+  "*.ejs": [frontend-design, frontend-patterns]
+  "*.pug": [frontend-design, frontend-patterns]
+  "*.njk": [frontend-design, frontend-patterns]
+
+  # Java
+  "*.java": [java-coding-standards]
+  "pom.xml": [java-coding-standards]
+  "build.gradle": [java-coding-standards]
+  "build.gradle.kts": [java-coding-standards]
+
+  # Python
   "*.py": [python-patterns]
+
+  # Go
   "*.go": [golang-patterns]
+
+  # Rust
   "*.rs": [rust-patterns]
+  "Cargo.toml": [rust-patterns]
+
+  # C / C++
   "*.c": [cpp-patterns]
   "*.h": [cpp-patterns]
   "*.cpp": [cpp-patterns]
   "*.cc": [cpp-patterns]
   "*.hpp": [cpp-patterns]
+  "CMakeLists.txt": [cpp-patterns]
+
+  # Swift
   "*.swift": [swift-patterns]
-  "*.swift": [swift-patterns]
+
+  # Database / SQL
   "*.sql": [postgres-patterns, database-design]
+
+  # API specs
+  "*.graphql": [api-design]
+  "*.gql": [api-design]
+  "*.proto": [api-design]
+  "openapi.yaml": [api-design]
+  "openapi.json": [api-design]
+  "swagger.yaml": [api-design]
+  "swagger.json": [api-design]
+
+  # Shell
   "*.sh": [shell-patterns]
   "*.bash": [shell-patterns]
   "Makefile": [shell-patterns]
+
+  # Infrastructure / Cloud
   "Dockerfile": [docker-patterns, cloud-infrastructure]
   "Dockerfile.*": [docker-patterns, cloud-infrastructure]
   "docker-compose*.yml": [docker-patterns, cloud-infrastructure]
   "docker-compose*.yaml": [docker-patterns, cloud-infrastructure]
-  "*.spec.ts": [e2e-testing]
-  "*.e2e.ts": [e2e-testing]
-  "*.test.e2e.ts": [e2e-testing]
   "*.tf": [cloud-infrastructure]
   "*.tfvars": [cloud-infrastructure]
 
+  # E2E testing
+  "*.spec.ts": [e2e-testing]
+  "*.e2e.ts": [e2e-testing]
+  "*.test.e2e.ts": [e2e-testing]
+  "playwright.config.ts": [e2e-testing]
+  "cypress.config.ts": [e2e-testing]
+
 framework_markers:
+  # Java / Spring
   "@SpringBootApplication": [springboot-patterns]
   "@SpringBoot": [springboot-patterns]
-  "@Entity": [jpa-patterns]
+  "@Entity": [jpa-patterns, database-design]
   "@Repository": [jpa-patterns]
   "@RestController": [springboot-patterns, api-design]
-  "express|fastify|koa|hono": [api-design, backend-patterns]
-  "FastAPI|flask": [api-design]
-  "Django|django": [api-design, django-patterns]
-  "React|NextJS|next/": [frontend-design, frontend-patterns]
-  "Vue|Nuxt": [frontend-design, frontend-patterns]
+  "JpaRepository|CrudRepository": [jpa-patterns]
+  "Flyway|Liquibase": [database-migrations]
+
+  # Python frameworks
+  "Django|django.db|django.urls": [django-patterns, api-design]
+  "FastAPI|from fastapi": [api-design, backend-patterns]
+  "flask|from flask": [api-design, backend-patterns]
+  "SQLAlchemy|sqlalchemy": [database-design, database-migrations, postgres-patterns]
+  "alembic": [database-migrations, database-design]
+  "celery": [python-patterns]
+
+  # Node.js / JavaScript backend
+  "express|fastify|koa|hono|nestjs": [api-design, backend-patterns]
+
+  # Rust web frameworks
+  "actix_web|actix-web": [rust-patterns]
+  "axum|tower::Service": [rust-patterns]
+
+  # Go web frameworks
+  "gin-gonic|echo|fiber|chi": [golang-patterns]
+
+  # Frontend frameworks
+  "React|NextJS|next/|from 'react'": [frontend-design, frontend-patterns]
+  "Vue|Nuxt|createApp": [frontend-design, frontend-patterns]
+  "Svelte|SvelteKit": [frontend-patterns]
+
+  # Databases
+  "pg|psycopg2|asyncpg|postgres": [postgres-patterns]
+  "typeorm|prisma|sequelize|drizzle|knex": [database-design, database-migrations]
+  "mongoose|mongodb": [database-design]
+
+  # Testing
   "Playwright|@playwright": [e2e-testing]
   "Cypress|cypress": [e2e-testing]
+
+  # Cloud / infra
   "terraform|module|resource": [cloud-infrastructure]
+  "kubernetes|kubectl|helm": [cloud-infrastructure, deployment-patterns]
+  "github.com/aws|boto3|@aws-sdk": [cloud-infrastructure]
 
 directory_patterns:
+  # Database migrations
   "migrations/": [database-migrations, database-design]
   "db/migrate/": [database-migrations, database-design]
   "src/main/resources/db/": [database-migrations, jpa-patterns, database-design]
+
+  # API
   "openapi/": [api-design]
   "swagger/": [api-design]
+  "api/": [api-design]
+  "routes/": [api-design, backend-patterns]
+  "controllers/": [api-design, backend-patterns]
+  "handlers/": [backend-patterns]
+
+  # CI/CD and infra
   ".github/workflows/": [deployment-patterns, cloud-infrastructure]
-  "Jenkinsfile": [deployment-patterns, cloud-infrastructure]
   ".gitlab-ci.yml": [deployment-patterns, cloud-infrastructure]
-  "e2e/": [e2e-testing]
-  "tests/e2e/": [e2e-testing]
-  "playwright.config": [e2e-testing]
-  "manage.py": [django-patterns]
-  "*/apps/": [django-patterns]
   "terraform/": [cloud-infrastructure]
   "infra/": [cloud-infrastructure]
-  "k8s/": [cloud-infrastructure]
-  "kubernetes/": [cloud-infrastructure]
-  "helm/": [cloud-infrastructure]
+  "k8s/": [cloud-infrastructure, deployment-patterns]
+  "kubernetes/": [cloud-infrastructure, deployment-patterns]
+  "helm/": [cloud-infrastructure, deployment-patterns]
+
+  # Django
+  "manage.py": [django-patterns]
+  "apps/": [django-patterns]
+
+  # E2E
+  "e2e/": [e2e-testing]
+  "tests/e2e/": [e2e-testing]
+
+  # Shell scripts
   "scripts/": [shell-patterns]
