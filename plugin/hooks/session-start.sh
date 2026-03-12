@@ -14,54 +14,7 @@ fi
 # -----------------------------------------------------------------------
 # 1. Build SKILL USAGE RULES context (static — literal \n sequences)
 # -----------------------------------------------------------------------
-CONTEXT="SKILL USAGE RULES (mandatory — no exceptions):\nNever implement code, fix bugs, or make code changes directly in the main session. All development work goes through a skill.\n- Bug, error, crash, unexpected behavior, test failure → MUST use: systematic-debugging\n- New feature, refactor, task implementation → MUST use: pipeline or implement\n- Code review request → MUST use: review\n- Documentation update → MUST use: docs-update or docs-generate\nInvoke the matching skill via the Skill tool BEFORE doing anything else — including asking clarifying questions. Announce it first: \"I'm using the [skill-name] skill to [one-line purpose].\" Once loaded, follow it exactly.\n\nAvailable skills:\n"
-
-# Append skill names from SKILL.md frontmatter
-SKILLS_DIR="$PLUGIN_ROOT/skills"
-if [[ -d "$SKILLS_DIR" ]]; then
-  for skill_file in "$SKILLS_DIR"/*/SKILL.md; do
-    [[ -f "$skill_file" ]] || continue
-    skill_name=""
-    skill_desc=""
-    disable_model_invocation="false"
-    in_frontmatter=0
-    while IFS= read -r line; do
-      if [[ "$line" == "---" ]]; then
-        if [[ $in_frontmatter -eq 1 ]]; then break; fi
-        in_frontmatter=1
-        continue
-      fi
-      if [[ $in_frontmatter -eq 1 ]]; then
-        if [[ "$line" =~ ^name:[[:space:]]*(.*) ]]; then
-          skill_name="${BASH_REMATCH[1]%\"}"
-          skill_name="${skill_name#\"}"
-          skill_name="${skill_name%\'}"
-          skill_name="${skill_name#\'}"
-        fi
-        if [[ "$line" =~ ^disable-model-invocation:[[:space:]]*(.*) ]]; then
-          disable_model_invocation="${BASH_REMATCH[1]}"
-        fi
-        if [[ "$line" =~ ^description:[[:space:]]*(.*) ]]; then
-          raw="${BASH_REMATCH[1]%\"}"
-          raw="${raw#\"}"
-          raw="${raw%\'}"
-          raw="${raw#\'}"
-          raw="${raw#|}"
-          raw="${raw#|-}"
-          raw="${raw#>}"
-          skill_desc="${raw## }"
-        fi
-      fi
-    done < "$skill_file"
-    if [[ -n "$skill_name" ]]; then
-      if [[ "$disable_model_invocation" == "true" ]]; then
-        CONTEXT="${CONTEXT}- ${skill_name}\n"
-      else
-        CONTEXT="${CONTEXT}- ${skill_name}: ${skill_desc}\n"
-      fi
-    fi
-  done
-fi
+CONTEXT="SKILL USAGE RULES (mandatory — no exceptions):\nNever implement code, fix bugs, or make code changes directly in the main session. All development work goes through a skill.\n- Bug, error, crash, unexpected behavior, test failure → MUST use: systematic-debugging\n- New feature, refactor, task implementation → MUST use: pipeline or implement\n- Code review request → MUST use: review\n- Documentation update → MUST use: docs-update or docs-generate\nInvoke the matching skill via the Skill tool BEFORE doing anything else — including asking clarifying questions. Announce it first: \"I'm using the [skill-name] skill to [one-line purpose].\" Once loaded, follow it exactly."
 
 # -----------------------------------------------------------------------
 # 2. Branch warning — hardcoded protected branch list
