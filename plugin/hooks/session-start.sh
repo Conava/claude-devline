@@ -30,8 +30,8 @@ done
 # -----------------------------------------------------------------------
 # 3. JSON-escape CONTEXT and output hook payload
 # -----------------------------------------------------------------------
-# Escape backslashes first, then double-quotes, then convert real newlines to \n
-ESCAPED=$(printf '%s' "$CONTEXT" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "%s\\n", $0}' | tr -d '\n')
+# Convert literal \n sequences to real newlines, then format for JSON embedding
+ESCAPED=$(printf '%b' "$CONTEXT" | awk '{printf "%s\\n", $0}' | tr -d '\n' | sed 's/"/\\"/g')
 # Remove trailing \n added by awk for the last (empty) line
 ESCAPED="${ESCAPED%\\n}"
 
