@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Devline workflow hook: enforce feature branch before code changes
-# Blocks Write/Edit on protected branches, instructs to create kind/title branch
-# Reads branch/commit conventions from .claude/devline.local.md if present
+# Blocks Write/Edit on protected branches for source code files
+# Allows non-code files (docs, configs) to be edited directly on protected branches
+# Reads configuration from .claude/devline.local.md if present
 
 input=$(cat)
 file_path=$(printf '%s\n' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
@@ -23,7 +24,32 @@ if ! git -C "$cwd" rev-parse --is-inside-work-tree &>/dev/null; then
   exit 0
 fi
 
+# Defaults
 PROTECTED_BRANCHES='(main|master|develop|release|production|staging)'
+
+# Files allowed to be edited directly on protected branches
+# Matches by extension and specific filenames
+ALLOWED_EXTENSIONS='(md|txt|json|yaml|yml|toml|ini|cfg|conf|lock|gitignore|gitattributes|editorconfig|prettierrc|eslintrc|stylelintrc)'
+ALLOWED_FILES='(README|LICENSE|CHANGELOG|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|CLAUDE|Makefile|Dockerfile|Procfile|Brewfile)'
+
+# Read overrides from devline.local.md
+git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || echo "$cwd")
+LOCAL_MD="$git_root/.claude/devline.local.md"
+
+if [[ -f "$LOCAL_MD" ]]; then
+  FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
+
+  custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/')
+  if [[ -n "$custom_protected" ]]; then
+    PROTECTED_BRANCHES="$custom_protected"
+  fi
+
+  # Read additional allowed extensions from devline.local.md
+  custom_allowed=$(echo "$FRONTMATTER" | grep '^direct_edit_extensions:' | sed 's/direct_edit_extensions: *//' | sed 's/^"\(.*\)"$/\1/')
+  if [[ -n "$custom_allowed" ]]; then
+    ALLOWED_EXTENSIONS="$custom_allowed"
+  fi
+fi
 
 current_branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || echo "")
 
@@ -31,28 +57,45 @@ if [[ -z "$current_branch" ]]; then
   exit 0
 fi
 
-if printf '%s\n' "$current_branch" | grep -qEi "^$PROTECTED_BRANCHES$"; then
-  # Read custom conventions from devline.local.md if present
-  git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || echo "$cwd")
-  LOCAL_MD="$git_root/.claude/devline.local.md"
-  branch_hint="git checkout -b kind/descriptive-title. Branch kinds: feat, fix, refactor, docs, chore, test, ci. Examples: feat/add-user-auth, fix/login-timeout, refactor/db-queries."
-  commit_hint="Commits must use conventional format: kind(scope): details."
-
-  if [[ -f "$LOCAL_MD" ]]; then
-    FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
-    custom_branch=$(echo "$FRONTMATTER" | grep '^branch_prefix:' | sed 's/branch_prefix: *//' | sed 's/^"\(.*\)"$/\1/')
-    custom_commit=$(echo "$FRONTMATTER" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/')
-    if [[ -n "$custom_branch" ]]; then
-      branch_hint="Branch convention: $custom_branch"
-    fi
-    if [[ -n "$custom_commit" ]]; then
-      commit_hint="Commit convention: $custom_commit"
-    fi
-  fi
-
-  echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: Cannot write code on protected branch '$current_branch'. Create a feature branch first. $branch_hint $commit_hint\"}" >&2
-  exit 2
+# Only enforce on protected branches
+if ! printf '%s\n' "$current_branch" | grep -qEi "^$PROTECTED_BRANCHES$"; then
+  exit 0
 fi
 
-# All checks passed
-exit 0
+# Extract filename from path
+filename=$(basename "$file_path")
+extension="${filename##*.}"
+
+# Allow files with permitted extensions
+if [[ "$filename" != "$extension" ]] && printf '%s' "$extension" | grep -qEi "^$ALLOWED_EXTENSIONS$"; then
+  exit 0
+fi
+
+# Allow specific filenames (no extension or special names)
+if printf '%s' "$filename" | grep -qEi "^$ALLOWED_FILES$"; then
+  exit 0
+fi
+
+# Allow dotfiles/configs at project root
+if [[ "$filename" == .* && "$filename" != ".env" ]]; then
+  exit 0
+fi
+
+# Block: this is a source code file on a protected branch
+branch_hint="git checkout -b kind/descriptive-title. Branch kinds: feat, fix, refactor, docs, chore, test, ci."
+commit_hint="Commits must use conventional format: kind(scope): details."
+
+if [[ -f "$LOCAL_MD" ]]; then
+  FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
+  custom_branch=$(echo "$FRONTMATTER" | grep '^branch_prefix:' | sed 's/branch_prefix: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_commit=$(echo "$FRONTMATTER" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/')
+  if [[ -n "$custom_branch" ]]; then
+    branch_hint="Branch convention: $custom_branch"
+  fi
+  if [[ -n "$custom_commit" ]]; then
+    commit_hint="Commit convention: $custom_commit"
+  fi
+fi
+
+echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: Cannot edit source code on protected branch '$current_branch'. Create a feature branch first. $branch_hint $commit_hint\"}" >&2
+exit 2

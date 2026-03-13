@@ -89,6 +89,17 @@ auto_approve_plan: false
 # branch_prefix: "{kind}/{title}"
 # commit_format: "kind(scope): details"
 # commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
+
+# === Branch Protection ===
+# Protected branches (regex group). Default: (main|master|develop|release|production|staging)
+# protected_branches: "(main|master)"
+#
+# Merge style allowed on protected branches: squash (default), merge, rebase
+# merge_style: "squash"
+#
+# File extensions allowed to be edited directly on protected branches (regex group).
+# Default: (md|txt|json|yaml|yml|toml|ini|cfg|conf|lock|gitignore|gitattributes|editorconfig|prettierrc|eslintrc|stylelintrc)
+# direct_edit_extensions: "(md|txt|json|yaml|yml|toml)"
 ---
 ```
 
