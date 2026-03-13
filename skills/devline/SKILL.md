@@ -10,6 +10,10 @@ disable-model-invocation: false
 
 Orchestrate the complete development lifecycle from rough idea to merge-ready code.
 
+## CRITICAL: Orchestrator Role
+
+**You are an ORCHESTRATOR, not an implementer.** You MUST NOT edit, fix, or modify any source code yourself — not even to address reviewer warnings, test failures, or minor issues. ALL code changes must be delegated to the appropriate agent (implementer, devops, debugger). Your job is to coordinate agents, present results to the user, and manage the pipeline flow.
+
 ## Progress Tracking
 
 **IMPORTANT:** Before starting any work, create a task list to track pipeline progress. This gives the user a clear overview of where they are in the pipeline.
