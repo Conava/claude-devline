@@ -33,16 +33,20 @@ Mark each task as `in_progress` when starting that stage and `completed` when do
 ```
 ## Implementation Progress
 
-| # | Work Package       | Implement | Review | Status |
-|---|-------------------|-----------|--------|--------|
-| 1 | Auth module       | ✅        | ✅     | Done   |
-| 2 | API routes        | ✅        | 🔄 Fix #1 | Fixing |
-| 3 | Database layer    | 🔄        |        | Building |
-| 4 | Frontend views    | ⏳        |        | Waiting |
+| # | Group | Work Package       | Implement | Review     | Status   |
+|---|-------|--------------------|-----------|------------|----------|
+| 1 | 1     | Auth module        | ✅        | ✅         | Done     |
+| 2 | 1     | Database layer     | ✅        | 🔄 Fix #1 | Fixing   |
+| 3 | 2     | API routes         | 🔄        |            | Building |
+| 4 | 2     | Frontend views     | 🔄        |            | Building |
+| 5 | 3     | Integration tests  | ⏳        |            | Waiting  |
 ```
 
-Status icons: ⏳ waiting, 🔄 in progress, ✅ done, ❌ failed
-Update and re-display this table each time a work package or review completes.
+- **#**: Task number — one per implementer agent, sequential
+- **Group**: Parallel execution group — derived from the plan's dependency graph. Group 1 = all packages with no dependencies (run first, in parallel). Group 2 = packages that depend on Group 1 (run next, in parallel). Group 3 = depends on Group 2, etc. Order the table by group, then by task number within each group.
+- Status icons: ⏳ waiting, 🔄 in progress, ✅ done, ❌ failed
+
+Update and re-display this table each time a work package or review completes. **Important:** Always output a short text message (even just the updated table) between background agent completions — do not stay silent while agents are running. If multiple agents are running in the background and one completes, acknowledge it and re-display the table immediately. This keeps the user's status line active and visible.
 
 ## Configuration
 
@@ -68,6 +72,8 @@ Before any code is written, ensure the project is on a feature branch:
 4. If already on a feature branch, continue
 
 The `.devline/` directory is created for pipeline artifacts (plan, reviews). Add `.devline/` to `.gitignore` if not already present.
+
+5. **Stale plan check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it and inform the user that a stale plan was cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh.
 
 ### Stage 1: Brainstorm (Interactive — runs in main context)
 Follow the **brainstorming** skill directly (do NOT launch an agent — this must be interactive in the main conversation):
@@ -102,7 +108,7 @@ Launch the **planner** agent in the **foreground** (NOT background). The planner
 - Analyze the codebase and design the architecture
 - Challenge its own decisions aggressively
 - Identify proactive improvements for all touched code
-- Break work into parallel-safe packages (file-based isolation)
+- Break work into right-sized packages (file-isolated for parallel, sequenced for shared files)
 - Define TDD test cases per package
 - Use context7 MCP to research libraries and best practices
 
@@ -144,7 +150,7 @@ Once the plan is approved, launch agents **in the background** (`run_in_backgrou
 - Multiple agents run simultaneously on independent packages
 - Sequential packages wait for dependencies
 
-Run agents using `isolation: "worktree"` when working on packages that touch different areas of the codebase, or sequentially when file isolation is sufficient.
+Run agents using `isolation: "worktree"` when working on parallel packages that touch different areas of the codebase. For sequential packages that share files, run them in order on the same branch — each builds on the previous one's changes.
 
 **Per-package review loop:** After each work package is implemented, immediately launch the **reviewer** agent in the background for that package:
 - Reviews correctness, security, performance, quality
@@ -178,11 +184,45 @@ Check `.claude/devline.local.md` for `pr_review_strictness` setting.
 - **Major issues**: launch the **planner** (foreground, with resume loop) to re-plan the affected work, then flow back through implementation → review → deep review
 
 ### Complete
-When deep review approves, report completion:
-- Summary of what was built
-- Files created/modified
-- Test results
-- Any notes or follow-ups
+When deep review approves with no findings:
+1. **Mark the plan as completed:** Update `.devline/plan.md` — change `**Status:** active` to `**Status:** completed`. This prevents accidental reuse by implementers in future conversations.
+2. Report completion summary:
+   - Summary of what was built
+   - Files created/modified
+   - Test results
+3. **Ask the user what to do next** using AskUserQuestion:
+
+```json
+{
+  "question": "Pipeline complete — all reviews passed. What would you like to do?",
+  "header": "Pipeline Complete",
+  "options": [
+    {"label": "I found a mistake / want to add something / fix a bug", "description": "Describe the issue and I'll route it to the right stage"},
+    {"label": "Exit", "description": "Delete plan and end the pipeline"},
+    {"label": "Commit and exit", "description": "Commit the feature, delete plan, and end the pipeline"},
+    {"label": "Commit, merge to main, and exit", "description": "Commit the feature, merge to main, delete plan, and end the pipeline"}
+  ],
+  "multiSelect": false
+}
+```
+
+**Handling each option:**
+
+- **"I found a mistake / want to add something / fix a bug"**: Ask the user to describe the issue using AskUserQuestion (free-text). Then triage:
+  - **Small, contained fix** (typo, missing edge case, minor bug in a single file): launch an **implementer** agent directly with the fix description → reviewer → back to this Complete stage
+  - **Behavioral change or new functionality**: route back to **Stage 2 (Plan)** — resume the planner with the new requirement so it can create an additional work package → implementation → review → deep review → back to Complete
+  - **Architectural issue or cross-cutting concern**: route back to **Stage 2 (Plan)** with instructions to revise the architecture → full pipeline re-run from implementation
+  - Use your judgment to pick the lightest-weight path that addresses the issue. When in doubt, ask the user which route they prefer.
+
+- **"Exit"**: Delete `.devline/plan.md` and end the pipeline.
+
+- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md` and end the pipeline.
+
+- **"Commit, merge to main, and exit"**: Stage and commit all changes on the feature branch. Then:
+  1. Draft a squash merge commit message summarizing the entire feature (not individual commits). Present it to the user via AskUserQuestion with the draft as context and options to approve, edit, or provide their own message.
+  2. Squash merge into main: `git checkout main && git merge --squash <branch> && git commit -m "<approved message>"`.
+  3. Delete `.devline/plan.md` and end the pipeline.
+  **Before merging, confirm the target branch with the user if it's not obvious.**
 
 ## Frontend Auto-Detection
 If any implementer modifies UI files (detected via PostToolUse hook), the **frontend-reviewer** agent is triggered automatically. Incorporate its feedback into the implementation.

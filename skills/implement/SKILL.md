@@ -21,8 +21,9 @@ Launch **implementer** agents to execute work packages using test-driven develop
 
 ## With a Plan (Multiple Packages)
 If the user provides or references a plan with work packages:
-1. Parse the work packages and their dependency graph
-2. Launch implementer agents for all packages that can run in parallel
+1. **Validate the plan first:** Read `.devline/plan.md` and check the `**Branch:**` and `**Status:**` headers. If the branch doesn't match the current git branch or the status is `completed`, warn the user and ask whether to proceed — do not silently implement a stale plan.
+2. Parse the work packages and their dependency graph
+3. Launch implementer agents for all packages that can run in parallel
 3. Wait for dependent packages to complete before launching their dependents
 4. Each implementer follows strict TDD: write tests → implement → verify
 

@@ -27,6 +27,7 @@ Before designing anything, understand what you're working with:
 - Read the feature specification thoroughly
 - Explore the existing codebase — architecture, patterns, conventions, naming, test style
 - Map the blast radius: every file, module, and interface the feature will touch or interact with
+- **Find existing tests:** For every source file in the blast radius, search for corresponding test files. If you are changing a class's constructor, public API, or behavior, the existing tests WILL break — these test files MUST be included in "Files owned" for the relevant work package. Failing to include test files is the #1 cause of avoidable review failures.
 - Identify existing inconsistencies, tech debt, or design friction in the affected areas
 - Use context7 MCP to research best practices for relevant libraries and frameworks
 
@@ -122,10 +123,11 @@ Include these improvements in the relevant work packages — not as a separate "
 ### 6. Define Work Packages
 
 Each work package must be:
-- **File-isolated:** No two packages touch the same file
-- **Independently testable:** Tests can run without other packages
+- **File-isolated for parallel packages:** Packages that run in parallel MUST NOT touch the same file. Sequential packages (where one depends on another) MAY share files — the later package builds on the earlier one's changes.
+- **Independently testable:** Tests can run without other packages (or, for sequential packages, can run once dependencies are complete)
 - **Dependency-ordered:** Clear which packages can run in parallel vs. sequentially
 - **Self-contained in quality:** Each package includes its own proactive improvements for the files it owns — no deferred cleanup
+- **Right-sized:** Each package should address one coherent concern. If you can't describe a package's goal in one sentence, it's too big — split it. Prefer multiple small sequential packages over one large package, even if they touch the same files. Large packages are harder for implementers to execute and harder to recover from when something goes wrong.
 
 ### 7. Write Plan to Disk
 
@@ -146,6 +148,10 @@ Do NOT paste the full plan into the conversation — it's on disk where implemen
 
 ```markdown
 # Implementation Plan: [Feature Name]
+
+**Branch:** [current git branch name]
+**Created:** [ISO 8601 date, e.g. 2026-03-13]
+**Status:** active
 
 ## Architecture Overview
 [High-level design, component diagram if helpful]
@@ -205,7 +211,7 @@ paths. Define these based on the acceptance criteria that describe user-visible 
 ## Quality Standards
 
 - Every work package must list exact files it owns
-- No file appears in more than one package
+- No file appears in more than one **parallel** package — sequential packages may share files
 - Test cases must be concrete and specific
 - Dependencies between packages must be explicit
 - The plan must address ALL acceptance criteria from the spec
