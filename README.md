@@ -41,12 +41,16 @@ User types feature idea
   ├─ Quick clarifying questions (1-3 max, or none)
   └─ Output: Concise feature specification
         │
+  ══ APPROVAL GATE (configurable) ══
+        │
   Stage 2: Plan (INTERACTIVE)
   ├─ Designs architecture, researches libraries (context7)
   ├─ Creates parallel work packages (file-isolated)
   ├─ Challenges itself, recommends improvements
   ├─ Writes full plan to .devline/plan.md
   └─ Returns concise summary to conversation
+        │
+  ══ APPROVAL GATE (configurable) ══
         │
   ═══ AUTONOMOUS FROM HERE ═══
         │
@@ -123,10 +127,18 @@ These files are **never committed** — the security hooks block staging anythin
 
 ## Configuration
 
-Create `.claude/devline.local.md` in your project to customize behavior:
+Create `.claude/devline.local.md` in your project to customize behavior. Run `/devline:setup` to generate this file with all available settings.
 
 ```markdown
 ---
+# === Approval Gates ===
+
+# By default, the pipeline stops after brainstorming and after planning
+# to wait for your explicit approval before proceeding.
+# Set to true to skip the approval gate and proceed automatically.
+auto_approve_brainstorm: false
+auto_approve_plan: false
+
 # === Framework Detection Overrides ===
 
 # Test framework (default: auto-detect)

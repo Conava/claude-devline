@@ -18,18 +18,28 @@ Create these tasks immediately at the start using TaskCreate:
 
 1. "Brainstorm — Refine idea into feature spec" (activeForm: "Brainstorming feature idea")
 2. "Plan — Design architecture and work packages" (activeForm: "Planning implementation")
-3. "Review — In-depth code review" (activeForm: "Reviewing implementation")
-4. "Documentation — Update project docs" (activeForm: "Updating documentation")
-5. "PR Review — Final merge-readiness check" (activeForm: "Running final PR review")
-6. "Complete — Summary and next steps" (activeForm: "Wrapping up")
+3. "Implement — Build work packages (TDD)" (activeForm: "Implementing work packages")
+4. "Review — In-depth code review" (activeForm: "Reviewing implementation")
+5. "Documentation — Update project docs" (activeForm: "Updating documentation")
+6. "PR Review — Final merge-readiness check" (activeForm: "Running final PR review")
+7. "Complete — Summary and next steps" (activeForm: "Wrapping up")
 
 Mark each task as `in_progress` when starting that stage and `completed` when done.
 
-**Work package tasks:** Do NOT create a generic "Implement" task. Instead, when the plan is approved (end of Stage 2), create one task per work package (e.g., "Implement: Auth module", "Implement: API routes") and insert them between "Plan" and "Review" using dependencies:
-- Each work package task: `addBlockedBy: [plan-task-id]`
-- The "Review" task: `addBlockedBy: [all work-package-task-ids]`
+**Work package sub-tasks:** When the plan is approved (end of Stage 2), create one sub-task per work package (e.g., "Implement: Auth module", "Implement: API routes") and insert them as children of the "Implement" task using dependencies:
+- Each work package sub-task: `addBlockedBy: [plan-task-id]`
+- The "Review" task: `addBlockedBy: [implement-task-id]`
 
-This keeps work packages visible as first-class items in the task list, positioned right where implementation happens in the pipeline.
+This keeps work packages visible under the Implement task and positioned right where implementation happens in the pipeline.
+
+## Configuration
+
+Before starting the pipeline, check if `.claude/devline.local.md` exists in the project root and read its YAML frontmatter for pipeline settings. The following settings control approval gates:
+
+- **`auto_approve_brainstorm`** (default: `false`) — When `true`, skip the approval gate after brainstorm and proceed directly to planning. When `false` (default), stop and wait for explicit user approval.
+- **`auto_approve_plan`** (default: `false`) — When `true`, skip the approval gate after planning and proceed directly to implementation. When `false` (default), stop and wait for explicit user approval.
+
+If the file does not exist or a setting is missing, treat it as `false` (approval required).
 
 ## Pipeline Stages
 
@@ -52,9 +62,28 @@ Follow the **brainstorming** skill directly (do NOT launch an agent — this mus
 - Read the user's idea and briefly scan the codebase for context
 - Use AskUserQuestion with structured selectable options (1-4 questions, skip if clear)
 - Write a brief in-conversation summary of decisions — do NOT create any files
-- Confirm with AskUserQuestion before proceeding to planning
+- Confirm with AskUserQuestion before proceeding
 
 Everything stays in conversation context — the planner agent will read the full conversation.
+
+**Approval gate:** Unless `auto_approve_brainstorm` is `true` in `.claude/devline.local.md`, stop here and present the brainstorm summary to the user with an explicit approval question:
+
+```json
+{
+  "question": "Brainstorm complete. Approve this feature spec to proceed to planning?",
+  "header": "Approve Brainstorm",
+  "options": [
+    {"label": "Approve — proceed to planning", "description": "The planner will design the architecture based on this spec"},
+    {"label": "Needs changes", "description": "I want to revise something before planning begins"},
+    {"label": "Stop here", "description": "End the pipeline, I only needed the brainstorm"}
+  ],
+  "multiSelect": false
+}
+```
+
+- If the user selects "Needs changes", loop back to adjust the summary and re-confirm.
+- If the user selects "Stop here", end the pipeline gracefully.
+- Only proceed to Stage 2 on explicit approval.
 
 ### Stage 2: Plan (Interactive — foreground with resume loop)
 Launch the **planner** agent in the **foreground** (NOT background). The planner will:
@@ -74,7 +103,24 @@ Once the planner has all answers, it will:
 - **Write the full plan to `.devline/plan.md`** — this is the single source of truth
 - Return a concise summary to conversation (architecture overview, work package list, key decisions)
 
-Present the summary to the user for approval. The user can read the full plan at `.devline/plan.md` if they want details.
+**Approval gate:** Unless `auto_approve_plan` is `true` in `.claude/devline.local.md`, stop here and present the plan summary to the user with an explicit approval question:
+
+```json
+{
+  "question": "Plan complete — the full plan is at .devline/plan.md. Approve to start implementation?",
+  "header": "Approve Plan",
+  "options": [
+    {"label": "Approve — start implementation", "description": "Launch implementer agents for all work packages"},
+    {"label": "Needs changes", "description": "I want to revise the plan before implementation"},
+    {"label": "Stop here", "description": "End the pipeline, I only needed the plan"}
+  ],
+  "multiSelect": false
+}
+```
+
+- If the user selects "Needs changes", resume the planner agent with the user's feedback to revise the plan.
+- If the user selects "Stop here", end the pipeline gracefully.
+- Only proceed to Stage 3 on explicit approval.
 
 ### Stage 3: Implement (Autonomous — background)
 Once the plan is approved, launch agents **in the background** (`run_in_background: true`) for work packages that can run in parallel:
