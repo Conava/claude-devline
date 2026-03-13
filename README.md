@@ -56,20 +56,18 @@ User types feature idea
         │
   ═══ AUTONOMOUS FROM HERE ═══
         │
-  Stage 3: Implementer Agents (PARALLEL)
+  Stage 3: Implement + Review (PARALLEL, per package)
   ├─ Read plan from .devline/plan.md
-  ├─ One per work package, strict TDD
+  ├─ One implementer per work package, strict TDD
   ├─ Writes tests first, implements until green
-  └─ Handles inline docs (JSDoc, docstrings)
+  ├─ Handles inline docs (JSDoc, docstrings)
+  ├─ Reviewer runs after each package completes
+  └─ FAIL → retry implementer (2x) → debugger → user
         │
-  Stage 4: Reviewer Agent (per package)
-  ├─ Correctness, security, performance, quality
-  └─ FAIL → retry implementer → debugger → user
-        │
-  Stage 5: Docs-keeper Agent
+  Stage 4: Docs-keeper Agent
   └─ Updates README, API docs, architecture docs
         │
-  Stage 6: PR Reviewer (FINAL GATE)
+  Stage 5: Deep Review (FINAL GATE)
   ├─ Security audit + credential scan
   ├─ Code quality + tech debt
   ├─ Convention adherence
@@ -175,6 +173,15 @@ pr_review_strictness: "block_all"
 # Commit message regex — used for validation (default: conventional commits)
 # commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
 
+# Protected branches — regex group (default: main, master, develop, release, production, staging)
+# protected_branches: "(main|master|develop|release|production|staging)"
+
+# Merge style for protected branches: squash (default), merge, rebase
+# merge_style: "squash"
+
+# File extensions allowed to be edited directly on protected branches
+# direct_edit_extensions: "(md|txt|json|yaml|yml|toml|ini|cfg|conf|lock|gitignore|gitattributes|editorconfig|prettierrc|eslintrc|stylelintrc)"
+
 # === Dependency Management (shared defaults for CVE patcher, EOL fixer, etc.) ===
 
 # Branch strategy: "main" = commit to default branch (default), "branch" = create a branch per update
@@ -232,49 +239,96 @@ After creating or editing settings, restart Claude Code for changes to take effe
 
 Devline includes strict security hooks for bypass permissions mode. All hooks run as PreToolUse checks — commands are blocked before execution.
 
-### Destructive Filesystem Protection
+Rules are either **deny** (hard block, cannot proceed) or **ask** (prompts for user confirmation in bypass mode).
+
+### Destructive Filesystem Protection (deny)
 
 | Rule | What it blocks |
 |------|---------------|
 | System paths | `rm -rf /`, `/home`, `/etc`, `/usr`, `/var`, `/sys`, `/boot`, `/proc`, `/opt`, `/lib`, `/bin`, `/sbin`, `~` |
 | Outside working dir | `rm -rf` targeting any path outside the current working directory |
 | Non-git directories | `rm -rf` in directories not protected by git |
-| Wildcards | `rm -rf .`, `rm -rf *`, `rm -rf ..` |
+| Wildcards | `rm -rf *`, `rm -rf ..`, `rm -rf /*` |
 | Disk operations | `mkfs`, `fdisk`, `dd of=/dev/` |
 
-### Git Destructive Operations
+### Git Destructive Operations (deny)
 
 | Rule | What it blocks |
 |------|---------------|
 | Force push | `git push --force`, `--force-with-lease`, `-f` |
 | Hard reset | `git reset --hard` |
 | Force clean | `git clean -f` |
-| Force delete branch | `git branch -D` |
 | Force checkout | `git checkout --force` |
 | Stash destruction | `git stash drop`, `git stash clear` |
 
+`git branch -D` on non-protected branches triggers **ask** (needed for squash-merged branches where `-d` fails). On protected branches it's a hard **deny**.
+
 ### Protected Branch Operations
 
-All operations on protected branches (main, master, develop, release, production, staging) are blocked:
+Operations on protected branches (main, master, develop, release, production, staging). The behavior varies — some are hard blocks, others prompt for confirmation:
 
-| Rule | What it blocks |
-|------|---------------|
-| Push | Any push to protected branches (even non-force) |
-| Commit | Direct commits while on a protected branch |
-| Merge into | `git merge` while on a protected branch |
-| Rebase | `git rebase` while on a protected branch |
-| Force create | `git checkout -B main` |
-| Delete | `git branch -d main`, `git branch -D main` |
-| Write/Edit | All file writes while on a protected branch |
+| Rule | Behavior | Details |
+|------|----------|---------|
+| Push | deny | Any push to protected branches (even non-force) |
+| Commit | ask | Direct commits while on a protected branch |
+| Merge into | depends | Controlled by `merge_style` setting (see below) |
+| Rebase | deny | `git rebase` while on a protected branch |
+| Force create | deny | `git checkout -B main` |
+| Delete | deny | `git branch -d main`, `git branch -D main` |
+| Write/Edit | deny | Source code writes only — docs, configs, and dotfiles are allowed (see below) |
 
-### Pipeline Artifact Protection
+**Merge style enforcement** (configurable via `merge_style` in `devline.local.md`):
+
+| Style | Allowed command | Other merge commands |
+|-------|----------------|---------------------|
+| `squash` (default) | `git merge --squash` (ask) | deny |
+| `merge` | `git merge --no-ff` (ask) | deny |
+| `rebase` | None (rebase the feature branch, then fast-forward) | deny |
+
+**Write/Edit on protected branches** — only source code files are blocked. These are allowed directly:
+- Extensions: `md`, `txt`, `json`, `yaml`, `yml`, `toml`, `ini`, `cfg`, `conf`, `lock`, `gitignore`, `gitattributes`, `editorconfig`, `prettierrc`, `eslintrc`, `stylelintrc` (customizable via `direct_edit_extensions`)
+- Filenames: `README`, `LICENSE`, `CHANGELOG`, `CONTRIBUTING`, `CODE_OF_CONDUCT`, `SECURITY`, `CLAUDE`, `Makefile`, `Dockerfile`, `Procfile`, `Brewfile`
+- Root dotfiles (except `.env`)
+
+### Pipeline Artifact Protection (deny)
 
 | Rule | What it blocks |
 |------|---------------|
 | Staging `.devline/` | `git add .devline/plan.md`, `git add .devline/` |
-| Staging plan/review files | `git add plan.md`, `git add review.md`, etc. |
 
-### Credential & Secret Protection
+### Publishing and Releases (deny)
+
+| Rule | What it blocks |
+|------|---------------|
+| Package publishing | `npm publish`, `cargo publish`, `twine upload`, `gem push`, `dotnet nuget push`, `mvn deploy`, `gradle publish` |
+| Container push | `docker push`, `podman push`, `buildah push` |
+| Git tags | `git tag` |
+| GitHub releases | `gh release create` |
+
+### GitHub Mutations (deny)
+
+| Rule | What it blocks |
+|------|---------------|
+| PR state changes | `gh pr merge`, `gh pr close`, `gh pr reopen` |
+| Issue mutations | `gh issue close`, `gh issue delete`, `gh issue comment` |
+
+### Database Destructive Operations (deny)
+
+| Rule | What it blocks |
+|------|---------------|
+| Schema destruction | `DROP TABLE`, `DROP DATABASE`, `DROP SCHEMA`, `DROP INDEX`, `DROP VIEW` |
+| Data destruction | `TRUNCATE TABLE`, bulk `DELETE FROM` |
+
+### External Mutations (ask)
+
+| Rule | What it prompts for |
+|------|---------------------|
+| HTTP mutations | `curl -X POST/PUT/DELETE/PATCH` to non-localhost URLs |
+| Remote access | `ssh`, `scp` to non-localhost hosts |
+
+Service control (`systemctl start/stop/restart/enable/disable`) is a hard **deny**.
+
+### Credential & Secret Protection (deny)
 
 | Rule | What it blocks |
 |------|---------------|
@@ -284,13 +338,14 @@ All operations on protected branches (main, master, develop, release, production
 | Hardcoded AWS keys | `AKIA...` patterns in file writes |
 | Private keys | `-----BEGIN PRIVATE KEY-----` in file writes |
 | API tokens | Hardcoded `api_key=`, `secret_key=` in file writes |
+| Passwords | Hardcoded `password=` assignments (allows test/example values) |
 | GitHub/GitLab tokens | `ghp_`, `gho_`, `glpat-` patterns |
 | JWTs | `eyJ...` token patterns in file writes |
 | Env file secrets | Writing real secrets to `.env` files |
 | System files | Writing to `/etc/`, `/sys/`, `/proc/`, shell profiles |
 | SSH config | Modifying `.ssh/config`, `authorized_keys` |
 
-### System Protection
+### System Protection (deny)
 
 | Rule | What it blocks |
 |------|---------------|
@@ -363,7 +418,7 @@ Agents are never invoked directly by the model — they are launched by skills o
 | planner | opus | No | No | dl-tdd-workflow, dl-frontend-dev | devline, plan |
 | implementer | sonnet | Yes | Yes | dl-tdd-workflow, dl-frontend-dev | devline, implement |
 | devops | sonnet | Yes | Yes | dl-cloud-infra | devline, implement |
-| reviewer | opus | Yes | Yes | — | devline, review |
+| reviewer | sonnet | Yes | Yes | — | devline, review |
 | debugger | opus | Yes | Yes | dl-debugging | devline, debug |
 | deep-review | opus | Yes | Yes | — | devline, deep-review |
 | frontend-reviewer | sonnet | Yes | Yes | dl-frontend-dev | PostToolUse hook (auto) |
@@ -374,11 +429,11 @@ Agents are never invoked directly by the model — they are launched by skills o
 ## Installation
 
 ```bash
-# Test locally
-claude --plugin-dir /path/to/devline
+# Install from marketplace
+claude plugin add devline
 
-# Or add to your project
-cp -r /path/to/devline .claude-plugin/
+# Or install from a local directory
+claude plugin add /path/to/devline
 ```
 
 ## Requirements
