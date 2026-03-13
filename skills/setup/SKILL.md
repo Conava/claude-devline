@@ -90,6 +90,26 @@ auto_approve_plan: false
 # commit_format: "kind(scope): details"
 # commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
 
+# === Dependency Management (shared defaults for CVE patcher, EOL fixer, etc.) ===
+# dep_branch_strategy: "main"         # "main" = commit to default branch, "branch" = create branch per update
+# dep_auto_push: true                 # Push automatically after verification
+# dep_auto_commit: true               # Commit automatically after verification
+# dep_verify_build: true              # Run build check before committing
+# dep_verify_tests: true              # Run test suite before committing
+
+# === CVE Patcher (overrides dep_* defaults for CVE-specific runs) ===
+# cve_branch_strategy: "main"
+# cve_auto_push: true
+# cve_auto_commit: true
+# cve_verify_build: true
+# cve_verify_tests: true
+
+# === Migrate (overrides dep_* defaults for migration runs) ===
+# migrate_branch_strategy: "branch"    # Default is "branch" for migrations (safer for large changes)
+# migrate_auto_push: true
+# migrate_auto_commit: true
+# Note: build and test verification is always on for migrations — cannot be disabled
+
 # === Branch Protection ===
 # Protected branches (regex group). Default: (main|master|develop|release|production|staging)
 # protected_branches: "(main|master)"

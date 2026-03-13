@@ -26,6 +26,8 @@ Full development lifecycle pipeline for Claude Code. Takes you from rough idea t
 | `/devline:review [files]` | In-depth code review |
 | `/devline:debug <error>` | Systematic debugging pipeline |
 | `/devline:pr [branch]` | Final PR merge-readiness review |
+| `/devline:cve-patcher <CVEs> [--repos ...]` | Patch CVE vulnerabilities across one or many repos |
+| `/devline:migrate <package> [to vX] [--repos ...]` | Complex dependency migrations with breaking changes, code refactoring, migration tools |
 
 ## Pipeline Flow
 
@@ -172,6 +174,36 @@ pr_review_strictness: "block_all"
 
 # Commit message regex — used for validation (default: conventional commits)
 # commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
+
+# === Dependency Management (shared defaults for CVE patcher, EOL fixer, etc.) ===
+
+# Branch strategy: "main" = commit to default branch (default), "branch" = create a branch per update
+# dep_branch_strategy: "main"
+
+# Auto-push after successful verification (default: true)
+# dep_auto_push: true
+
+# Auto-commit after successful verification (default: true)
+# dep_auto_commit: true
+
+# Run build verification before committing (default: true)
+# dep_verify_build: true
+
+# Run test suite before committing (default: true)
+# dep_verify_tests: true
+
+# === CVE Patcher (overrides dep_* defaults for CVE-specific runs) ===
+# cve_branch_strategy: "main"
+# cve_auto_push: true
+# cve_auto_commit: true
+# cve_verify_build: true
+# cve_verify_tests: true
+
+# === Migrate (overrides dep_* defaults for migration runs) ===
+# migrate_branch_strategy: "branch"    # Default is "branch" for migrations (safer for large changes)
+# migrate_auto_push: true
+# migrate_auto_commit: true
+# Note: build and test verification is always on for migrations — cannot be disabled
 ---
 ```
 
@@ -310,6 +342,8 @@ These are never invoked directly. They provide methodology and domain knowledge 
 | `dl-debugging` | debugger | Scientific debugging process |
 | `dl-documentation` | docs-keeper | Doc creation and maintenance |
 | `dl-cloud-infra` | devops | Cloud-native dev, IaC, CI/CD, containers |
+| `dl-dependency-management` | dependency-patcher, dependency-migrator | Ecosystem detection, update mechanics, verification, commit workflow |
+| `dl-dependency-migration` | dependency-migrator | Migration guide research, migration tool catalog, code refactoring methodology |
 
 ### Skills — Standalone
 
@@ -317,6 +351,8 @@ These are never invoked directly. They provide methodology and domain knowledge 
 |-------|---------|---------|
 | `brainstorm` | `/devline:brainstorm` | Interactive idea refinement (runs in main context, no agent) |
 | `setup` | `/devline:setup` | Initialize CLAUDE.md with clarification protocol |
+| `cve-patcher` | `/devline:cve-patcher` | CVE research + orchestration, launches dependency-patcher agents |
+| `migrate` | `/devline:migrate` | Migration research + orchestration, launches dependency-migrator agents |
 
 ### Agents
 
@@ -332,6 +368,8 @@ Agents are never invoked directly by the model — they are launched by skills o
 | pr-deep-review | opus | Yes | Yes | — | devline, pr |
 | frontend-reviewer | sonnet | Yes | Yes | dl-frontend-dev | PostToolUse hook (auto) |
 | docs-keeper | inherit | Yes | Yes | dl-documentation | devline |
+| dependency-patcher | sonnet | Yes | Yes | dl-dependency-management | cve-patcher |
+| dependency-migrator | opus | Yes | Yes | dl-dependency-management, dl-dependency-migration | migrate |
 
 ## Installation
 
