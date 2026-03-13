@@ -1,5 +1,5 @@
 ---
-name: pr
+name: deep-review
 description: Final comprehensive pull request review — the last gate before merge. Checks security, credentials, code quality, tech debt, conventions, and plan compliance.
 argument-hint: "[branch name or description]"
 user-invocable: true
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 # PR — Final Merge-Readiness Review
 
-Launch the **pr-deep-review** agent for a comprehensive final review.
+Launch the **deep-review** agent for a comprehensive final review.
 
 ## Determine Scope
 1. If a branch is specified, compare it against the base branch (main/master)
@@ -16,7 +16,7 @@ Launch the **pr-deep-review** agent for a comprehensive final review.
 3. Use `git diff main...HEAD` (or equivalent) to identify all changes
 
 ## Review Checklist
-The pr-deep-review will perform:
+The deep-review will perform:
 1. **Security Audit** — Vulnerability scan, OWASP Top 10 checks
 2. **Credential Scan** — Hardcoded keys, tokens, passwords, private keys
 3. **Code Quality** — Technical debt, duplication, error handling, resource leaks

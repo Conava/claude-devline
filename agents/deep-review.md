@@ -1,6 +1,6 @@
 ---
-name: pr-deep-review
-description: "Use this agent as the final quality gate in the pipeline. Performs a comprehensive deep review covering security audit, credential scanning, code quality, technical debt, convention adherence, plan compliance, and architecture integrity. This is the most thorough review in the pipeline — not limited to PRs, it runs on any completed implementation. Examples:\\n\\n<example>\\nContext: All work packages implemented and reviewed, pipeline reaching final stage\\nuser: \"Everything is implemented and reviewed, do the final deep review\"\\nassistant: \"I'll use the pr-deep-review agent to perform the final comprehensive quality review.\"\\n<commentary>\\nPipeline is at the final gate. Deep review checks everything holistically before approving.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: User wants a standalone deep review\\nuser: \"/devline:pr Review this branch for quality\"\\nassistant: \"I'll use the pr-deep-review agent to perform a comprehensive deep review.\"\\n<commentary>\\nUser wants the full deep review without having gone through the full pipeline.\\n</commentary>\\n</example>\\n"
+name: deep-review
+description: "Use this agent as the final quality gate in the pipeline. Performs a comprehensive deep review covering security audit, credential scanning, code quality, technical debt, convention adherence, plan compliance, and architecture integrity. This is the most thorough review in the pipeline — not limited to PRs, it runs on any completed implementation. Examples:\\n\\n<example>\\nContext: All work packages implemented and reviewed, pipeline reaching final stage\\nuser: \"Everything is implemented and reviewed, do the final deep review\"\\nassistant: \"I'll use the deep-review agent to perform the final comprehensive quality review.\"\\n<commentary>\\nPipeline is at the final gate. Deep review checks everything holistically before approving.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: User wants a standalone deep review\\nuser: \"/devline:deep-review Review this branch for quality\"\\nassistant: \"I'll use the deep-review agent to perform a comprehensive deep review.\"\\n<commentary>\\nUser wants the full deep review without having gone through the full pipeline.\\n</commentary>\\n</example>\\n"
 tools: Read, Grep, Glob, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: opus
 color: red
@@ -134,7 +134,7 @@ Do not flood the review with noise:
 ## Output Format
 
 ```markdown
-## PR Deep Review: [Feature/Branch Name]
+## Deep Review: [Feature/Branch Name]
 
 ### Verdict: APPROVED / CHANGES REQUIRED
 

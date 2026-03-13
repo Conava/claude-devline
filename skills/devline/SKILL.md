@@ -170,7 +170,7 @@ After all work packages pass review, launch the **docs-keeper** agent in the bac
 - Only handles separate doc files (inline docs were handled by implementer)
 
 ### Stage 5: Deep Review (Autonomous — background, Final Gate)
-Launch the **pr-deep-review** agent in the background for the final comprehensive review:
+Launch the **deep-review** agent in the background for the final comprehensive review:
 - Security audit and credential scanning
 - Code quality and technical debt assessment
 - Convention adherence check

@@ -8,7 +8,7 @@ Full development lifecycle pipeline for Claude Code. Takes you from rough idea t
 - **TDD Planning** — Detailed plans written to disk with parallel work packages and file-based isolation
 - **Parallel Implementation** — Multiple TDD implementer agents working simultaneously, reading the plan from disk
 - **In-Depth Review** — Correctness, security, performance, and quality checks
-- **PR Review** — Final merge gate: security audit, credential scan, convention check, plan compliance
+- **Deep Review** — Final merge gate: security audit, credential scan, convention check, plan compliance
 - **Systematic Debugging** — Scientific method: reproduce → hypothesize → test → fix
 - **Documentation** — Auto-detect and update separate docs (README, API, architecture)
 - **Frontend Auto-Detection** — Automatic UI review when frontend files are modified
@@ -25,7 +25,7 @@ Full development lifecycle pipeline for Claude Code. Takes you from rough idea t
 | `/devline:implement <plan>` | TDD implementation with parallel agents |
 | `/devline:review [files]` | In-depth code review |
 | `/devline:debug <error>` | Systematic debugging pipeline |
-| `/devline:pr [branch]` | Final PR merge-readiness review |
+| `/devline:deep-review [branch]` | Final merge-readiness deep review |
 | `/devline:cve-patcher <CVEs> [--repos ...]` | Patch CVE vulnerabilities across one or many repos |
 | `/devline:migrate <package> [to vX] [--repos ...]` | Complex dependency migrations with breaking changes, code refactoring, migration tools |
 
@@ -316,7 +316,7 @@ No agent is ever invoked randomly. All invocation flows through either the `/dev
 - **implement** — fires automatically when the user makes a precise implementation request with defined scope
 - **debug** — fires automatically when the user describes a bug, error, or unexpected behavior
 
-All other launcher skills require explicit invocation (`/devline:plan`, `/devline:review`, `/devline:pr`).
+All other launcher skills require explicit invocation (`/devline:plan`, `/devline:review`, `/devline:deep-review`).
 
 ### Skills — Launcher Skills (start agents)
 
@@ -329,7 +329,7 @@ These skills are user-facing entry points. They contain no domain logic — only
 | `implement` | `/devline:implement` | implementer(s) | Yes — precise requests |
 | `review` | `/devline:review` | reviewer | No |
 | `debug` | `/devline:debug` | debugger | Yes — bug reports |
-| `pr` | `/devline:pr` | pr-deep-review | No |
+| `deep-review` | `/devline:deep-review` | deep-review | No |
 
 ### Skills — Domain Logic (`dl-*`, injected into agents)
 
@@ -365,7 +365,7 @@ Agents are never invoked directly by the model — they are launched by skills o
 | devops | sonnet | Yes | Yes | dl-cloud-infra | devline, implement |
 | reviewer | opus | Yes | Yes | — | devline, review |
 | debugger | opus | Yes | Yes | dl-debugging | devline, debug |
-| pr-deep-review | opus | Yes | Yes | — | devline, pr |
+| deep-review | opus | Yes | Yes | — | devline, deep-review |
 | frontend-reviewer | sonnet | Yes | Yes | dl-frontend-dev | PostToolUse hook (auto) |
 | docs-keeper | inherit | Yes | Yes | dl-documentation | devline |
 | dependency-patcher | sonnet | Yes | Yes | dl-dependency-management | cve-patcher |
@@ -395,7 +395,7 @@ cp -r /path/to/devline .claude-plugin/
 
 2. **Start with `/devline <your idea>`** for a full pipeline run. Describe what you want in plain language — the brainstormer will ask clarifying questions, then hand off to planning and autonomous implementation.
 
-3. **Use individual commands** when you only need part of the pipeline: `/devline:review` after manual edits, `/devline:debug` for a stubborn bug, `/devline:pr` before merging.
+3. **Use individual commands** when you only need part of the pipeline: `/devline:review` after manual edits, `/devline:debug` for a stubborn bug, `/devline:deep-review` before merging.
 
 ### Effective Development Workflow
 
