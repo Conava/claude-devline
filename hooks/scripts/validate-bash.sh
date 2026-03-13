@@ -5,8 +5,8 @@ set -euo pipefail
 # Blocks destructive, dangerous, and credential-leaking commands
 
 input=$(cat)
-command=$(echo "$input" | jq -r '.tool_input.command // empty')
-cwd=$(echo "$input" | jq -r '.cwd // empty')
+command=$(printf '%s\n' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
+cwd=$(printf '%s\n' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)
 
 if [[ -z "$command" ]]; then
   exit 0

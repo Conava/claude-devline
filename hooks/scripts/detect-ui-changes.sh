@@ -6,7 +6,7 @@ set -euo pipefail
 # frontend-reviewer agent can be triggered
 
 input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+file_path=$(printf '%s\n' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
 
 if [[ -z "$file_path" ]]; then
   exit 0
@@ -16,33 +16,33 @@ fi
 is_ui_file=false
 
 # Web frontend (React, Vue, Angular, Svelte, etc.)
-if echo "$file_path" | grep -qEi '\.(jsx|tsx|vue|svelte|astro)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '\.(jsx|tsx|vue|svelte|astro)$'; then
   is_ui_file=true
 fi
 
 # CSS/styling files
-if echo "$file_path" | grep -qEi '\.(css|scss|sass|less|styled\.[jt]sx?)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '\.(css|scss|sass|less|styled\.[jt]sx?)$'; then
   is_ui_file=true
 fi
 
 # HTML templates
-if echo "$file_path" | grep -qEi '\.(html|htm|ejs|hbs|pug|njk)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '\.(html|htm|ejs|hbs|pug|njk)$'; then
   is_ui_file=true
 fi
 
 # Mobile (React Native, Flutter, Swift UI, Jetpack Compose, Kotlin)
-if echo "$file_path" | grep -qEi '(components?|screens?|views?|pages?|layouts?|widgets?|ui)/' && echo "$file_path" | grep -qEi '\.(dart|swift|kt|kts)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '(components?|screens?|views?|pages?|layouts?|widgets?|ui)/' && printf '%s\n' "$file_path" | grep -qEi '\.(dart|swift|kt|kts)$'; then
   is_ui_file=true
 fi
 
 # Desktop (JavaFX FXML, Electron, Tauri)
-if echo "$file_path" | grep -qEi '\.(fxml|xaml)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '\.(fxml|xaml)$'; then
   is_ui_file=true
 fi
 
 # UI directories (any framework)
-if echo "$file_path" | grep -qEi '/(components?|views?|pages?|layouts?|screens?|widgets?|templates?|ui)/'; then
-  if echo "$file_path" | grep -qEi '\.(js|ts|jsx|tsx|py|dart|swift|kt|java)$'; then
+if printf '%s\n' "$file_path" | grep -qEi '/(components?|views?|pages?|layouts?|screens?|widgets?|templates?|ui)/'; then
+  if printf '%s\n' "$file_path" | grep -qEi '\.(js|ts|jsx|tsx|py|dart|swift|kt|java)$'; then
     is_ui_file=true
   fi
 fi

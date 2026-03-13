@@ -6,8 +6,8 @@ set -euo pipefail
 # Reads branch/commit conventions from .claude/devline.local.md if present
 
 input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
-cwd=$(echo "$input" | jq -r '.cwd // empty')
+file_path=$(printf '%s\n' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
+cwd=$(printf '%s\n' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)
 
 if [[ -z "$file_path" || -z "$cwd" ]]; then
   exit 0
@@ -31,7 +31,7 @@ if [[ -z "$current_branch" ]]; then
   exit 0
 fi
 
-if echo "$current_branch" | grep -qEi "^$PROTECTED_BRANCHES$"; then
+if printf '%s\n' "$current_branch" | grep -qEi "^$PROTECTED_BRANCHES$"; then
   # Read custom conventions from devline.local.md if present
   git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || echo "$cwd")
   LOCAL_MD="$git_root/.claude/devline.local.md"
