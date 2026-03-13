@@ -1,0 +1,34 @@
+{
+  "name": "devline",
+  "owner": {
+    "name": "Marlon Kranz",
+    "email": "dev@marlonkranz.com"
+  },
+  "metadata": {
+    "description": "Full development lifecycle pipeline for Claude Code — brainstorm, plan, implement (parallel TDD), review, debug, document, with strict security hooks"
+  },
+  "plugins": [
+    {
+      "name": "devline",
+      "source": "./",
+      "description": "Full development lifecycle pipeline: brainstorm, plan, implement (parallel TDD), review, debug, document — with strict security hooks",
+      "version": "0.1.0",
+      "author": {
+        "name": "Marlon Kranz",
+        "email": "dev@marlonkranz.com"
+      },
+      "license": "MIT",
+      "keywords": [
+        "pipeline",
+        "tdd",
+        "review",
+        "security",
+        "documentation",
+        "frontend",
+        "debugging",
+        "workflow"
+      ],
+      "category": "development"
+    }
+  ]
+}
