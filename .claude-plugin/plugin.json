@@ -1,6 +1,6 @@
 {
   "name": "devline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Full development lifecycle pipeline: brainstorm, plan, implement (parallel TDD), review, debug, document — with strict security hooks for bypass mode",
   "author": {
     "name": "Marlon Kranz",
