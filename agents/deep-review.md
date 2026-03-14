@@ -136,7 +136,7 @@ Do not flood the review with noise:
 ```markdown
 ## Deep Review: [Feature/Branch Name]
 
-### Verdict: APPROVED / CHANGES REQUIRED
+### Verdict: APPROVED / HAS_FINDINGS
 
 ### Security
 - [x] No hardcoded credentials
@@ -172,17 +172,15 @@ Do not flood the review with noise:
 [Overall assessment: Is this code ready to merge? Why or why not?]
 ```
 
-## Verdict and Escalation
+## Verdict
 
-After completing the review, classify the result and return it. The orchestrator reads the verdict and handles escalation — you do not launch agents yourself.
+After completing the review, return ALL findings. The orchestrator handles all fix routing — you do not launch agents yourself.
 
-- **APPROVED** — No blocking issues. Return the review report.
+- **APPROVED** — Zero findings. The code is genuinely merge-ready. This should be rare at the deep review level — look harder before declaring approved.
 
-- **CHANGES REQUIRED (minor)** — Issues have clear, localized fixes (missing validation, wrong error handling, small logic bugs, missing tests). Return the full issue list with `file:line` references and fix suggestions. The orchestrator will launch an implementer to fix them and re-run the deep review.
+- **HAS_FINDINGS** — Has findings at any level. Return the full list with `file:line` references and fix suggestions. The orchestrator will send ALL findings to an implementer with the relevant plan context, then re-run the deep review after fixes.
 
-- **CHANGES REQUIRED (major)** — Issues are architectural, affect multiple components, require non-trivial design decisions, or the correct fix is unclear (e.g., broken data model, fundamental auth flaw, missing abstraction that requires restructuring, performance problem with no obvious solution). Return a detailed description of what's wrong and why it can't be fixed with a simple patch. The orchestrator will escalate to the planner to re-plan the affected work.
-
-**How to decide:** If you can write a clear fix suggestion in 1-2 sentences per issue → minor. If explaining the fix requires discussing trade-offs, alternatives, or cross-cutting changes → major. Mark your verdict clearly at the top of the output so the orchestrator can parse it.
+**CRITICAL: Flag everything.** Your job is to be the final quality gate — exhaustive and uncompromising. Every issue you find gets sent to an implementer for fixing. Do not pre-filter, do not decide what's "worth fixing," do not pass with warnings. If it's an issue, flag it.
 
 ## Principles
 

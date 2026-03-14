@@ -10,13 +10,18 @@ disable-model-invocation: true
 
 Launch the **planner** agent in the **foreground** with the user's feature specification or description.
 
-## Question-Answer Loop
+## Interactive Loop
 
-The planner may return a `STATUS: NEEDS_INPUT` response with structured design questions instead of a finished plan. When this happens:
+The planner may return a `STATUS: NEEDS_INPUT` response instead of a finished plan. This response can contain any combination of:
+- **Design Questions** — architectural or behavioral choices that need user input
+- **Code Issues Found** — bugs, flaws, or tech debt discovered in the blast radius that the user should decide whether to fix
+- **Proactive Improvements** — enhancements the planner wants to include for the user to approve or reject
 
-1. Present the questions to the user using **AskUserQuestion** — map each design question to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options
+When this happens:
+
+1. Present ALL sections to the user using **AskUserQuestion** — for design questions, map each to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options. For code issues and proactive improvements, present them as checklists the user can approve/reject.
 2. **Resume** the planner agent (using the `resume` parameter with its agent ID) with the user's answers
-3. Repeat if the planner returns more questions
+3. Repeat if the planner returns more questions or findings — the planner is encouraged to iterate multiple times to refine the plan
 
 ## After Planning
 

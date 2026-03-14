@@ -25,6 +25,7 @@ Create these tasks immediately at the start using TaskCreate:
 3. "Implement — Build and review work packages" (activeForm: "Implementing work packages")
 4. "Documentation — Update project docs" (activeForm: "Updating documentation")
 5. "Deep Review — Final quality and security audit" (activeForm: "Running deep review")
+6. "Final Gate — User approval" (activeForm: "Awaiting user approval")
 
 Mark each task as `in_progress` when starting that stage and `completed` when done.
 
@@ -112,10 +113,15 @@ Launch the **planner** agent in the **foreground** (NOT background). The planner
 - Define TDD test cases per package
 - Use context7 MCP to research libraries and best practices
 
-**Question-answer loop:** The planner cannot ask the user directly (AskUserQuestion doesn't work in subagents). Instead it may return a `STATUS: NEEDS_INPUT` response with structured design questions. When this happens:
-1. Present the questions to the user using **AskUserQuestion** — map each design question to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options
+**Interactive loop:** The planner cannot ask the user directly (AskUserQuestion doesn't work in subagents). Instead it may return a `STATUS: NEEDS_INPUT` response containing any combination of:
+- **Design Questions** — architectural or behavioral choices that need user input
+- **Code Issues Found** — bugs, flaws, or tech debt discovered in the blast radius that the user should decide whether to fix
+- **Proactive Improvements** — enhancements the planner wants to include in the plan for the user to approve or reject
+
+When this happens:
+1. Present ALL sections to the user using **AskUserQuestion** — for design questions, map each to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options. For code issues and proactive improvements, present them as checklists the user can approve/reject.
 2. **Resume** the planner agent (using the `resume` parameter with its agent ID) with the user's answers
-3. Repeat if the planner returns more questions
+3. Repeat if the planner returns more questions or findings — the planner is encouraged to iterate multiple times to refine the plan to a high standard
 
 Once the planner has all answers, it will:
 - **Write the full plan to `.devline/plan.md`** — this is the single source of truth
@@ -152,16 +158,26 @@ Once the plan is approved, launch agents **in the background** (`run_in_backgrou
 
 Run agents using `isolation: "worktree"` when working on parallel packages that touch different areas of the codebase. For sequential packages that share files, run them in order on the same branch — each builds on the previous one's changes.
 
-**Per-package review loop:** After each work package is implemented, immediately launch the **reviewer** agent in the background for that package:
-- Reviews correctness, security, performance, quality
-- On **PASS**: mark the package as done in the progress table
-- On **FAIL**: the reviewer returns a list of issues with file:line references and fix suggestions. The orchestrator then:
-  1. Launches an **implementer** agent with the issue list to fix the problems
-  2. Re-launches the **reviewer** on the fixed code
-  3. Repeats up to 2 cycles. If still failing, escalates to the **debugger** agent
-  4. If the debugger also fails, pause and ask the user for guidance
+**Per-package review loop:** After each work package is implemented, immediately launch the **reviewer** agent in the background for that package. The reviewer returns either **CLEAN** (zero findings) or **HAS_FINDINGS** (list of issues). **ALL findings — regardless of severity — must be sent back to an implementer for fixing.** There is no "pass with warnings."
 
-Update and display the progress table after each status change. The "Implement" pipeline task stays `in_progress` until ALL work packages have passed review.
+The fix cycle works as follows:
+
+1. **Reviewer returns CLEAN**: mark the package as done in the progress table
+2. **Reviewer returns HAS_FINDINGS**: launch an **implementer** agent with:
+   - The original work package from the plan (so it has full context of what was being built)
+   - The complete list of reviewer findings with file:line references and fix suggestions
+   - Instruction to fix ALL findings, not just critical ones
+3. After the implementer fixes the findings, re-launch the **reviewer** on the fixed code
+4. **If the reviewer returns HAS_FINDINGS again (attempt 2)**: launch another **implementer** with the new findings plus context from both previous attempts
+5. **If the reviewer returns HAS_FINDINGS a third time (attempt 3 — escalate to debugger)**: the implementer has failed to resolve the issues. **The debugger replaces the planner** — it investigates the root causes and writes a new fix plan to `.devline/plan.md`. Launch the **debugger** agent (foreground, like the planner) with:
+   - The original work package from the plan
+   - All reviewer findings from all attempts
+   - All implementer fix attempts and what they changed
+6. The debugger returns a fix plan summary. Present it for approval (same flow as Stage 2 plan approval).
+7. On approval, **restart the pipeline from Stage 3** using the debugger's plan — launch implementers for the debugger's work packages → reviewers → same fix cycle
+8. **If the debugger's plan also fails after the full escalation ladder**: pause the pipeline and ask the user for guidance
+
+Update and display the progress table after each status change. The "Implement" pipeline task stays `in_progress` until ALL work packages have a CLEAN review.
 
 ### Stage 4: Documentation (Autonomous — background)
 After all work packages pass review, launch the **docs-keeper** agent in the background:
@@ -179,9 +195,15 @@ Launch the **deep-review** agent in the background for the final comprehensive r
 
 Check `.claude/devline.local.md` for `pr_review_strictness` setting.
 
-**On CHANGES REQUIRED — the orchestrator reads the deep review verdict and escalates:**
-- **Minor issues**: launch an **implementer** with the issue list, then re-run the deep review
-- **Major issues**: launch the **planner** (foreground, with resume loop) to re-plan the affected work, then flow back through implementation → review → deep review
+**On HAS_FINDINGS — ALL findings get sent to an implementer for fixing.** The same escalation ladder applies as in per-package review:
+
+1. **Deep review returns APPROVED**: proceed to Complete
+2. **Deep review returns HAS_FINDINGS**: launch an **implementer** with:
+   - The relevant work package(s) from the plan that the findings relate to (match findings to packages by file ownership)
+   - The complete list of deep review findings with file:line references and fix suggestions
+3. After fixes, re-launch the **deep-review**
+4. **If HAS_FINDINGS persists after 2 implementer attempts**: escalate to the **debugger** (foreground). The debugger investigates root causes and writes a fix plan to `.devline/plan.md`. Present the plan for approval, then restart from Stage 3 with the debugger's plan.
+5. **If the debugger's plan also fails**: pause and ask the user for guidance
 
 ### Complete
 When deep review approves with no findings:
@@ -208,11 +230,15 @@ When deep review approves with no findings:
 
 **Handling each option:**
 
-- **"I found a mistake / want to add something / fix a bug"**: Ask the user to describe the issue using AskUserQuestion (free-text). Then triage:
-  - **Small, contained fix** (typo, missing edge case, minor bug in a single file): launch an **implementer** agent directly with the fix description → reviewer → back to this Complete stage
-  - **Behavioral change or new functionality**: route back to **Stage 2 (Plan)** — resume the planner with the new requirement so it can create an additional work package → implementation → review → deep review → back to Complete
-  - **Architectural issue or cross-cutting concern**: route back to **Stage 2 (Plan)** with instructions to revise the architecture → full pipeline re-run from implementation
-  - Use your judgment to pick the lightest-weight path that addresses the issue. When in doubt, ask the user which route they prefer.
+- **"I found a mistake / want to add something / fix a bug"**: Ask the user to describe the issue using AskUserQuestion (free-text). Then **reset the pipeline back to Stage 2 (Plan)**. Every user-reported finding — no matter how small — goes through proper planning before implementation.
+
+  Choose which agent runs Stage 2 based on the nature of the issue:
+  - **Debugger as planner** — for runtime bugs, crashes, errors, wrong output, things that "don't work" with observable symptoms. The debugger investigates root causes, then writes a fix plan to `.devline/plan.md`.
+  - **Planner** — for everything else: missing features, UI issues, behavioral changes, new requirements, "this should also do X." The planner analyzes the issue and writes updated work packages to `.devline/plan.md`.
+
+  **When resetting the pipeline**, use TaskUpdate to mark all stages from Stage 2 onward as not completed (set status back to `pending`): Plan, Implement, Documentation, Deep Review, Final Gate. This makes it visually clear to the user that the pipeline is running through those stages again.
+
+  After Stage 2 completes and the plan is approved, the full pipeline continues: Stage 3 (implement) → Stage 3 review loop → Stage 4 (docs) → Stage 5 (deep review) → back to Complete. The pipeline only ends when the user selects an exit or commit option.
 
 - **"Exit"**: Delete `.devline/plan.md` and end the pipeline.
 
@@ -229,10 +255,24 @@ If any implementer modifies UI files (detected via PostToolUse hook), the **fron
 
 ## Error Recovery
 
-All fix loops are driven by the orchestrator — subagents return findings, the orchestrator launches the next agent.
+All fix loops are driven by the orchestrator — subagents return findings, the orchestrator launches the next agent. **Every finding from every review gets fixed — there is no "pass with warnings."**
 
-- **Per-package review FAIL**: reviewer returns issues → orchestrator launches implementer → re-runs reviewer (up to 2 cycles) → debugger → user
-- **Deep review minor issues**: deep review returns issues → orchestrator launches implementer → re-runs deep review
-- **Deep review major issues**: deep review flags architectural issues → orchestrator launches planner (foreground) → re-plans → implementation → review → deep review
-- **Test failures**: debugger agent investigates
+**Escalation ladder (same for per-package review and deep review):**
+1. **Attempt 1**: reviewer/deep-review returns HAS_FINDINGS → implementer fixes (with plan context + findings) → re-review
+2. **Attempt 2**: still HAS_FINDINGS → implementer fixes again (with all prior context) → re-review
+3. **Attempt 3 (escalate to debugger-as-planner)**: still HAS_FINDINGS → **debugger replaces planner**. The debugger:
+   - Receives: original work package, all findings from all attempts, all implementer fix attempts
+   - Investigates root causes (does NOT fix code itself)
+   - Writes a fix plan to `.devline/plan.md` (same format as planner)
+   - Returns summary for approval
+   - On approval, pipeline restarts from Stage 3: implementers execute the debugger's plan → reviewers review → same escalation ladder
+4. **After debugger's plan fails**: pause and ask the user for guidance
+
+**User-reported issues at Complete stage — ALL reset to Stage 2:**
+- **Runtime bugs** (crashes, errors, wrong output) → Stage 2 with **debugger as planner** → Stage 3 → review → deep review → Complete
+- **Everything else** (missing features, UI issues, new requirements) → Stage 2 with **planner** → Stage 3 → review → deep review → Complete
+- The pipeline only ends when the user selects Exit, Commit and exit, or Commit, merge, and exit.
+
+**General:**
+- **Test failures during implementation**: implementer handles first; if stuck after 3 attempts, escalate to debugger-as-planner
 - **All agents**: if stuck, ask the user for guidance rather than looping forever
