@@ -5,13 +5,13 @@ Full development lifecycle pipeline for Claude Code. Takes you from rough idea t
 ## Features
 
 - **Brainstorming** — Interactive refinement of rough ideas into concrete feature specs
-- **TDD Planning** — Detailed plans written to disk with parallel work packages and file-based isolation
+- **TDD Planning** — Detailed plans written to disk with parallel tasks and file-based isolation
 - **Parallel Implementation** — Multiple TDD implementer agents working simultaneously, reading the plan from disk
 - **In-Depth Review** — Correctness, security, performance, and quality checks
 - **Deep Review** — Final merge gate: security audit, credential scan, convention check, plan compliance
 - **Systematic Debugging** — Scientific method: reproduce → hypothesize → test → fix
 - **Documentation** — Auto-detect and update separate docs (README, API, architecture)
-- **Frontend Auto-Detection** — Automatic UI review when frontend files are modified
+- **Design Intelligence** — BM25-powered design system generation from 67 styles, 161 palettes, 57 font pairings, 161 industry rules
 - **Git Workflow Enforcement** — Branch protection, conventional commits, pipeline artifact isolation
 - **Security Hooks** — Strict guards for bypass mode (blocks destructive commands, credential leaks)
 
@@ -35,8 +35,8 @@ Full development lifecycle pipeline for Claude Code. Takes you from rough idea t
 User types feature idea
         │
   Stage 0: Branch Setup (AUTOMATIC)
-  ├─ Check current branch
-  ├─ If on protected branch → create kind/title feature branch
+  ├─ Read branching strategy from devline.local.md
+  ├─ If on protected branch → create feature branch per configured format
   └─ Create .devline/ directory, ensure .gitignore
         │
   Stage 1: Brainstorm (INTERACTIVE — main context)
@@ -45,9 +45,15 @@ User types feature idea
         │
   ══ APPROVAL GATE (configurable) ══
         │
+  Stage 1.5: Design System (AUTOMATIC — if UI impact detected)
+  ├─ Frontend-planner searches design intelligence database
+  ├─ Matches product type → style, colors, typography, anti-patterns
+  └─ Writes .devline/design-system.md for planner to consume
+        │
   Stage 2: Plan (INTERACTIVE)
-  ├─ Designs architecture, researches libraries (context7)
-  ├─ Creates parallel work packages (file-isolated)
+  ├─ Reads design system (if generated) as UI constraints
+  ├─ Designs architecture, researches libraries (find-docs / ctx7)
+  ├─ Creates parallel tasks (file-isolated)
   ├─ Challenges itself, recommends improvements
   ├─ Writes full plan to .devline/plan.md
   └─ Returns concise summary to conversation
@@ -56,12 +62,12 @@ User types feature idea
         │
   ═══ AUTONOMOUS FROM HERE ═══
         │
-  Stage 3: Implement + Review (PARALLEL, per package)
+  Stage 3: Implement + Review (PARALLEL, per task)
   ├─ Read plan from .devline/plan.md
-  ├─ One implementer per work package, strict TDD
+  ├─ One implementer per task, strict TDD
   ├─ Writes tests first, implements until green
   ├─ Handles inline docs (JSDoc, docstrings)
-  ├─ Reviewer runs after each package completes
+  ├─ Reviewer runs after each task completes
   └─ FAIL → retry implementer (2x) → debugger → user
         │
   Stage 4: Docs-keeper Agent
@@ -81,9 +87,11 @@ Devline enforces a structured git workflow to prevent accidental changes to prot
 
 ### Branch Protection
 
-Before any code is written, devline checks the current branch. If on a protected branch (main, master, develop, release, production, staging), all Write/Edit operations are blocked until a feature branch is created.
+Before any code is written, devline checks the current branch. If on a protected branch (default: main, master, develop, release, production, staging), all Write/Edit operations are blocked until a feature branch is created. Protected branches, branch naming format, and allowed kinds are all customizable via `devline.local.md`.
 
-**Default branch format:** `kind/descriptive-title`
+**Default branch format:** `{kind}/{title}` (customizable via `branch_format`)
+
+**Default branch kinds** (customizable via `branch_kinds`):
 
 | Kind | Use for |
 |------|---------|
@@ -113,7 +121,7 @@ Examples:
 
 Valid kinds: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`, `style`, `perf`, `build`, `revert`
 
-The scope is optional. Both branch and commit conventions are customizable via `devline.local.md`.
+The scope is optional. The entire branching strategy (naming format, allowed kinds, protected branches) and commit conventions are customizable via `devline.local.md`.
 
 ### Pipeline Artifacts
 
@@ -122,110 +130,106 @@ The `.devline/` directory stores pipeline working files:
 | File | Purpose |
 |------|---------|
 | `.devline/plan.md` | Full implementation plan (written by planner, read by implementers) |
+| `.devline/design-system.md` | UI design recommendations (written by frontend-planner, read by planner and implementers) |
 
 These files are **never committed** — the security hooks block staging anything under `.devline/`. Add `.devline/` to your `.gitignore`.
 
 ## Configuration
 
-Create `.claude/devline.local.md` in your project to customize behavior. Run `/devline:setup` to generate this file with all available settings.
+Create `.claude/devline.local.md` in your project to customize pipeline behavior. Only include settings you want to change — all settings are optional and have sensible defaults. Run `/devline:setup` for an interactive guided setup.
 
+The file uses YAML frontmatter between `---` delimiters. After creating or editing settings, restart Claude Code for changes to take effect.
+
+### Settings Reference
+
+#### Approval Gates
+
+Control whether the pipeline pauses for your approval between stages.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `auto_approve_brainstorm` | `false` | Skip approval gate after brainstorming |
+| `auto_approve_plan` | `false` | Skip approval gate after planning |
+
+#### Branching Strategy
+
+Customize branch naming, protection rules, and merge behavior.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `branch_format` | `"{kind}/{title}"` | Branch naming format. Placeholders: `{kind}`, `{title}` |
+| `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds (pipe-separated). Used in branch names and commit prefixes |
+| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Protected branches as regex group. Write/Edit of source code is blocked on these |
+| `merge_style` | `"squash"` | Merge style for protected branches: `squash`, `merge`, or `rebase` |
+| `direct_edit_extensions` | `"(md\|txt\|json\|yaml\|yml\|toml\|ini\|cfg\|conf\|lock\|gitignore\|gitattributes\|editorconfig\|prettierrc\|eslintrc\|stylelintrc)"` | File extensions allowed for direct editing on protected branches (regex group) |
+
+#### Commit Conventions
+
+Customize commit message format and validation.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `commit_format` | `"kind(scope): details"` | Human-readable format description (shown in error messages) |
+| `commit_format_regex` | `"^(feat\|fix\|refactor\|docs\|chore\|test\|ci\|style\|perf\|build\|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"` | Regex used for commit message validation |
+
+#### Framework Detection Overrides
+
+Override auto-detection when devline guesses wrong or you want to pin a specific framework.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `test_framework` | auto-detect | Test framework (e.g., `"vitest"`, `"jest"`, `"pytest"`) |
+| `frontend_framework` | auto-detect | Frontend framework (e.g., `"react"`, `"vue"`, `"svelte"`) |
+| `doc_format` | auto-detect | Documentation format (e.g., `"markdown"`, `"asciidoc"`) |
+| `cloud_provider` | auto-detect | Cloud provider (e.g., `"aws"`, `"gcp"`, `"azure"`) |
+
+#### PR Review
+
+Control how strict the deep review gate is.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `pr_review_strictness` | `"block_all"` | Strictness level: `block_all`, `block_critical_warn_minor`, or `custom` |
+| `pr_review_block_categories` | `["security", "credentials", "quality"]` | Categories that block merge (when strictness is `custom`) |
+| `pr_review_warn_categories` | `["conventions", "debt"]` | Categories that warn but don't block (when strictness is `custom`) |
+
+#### Dependency Management
+
+Shared defaults for CVE patcher, EOL fixer, and other dependency tools. Each tool can override these with its own prefixed settings.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `dep_branch_strategy` | `"main"` | `"main"` = commit to default branch, `"branch"` = create branch per update |
+| `dep_auto_push` | `true` | Push automatically after verification |
+| `dep_auto_commit` | `true` | Commit automatically after verification |
+| `dep_verify_build` | `true` | Run build check before committing |
+| `dep_verify_tests` | `true` | Run test suite before committing |
+
+**CVE Patcher overrides** (prefix `cve_` instead of `dep_`): `cve_branch_strategy`, `cve_auto_push`, `cve_auto_commit`, `cve_verify_build`, `cve_verify_tests`. Same defaults as `dep_*`.
+
+**Migrate overrides** (prefix `migrate_` instead of `dep_`): `migrate_branch_strategy` (default: `"branch"`), `migrate_auto_push`, `migrate_auto_commit`. Build and test verification is always on for migrations and cannot be disabled.
+
+### Examples
+
+**Minimal — just auto-approve the pipeline:**
 ```markdown
 ---
-# === Approval Gates ===
-
-# By default, the pipeline stops after brainstorming and after planning
-# to wait for your explicit approval before proceeding.
-# Set to true to skip the approval gate and proceed automatically.
-auto_approve_brainstorm: false
-auto_approve_plan: false
-
-# === Framework Detection Overrides ===
-
-# Test framework (default: auto-detect)
-test_framework: "vitest"
-
-# Frontend framework (default: auto-detect)
-frontend_framework: "react"
-
-# Documentation format (default: auto-detect)
-doc_format: "markdown"
-
-# Cloud provider (default: auto-detect)
-cloud_provider: "aws"
-
-# === PR Review ===
-
-# Strictness: block_all | block_critical_warn_minor | custom
-pr_review_strictness: "block_all"
-
-# Custom categories (when strictness is "custom")
-# pr_review_block_categories: ["security", "credentials", "quality"]
-# pr_review_warn_categories: ["conventions", "debt"]
-
-# === Git Conventions ===
-
-# Branch naming convention (default: kind/descriptive-title)
-# branch_prefix: "{kind}/{title}"
-
-# Commit message format — human-readable description (shown in error messages)
-# commit_format: "kind(scope): details"
-
-# Commit message regex — used for validation (default: conventional commits)
-# commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
-
-# Protected branches — regex group (default: main, master, develop, release, production, staging)
-# protected_branches: "(main|master|develop|release|production|staging)"
-
-# Merge style for protected branches: squash (default), merge, rebase
-# merge_style: "squash"
-
-# File extensions allowed to be edited directly on protected branches
-# direct_edit_extensions: "(md|txt|json|yaml|yml|toml|ini|cfg|conf|lock|gitignore|gitattributes|editorconfig|prettierrc|eslintrc|stylelintrc)"
-
-# === Dependency Management (shared defaults for CVE patcher, EOL fixer, etc.) ===
-
-# Branch strategy: "main" = commit to default branch (default), "branch" = create a branch per update
-# dep_branch_strategy: "main"
-
-# Auto-push after successful verification (default: true)
-# dep_auto_push: true
-
-# Auto-commit after successful verification (default: true)
-# dep_auto_commit: true
-
-# Run build verification before committing (default: true)
-# dep_verify_build: true
-
-# Run test suite before committing (default: true)
-# dep_verify_tests: true
-
-# === CVE Patcher (overrides dep_* defaults for CVE-specific runs) ===
-# cve_branch_strategy: "main"
-# cve_auto_push: true
-# cve_auto_commit: true
-# cve_verify_build: true
-# cve_verify_tests: true
-
-# === Migrate (overrides dep_* defaults for migration runs) ===
-# migrate_branch_strategy: "branch"    # Default is "branch" for migrations (safer for large changes)
-# migrate_auto_push: true
-# migrate_auto_commit: true
-# Note: build and test verification is always on for migrations — cannot be disabled
+auto_approve_brainstorm: true
+auto_approve_plan: true
 ---
 ```
 
-**Override examples:**
-
-Jira ticket prefix convention:
+**Jira ticket convention:**
 ```markdown
 ---
-branch_prefix: "PROJ-{ticket}/{title}"
+branch_format: "PROJ-{ticket}/{title}"
+branch_kinds: "PROJ"
 commit_format: "PROJ-123: description"
 commit_format_regex: "^[A-Z]+-[0-9]+: .+"
 ---
 ```
 
-Emoji commit convention:
+**Emoji commits:**
 ```markdown
 ---
 commit_format: "emoji description (e.g., ✨ add feature)"
@@ -233,7 +237,12 @@ commit_format_regex: "^(✨|🐛|♻️|📝|🔧|✅|🔨|🚀|⬆️|⏪) .+"
 ---
 ```
 
-After creating or editing settings, restart Claude Code for changes to take effect.
+**Relaxed review for a prototype:**
+```markdown
+---
+pr_review_strictness: "block_critical_warn_minor"
+---
+```
 
 ## Security Hooks
 
@@ -358,10 +367,6 @@ Service control (`systemctl start/stop/restart/enable/disable`) is a hard **deny
 
 Commit messages are validated against the conventional commits format by default, or against a custom regex specified in `.claude/devline.local.md`. Heredoc-style commits (used by Claude Code's `Co-Authored-By` pattern) are allowed through since they can't be reliably parsed.
 
-### Frontend Auto-Detection
-
-When any implementer modifies UI files (detected via PostToolUse hook), the frontend-reviewer agent is triggered automatically for accessibility and quality checks.
-
 ## Architecture
 
 ### Invocation Rules
@@ -392,20 +397,21 @@ These are never invoked directly. They provide methodology and domain knowledge 
 
 | Skill | Injected into | Purpose |
 |-------|--------------|---------|
-| `dl-tdd-workflow` | planner, implementer | TDD methodology (red/green/refactor) |
-| `dl-frontend-dev` | planner, implementer, frontend-reviewer | UI/UX design, aesthetics, anti-AI-slop |
-| `dl-debugging` | debugger | Scientific debugging process |
-| `dl-documentation` | docs-keeper | Doc creation and maintenance |
-| `dl-cloud-infra` | devops | Cloud-native dev, IaC, CI/CD, containers |
-| `dl-dependency-management` | dependency-patcher, dependency-migrator | Ecosystem detection, update mechanics, verification, commit workflow |
-| `dl-dependency-migration` | dependency-migrator | Migration guide research, migration tool catalog, code refactoring methodology |
+| `kb-tdd-workflow` | planner, implementer | TDD methodology (red/green/refactor) |
+| `kb-design` | frontend-planner | Design intelligence database (BM25 search over 67 styles, 161 palettes, 57 font pairings, 161 industry rules), UI/UX guidelines, aesthetics |
+| `kb-debugging` | debugger | Scientific debugging process |
+| `kb-documentation` | docs-keeper | Doc creation and maintenance |
+| `kb-cloud-infra` | devops | Cloud-native dev, IaC, CI/CD, containers |
+| `kb-dependency-management` | dependency-patcher, dependency-migrator | Ecosystem detection, update mechanics, verification, commit workflow |
+| `kb-dependency-migration` | dependency-migrator | Migration guide research, migration tool catalog, code refactoring methodology |
+| `find-docs` | planner, implementer, devops, reviewer, debugger, deep-review | Up-to-date library docs via Context7 CLI (`npx ctx7@latest`) |
 
 ### Skills — Standalone
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
 | `brainstorm` | `/devline:brainstorm` | Interactive idea refinement (runs in main context, no agent) |
-| `setup` | `/devline:setup` | Initialize CLAUDE.md with clarification protocol |
+| `setup` | `/devline:setup` | Interactive project setup: CLAUDE.md + minimal settings |
 | `cve-patcher` | `/devline:cve-patcher` | CVE research + orchestration, launches dependency-patcher agents |
 | `migrate` | `/devline:migrate` | Migration research + orchestration, launches dependency-migrator agents |
 
@@ -415,16 +421,16 @@ Agents are never invoked directly by the model — they are launched by skills o
 
 | Agent | Model | Background | Bypass | Domain Skills | Launched by |
 |-------|-------|-----------|--------|---------------|-------------|
-| planner | opus | No | No | dl-tdd-workflow, dl-frontend-dev | devline, plan |
-| implementer | sonnet | Yes | Yes | dl-tdd-workflow, dl-frontend-dev | devline, implement |
-| devops | sonnet | Yes | Yes | dl-cloud-infra | devline, implement |
-| reviewer | sonnet | Yes | Yes | — | devline, review |
-| debugger | opus | Yes | Yes | dl-debugging | devline, debug |
-| deep-review | opus | Yes | Yes | — | devline, deep-review |
-| frontend-reviewer | sonnet | Yes | Yes | dl-frontend-dev | PostToolUse hook (auto) |
-| docs-keeper | inherit | Yes | Yes | dl-documentation | devline |
-| dependency-patcher | sonnet | Yes | Yes | dl-dependency-management | cve-patcher |
-| dependency-migrator | opus | Yes | Yes | dl-dependency-management, dl-dependency-migration | migrate |
+| frontend-planner | sonnet | Yes | Yes | kb-design, find-docs | devline (Stage 1.5, if UI impact) |
+| planner | opus | No | No | kb-tdd-workflow, find-docs | devline, plan |
+| implementer | sonnet | Yes | Yes | kb-tdd-workflow, find-docs | devline, implement |
+| devops | sonnet | Yes | Yes | kb-cloud-infra, find-docs | devline, implement |
+| reviewer | sonnet | Yes | Yes | find-docs | devline, review |
+| debugger | opus | Yes | Yes | kb-debugging, find-docs | devline, debug |
+| deep-review | opus | Yes | Yes | find-docs | devline, deep-review |
+| docs-keeper | inherit | Yes | Yes | kb-documentation | devline |
+| dependency-patcher | sonnet | Yes | Yes | kb-dependency-management | cve-patcher |
+| dependency-migrator | opus | Yes | Yes | kb-dependency-management, kb-dependency-migration | migrate |
 
 ## Installation
 
@@ -446,7 +452,7 @@ claude plugin add /path/to/devline
 
 ### Getting Started
 
-1. **Run `/devline:setup`** in your project to generate a CLAUDE.md with the clarification protocol. This teaches agents to stop and ask when something is unclear instead of guessing.
+1. **Run `/devline:setup`** in your project to create a CLAUDE.md with the clarification protocol and interactively configure pipeline settings. Only non-default settings are written — agents stop and ask when something is unclear instead of guessing.
 
 2. **Start with `/devline <your idea>`** for a full pipeline run. Describe what you want in plain language — the brainstormer will ask clarifying questions, then hand off to planning and autonomous implementation.
 
@@ -504,17 +510,28 @@ For deployment: see docs/deploy.md
 
 **Maintain it as a living document.** When Claude makes a wrong assumption, add the correction to CLAUDE.md so no agent makes the same mistake again. The `/devline:setup` clarification protocol automates this — agents will prompt you to add non-obvious context when they encounter surprises.
 
+### Documentation Lookup (Context7)
+
+Devline includes a built-in `find-docs` skill that uses the [Context7](https://context7.com) CLI to fetch up-to-date library documentation. No MCP server required — agents run `npx ctx7@latest` via Bash.
+
+Works without authentication for basic usage. For higher rate limits, set the `CONTEXT7_API_KEY` environment variable in your shell profile:
+
+```bash
+# Add to ~/.zshrc (zsh) or ~/.bashrc (bash)
+export CONTEXT7_API_KEY="your_key"
+```
+
+Then reload your shell (`source ~/.zshrc` or `source ~/.bashrc`) or restart your terminal.
+
+Alternatively, use OAuth login:
+
+```bash
+npx -y ctx7@latest login
+```
+
 ### MCP Servers
 
 Devline works out of the box without any MCP servers. If you want to add them, keep the list short — each server adds tool descriptions to every conversation.
-
-**Recommended:**
-
-| Server | Why | Install |
-|--------|-----|---------|
-| **Context7** | Real-time library docs — the planner and implementer use it to research APIs and best practices | `claude mcp add --transport http context7 https://mcp.context7.com/mcp` |
-
-**Optional:**
 
 | Server | Why | Install |
 |--------|-----|---------|

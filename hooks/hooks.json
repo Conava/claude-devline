@@ -27,18 +27,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/detect-ui-changes.sh",
-            "timeout": 5
-          }
-        ]
-      }
     ]
   }
 }

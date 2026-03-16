@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: This skill should be used when the user asks to "brainstorm", "refine an idea", "flesh out a feature", "define requirements", or when the devline pipeline starts with a rough idea via "/devline" or "/devline:brainstorm". Guides interactive refinement of rough ideas into concise, actionable feature specifications.
+description: This skill should be used when the user asks to "brainstorm", "refine an idea", "flesh out a feature", "define requirements". Guides interactive refinement of rough ideas into concise, actionable feature specifications.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -13,7 +13,8 @@ Guide the user from a rough idea to a clear feature understanding through quick,
 
 ### 1. Understand the Idea
 
-Read the user's input. Briefly scan the existing codebase for context:
+Read the user's input. Briefly scan the existing codebase for context.
+If deep code understanding is needed or the idea is very technical, use explore subagents for the following questions:
 - What tech stack is in use?
 - What patterns exist?
 - Is there relevant existing code to build on?
