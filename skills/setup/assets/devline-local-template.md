@@ -34,9 +34,6 @@ test_framework: auto-detect       — Override: "vitest", "jest", "pytest", etc.
 frontend_framework: auto-detect   — Override: "react", "vue", "svelte", etc.
 doc_format: auto-detect           — Override: "markdown", "asciidoc", etc.
 cloud_provider: auto-detect       — Override: "aws", "gcp", "azure", etc.
-pr_review_strictness: "block_all" — Deep review strictness: block_all, block_critical_warn_minor, custom
-pr_review_block_categories: ["security", "credentials", "quality"]  — Block categories (when custom)
-pr_review_warn_categories: ["conventions", "debt"]  — Warn categories (when custom)
 ```
 
 ---

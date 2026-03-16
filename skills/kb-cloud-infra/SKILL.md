@@ -84,22 +84,6 @@ Use the find-docs skill (`npx ctx7@latest`) for current cloud SDK and service do
 - Implement rollback strategies
 - Never deploy without tests passing
 
-## Serverless
-
-- Keep functions small and focused
-- Minimize cold start impact (bundle size, initialization)
-- Use connection pooling for databases
-- Set appropriate memory and timeout limits
-- Monitor function errors and duration
-
-## Monitoring & Observability
-
-- Structured logging (JSON) with correlation IDs
-- Metrics for latency, error rate, throughput (RED method)
-- Distributed tracing for microservices
-- Alerting on SLO violations, not just errors
-- Dashboard per service with key metrics
-
 ## Additional Resources
 
 ### Reference Files

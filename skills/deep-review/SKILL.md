@@ -25,11 +25,6 @@ The deep-review will perform:
 6. **Test Verification** — Full suite passes, meaningful coverage
 7. **Documentation Check** — Docs updated for new features
 
-## Strictness
-Check `.claude/devline.local.md` for review strictness settings:
-- Default: block on all issues
-- Configurable: `pr_review_strictness`, `pr_review_block_categories`, `pr_review_warn_categories`
-
 ## Verdict
 - **APPROVED** — Code is merge-ready
 - **CHANGES REQUIRED** — Issues must be fixed first (with specific fix suggestions)

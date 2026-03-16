@@ -22,15 +22,7 @@ Never skip steps. Never write implementation before a failing test exists.
 
 ## Implementation Strategy
 
-Kent Beck defines three ways to make a failing test pass. Choose based on confidence, not ritual:
-
-- **Obvious Implementation (default):** When the solution is clear, write the real implementation directly. There is no value in pretending not to know the answer.
-- **Fake It:** Return a hardcoded value, then gradually generalize. Use this when the problem is genuinely complex, the requirements are ambiguous, or you keep hitting unexpected failures. Small steps help validate assumptions.
-- **Triangulation:** Only generalize when two or more concrete test cases force it. Useful when the correct abstraction isn't obvious yet.
-
-The key insight: hardcoded values and baby steps exist to build understanding incrementally. An agent that already knows the algorithm gains nothing from faking — but the test-first discipline and incremental verification remain non-negotiable.
-
-**In practice:** Use Obvious Implementation by default. Fall back to Fake It when working on genuinely uncertain problems, unfamiliar codebases where small steps validate assumptions about existing behavior, or intricate interactions where incremental verification catches integration bugs early.
+Use **Obvious Implementation** by default — write the real implementation when the solution is clear. Fall back to **Fake It** (hardcoded values, then generalize) when the problem is genuinely uncertain or you keep hitting unexpected failures. The test-first discipline and incremental verification remain non-negotiable regardless of strategy.
 
 ## Test-First Process
 
@@ -56,20 +48,11 @@ Write the code to make the test pass. Use the appropriate implementation strateg
 
 ### Step 4: Refactor
 
-With the test green, actively look for improvements:
-- Remove duplication
-- Extract methods/functions
-- Improve naming
-- Simplify logic
-- Upgrade data structures (e.g., array scan → Set/Map for O(1) lookups)
-
-"No changes needed" is rarely true — there is almost always something to improve, even if small. Run tests after every change. If a test breaks, undo the last change.
+With the test green, improve: remove duplication, extract methods, improve naming, simplify logic. Run tests after every change. If a test breaks, undo.
 
 ### Step 5: Repeat
 
-Go back to Step 2 with the next test case. Each new test should force the implementation to become more general.
-
-**The implementation cycle is: one test → make it pass → refactor → next test. Not: all tests → make them all pass → refactor.** (The planner defines what to test; the implementer decides the order and pace of the cycle.)
+Go back to Step 2. Cycle: one test → pass → refactor → next test. Never all tests at once.
 
 ## Test Granularity
 
@@ -90,34 +73,16 @@ Test that components work together correctly — the real interactions, not mock
 - Reset state between tests (transactions, container resets)
 - Acceptable to be slower than unit tests, but keep them under a few seconds each
 
-**When to write integration tests:**
-- Database interactions (queries, migrations, transactions)
-- API endpoints (full request/response cycle)
-- Message queues and event-driven flows
-- Multi-service or multi-module interactions
-- Anywhere mocking would hide a real integration bug
+**When to write integration tests:** Database interactions, API endpoints, event-driven flows, multi-module interactions, anywhere mocking would hide real bugs.
 
 ### End-to-End (E2E) Tests
-Test the feature from the user's perspective — the full stack, real environment.
-- Verify that the entire flow works as the user would experience it
-- Cover the critical user journeys, not every edge case (that's what unit tests are for)
-- For web: use browser automation (Playwright, Cypress). For APIs: real HTTP requests against a running server. For CLI: run the actual binary.
-- Accept that E2E tests are slower and more brittle — write fewer of them, focused on high-value paths
-- Include setup and teardown of test data/environment
+Test from the user's perspective — full stack, real environment. Cover critical user journeys only (not edge cases). Accept they're slower — write fewer, focused on high-value paths.
 
-**When to write E2E tests:**
-- User-facing workflows with multiple steps (signup → verify email → first login)
-- Flows that cross multiple services or systems
-- Critical business paths where a regression would be severe
-- When the plan's acceptance criteria describe user-visible behavior
+**When to write E2E tests:** Multi-step user workflows, cross-service flows, critical business paths, acceptance criteria with user-visible behavior.
 
 ### The Testing Pyramid
 
-Follow the pyramid: many unit tests, fewer integration tests, fewest E2E tests. If you find yourself writing more E2E tests than unit tests, the design likely has coupling issues — push testing down to lower levels.
-
-**For planners:** Specify the test level for each test case in the plan. Default to unit tests. Add integration tests for cross-component interactions and E2E tests for critical user journeys described in the acceptance criteria.
-
-**For implementers:** Write unit tests during the TDD cycle. Write integration and E2E tests after the unit-level implementation is green and refactored — these verify the assembled pieces, not individual behaviors.
+Many unit tests, fewer integration, fewest E2E. Planners: specify test level per case. Implementers: write integration/E2E tests after unit-level is green.
 
 ## Framework Detection
 
@@ -133,58 +98,19 @@ If a `.claude/devline.local.md` file exists, check for `test_framework` override
 
 ## Test Quality Standards
 
-### Good Tests Are:
-- **Fast** — milliseconds for unit tests, seconds for integration, acceptable minutes for E2E
-- **Isolated** — no test depends on another
-- **Deterministic** — same result every run
-- **Self-validating** — pass or fail, no manual inspection
-- **Descriptive** — test name explains the behavior
-
-### Test Structure
-
-Follow Arrange-Act-Assert (AAA) or Given-When-Then:
-
-```
-Arrange: Set up preconditions and inputs
-Act: Execute the behavior under test
-Assert: Verify the expected outcome
-```
+Tests must be fast, isolated, deterministic, self-validating, and descriptively named. Follow Arrange-Act-Assert (AAA).
 
 ### What to Test
 
-- Happy path (expected inputs → expected outputs)
-- Edge cases (empty, null, boundary values)
-- Error cases (invalid inputs, failure modes)
-- State transitions (before → action → after)
-- Component interactions (integration level)
-- Critical user journeys (E2E level)
-
-### What Not to Test
-
-- Third-party library internals
-- Private implementation details (test through public API)
-- Trivial getters/setters without logic
-- Framework boilerplate
-- Every permutation at the E2E level (push to unit tests instead)
+Cover happy paths, edge cases (empty, null, boundary), error cases, and state transitions. Test through public APIs — not private internals or trivial accessors. Push permutation coverage to unit tests; reserve E2E for critical user journeys.
 
 ## Parallel Task Testing
 
-When working as part of a parallel implementation pipeline:
-
-1. Only write tests for files in the assigned task
-2. Never modify test files outside the task scope
-3. Use mocks/stubs for dependencies from other tasks
-4. Ensure tests can run independently without other tasks
-5. Integration tests that span multiple tasks belong in a dedicated integration test task — the planner should define this as a separate task that depends on the components it integrates
+In parallel pipelines: only test files in your task, mock other tasks' dependencies, ensure tests run independently. Cross-task integration tests belong in a dedicated task.
 
 ## Running Tests
 
-Always run the full test suite after implementation, not just the new tests. Report results clearly:
-
-- Number of tests passed/failed/skipped
-- Failure messages and stack traces
-- Coverage changes if available
-- Integration and E2E test results separately if they have different run commands
+Always run the full test suite after implementation. Report: passed/failed/skipped counts, failure details, coverage changes if available.
 
 ## Additional Resources
 

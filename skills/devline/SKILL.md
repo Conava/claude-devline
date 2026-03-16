@@ -8,17 +8,15 @@ disable-model-invocation: false
 
 # Devline — Full Development Pipeline
 
-Orchestrate the complete development lifecycle from rough idea to merge-ready code. Follow the pipeline stages and the user instruction carefully. You are not allowed to alter this at any point unless explicitly instructed by the user. Do not start any tasks like researching until told to do so.
+Orchestrate the full development lifecycle from idea to merge-ready code. Follow the pipeline stages exactly — do not alter or skip stages unless the user explicitly instructs it. Do not start work until told to.
 
 ## CRITICAL: Orchestrator Role
 
-**You are an ORCHESTRATOR, not an implementer.** You MUST NOT edit, fix, or modify any source code yourself — not even to address reviewer warnings, test failures, or minor issues. ALL code changes must be delegated to the appropriate agent (implementer, devops, debugger). Your job is to coordinate agents, present results to the user, and manage the pipeline flow.
+**You are an ORCHESTRATOR, not an implementer.** You MUST NOT edit any source code yourself. ALL code changes are delegated to agents (implementer, devops, debugger). You coordinate agents, present results, and manage the pipeline flow.
 
 ## Progress Tracking
 
-**IMPORTANT:** Before starting any work, create a task list to track the main pipeline stages. This gives the user a clear overview of where they are.
-
-Create these tasks immediately at the start using TaskCreate:
+Before starting any work, create these tasks using TaskCreate:
 
 1. "Brainstorm — Refine idea into feature spec" (activeForm: "Brainstorming feature idea")
 2. "Design System — Generate UI design recommendations" (activeForm: "Generating design system") — only create this task if UI impact is detected
@@ -30,7 +28,7 @@ Create these tasks immediately at the start using TaskCreate:
 
 Mark each task as `in_progress` when starting that stage and `completed` when done.
 
-**Task progress:** Do NOT create task list entries for individual tasks or their reviews. Instead, the orchestrator displays a **progress table** in the conversation after each task completes or changes status. Use this format:
+Do NOT create task list entries for individual implementation tasks. Instead, display a **progress table** after each status change:
 
 ```
 ## Implementation Progress
@@ -45,46 +43,44 @@ Mark each task as `in_progress` when starting that stage and `completed` when do
 ```
 
 - **#**: Task number from the plan — one per implementer agent
-- **Wave**: Derived from the dependency graph for display. Wave 1 = no dependencies, Wave 2 = depends on wave 1 tasks, etc. For visual grouping only — execution is driven by individual dependency resolution, not wave completion.
-- **Deps**: Which tasks this one depends on (from the plan). "—" for no dependencies.
-- Status icons: ⏳ blocked (deps not met), 🔄 in progress, ✅ done, ❌ failed
+- **Wave**: Visual grouping from dependency graph (Wave 1 = no deps, Wave 2 = depends on Wave 1, etc.). Execution is driven by individual dependency resolution.
+- **Deps**: Task dependencies. "—" for none.
+- Icons: ⏳ blocked, 🔄 in progress, ✅ done, ❌ failed
 
-Update and re-display this table each time a task or review completes. **Important:** Always output a short text message (even just the updated table) between background agent completions — do not stay silent while agents are running. If multiple agents are running in the background and one completes, acknowledge it and re-display the table immediately. This keeps the user's status line active and visible.
+Re-display this table after every status change. Always output text between background agent completions — never stay silent while agents run.
 
 ## Configuration
 
-Before starting the pipeline, check if `.claude/devline.local.md` exists in the project root and read its YAML frontmatter for pipeline settings. The following settings control approval gates:
+Read `.claude/devline.local.md` (if it exists) for pipeline settings:
 
-- **`auto_approve_brainstorm`** (default: `false`) — When `true`, skip the approval gate after brainstorm and proceed directly to planning. When `false` (default), stop and wait for explicit user approval.
-- **`auto_approve_plan`** (default: `false`) — When `true`, skip the approval gate after planning and proceed directly to implementation. When `false` (default), stop and wait for explicit user approval.
+- **`auto_approve_brainstorm`** (default: `false`) — Skip approval gate after brainstorm
+- **`auto_approve_plan`** (default: `false`) — Skip approval gate after plan
 
 ## Pipeline Stages
 
 Execute these stages in order:
 
 ### Stage 0: Branch Setup (Automatic)
-Before any code is written, ensure the project is on a feature branch:
-1. Check if `.claude/devline.local.md` exists and read the branching strategy settings (`branch_format`, `branch_kinds`, `protected_branches`)
-2. Check the current git branch
-3. If on a protected branch (default: main, master, develop, release, production, staging — customizable via `protected_branches`):
-   - Create a feature branch using the configured `branch_format` (default: `{kind}/{title}`, e.g., `feat/add-user-auth`, `fix/login-timeout`)
-   - Use a branch kind from `branch_kinds` that matches the work (default: feat, fix, refactor, docs, chore, test, ci)
-4. If already on a feature branch, continue
+Ensure the project is on a feature branch:
+1. Read branching settings from `.claude/devline.local.md` if it exists (`branch_format`, `branch_kinds`, `protected_branches`)
+2. If on a protected branch (default: main, master, develop, release, production, staging): create a feature branch using `branch_format` (default: `{kind}/{title}`)
+3. If already on a feature branch, continue
+4. Create `.devline/` directory and add it to `.gitignore` if not present
 
-The `.devline/` directory is created for pipeline artifacts (plan, reviews). Add `.devline/` to `.gitignore` if not already present.
-
-5. **Stale plan check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it and inform the user that a stale plan was cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh.
+5. **Stale artifact check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it (and `.devline/brainstorm.md` and `.devline/design-system.md` if present) and inform the user that stale artifacts were cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh. Also clean up orphaned `.devline/brainstorm.md` or `.devline/design-system.md` files from previous runs if no matching plan exists.
 
 ### Stage 1: Brainstorm (Interactive — runs in main context)
 
+Focus on the **grand scheme** — what we're building, the architecture, and scope. Not implementation details.
+
 #### 1. Understand the Idea
-Read the user's input. Launch parallel background agents to explore the codebase  for context: tech stack, existing patterns, relevant code to build on and to gather information about what the user wants to achieve and how to best achieve that. Every agent returns a concise summary of its findings to the conversation. Use these summaries to build your understanding of the user's intent and the codebase context.
+Read the user's input. Optionally launch parallel background agents to briefly explore the codebase for context: what exists today, architectural boundaries, and whether UI is involved. Keep exploration shallow — just enough to understand the landscape.
 
 #### 2. Clarify with Structured Questions
 Use **AskUserQuestion** with concrete selectable options — avoid open-ended text questions unless necessary.
 
 - Ask **1-4 questions per AskUserQuestion call**
-- **Scale questions to ambiguity:** A clear, specific idea needs only 1-2 questions on genuinely open decisions. A vague idea needs more. Don't ask about things with obvious answers or industry-standard defaults — just state your assumption in the summary.
+- **Scale questions to ambiguity:** A clear idea needs 0-1 questions. A vague idea needs 2-4. Don't ask about things with obvious defaults — state assumptions in the brainstorm document.
 - Every question MUST have **2-4 concrete options** with labels and descriptions
 - Use `multiSelect: true` when choices aren't mutually exclusive (e.g., "which platforms?")
 - Use `multiSelect: false` for single-choice decisions (e.g., "what visual tone?")
@@ -92,21 +88,25 @@ Use **AskUserQuestion** with concrete selectable options — avoid open-ended te
 - Add a recommended option first with "(Recommended)" in the label when there's a clear best choice and explain them briefly
 - **Always ask about platform** when the feature involves a UI — never assume
 
-#### 3. Summarize Understanding
-After receiving answers, write a brief **in-conversation summary** (NOT a file) that captures:
-- What we're building
-- Key decisions made
-- Scope boundaries
-- Aesthetic direction (if UI is involved)
-- Any assumptions made and decisions you made without asking
+**Focus questions on:** scope, user-facing behavior, platform, aesthetic direction, integration points.
+**Do NOT ask about:** implementation details, error handling, testing approaches, performance strategies.
 
-**Do NOT write any files, documents, or specs.** The planner agent will read the full conversation context.
+#### 3. Write Brainstorm Document
+After receiving answers, write `.devline/brainstorm.md` capturing:
+- What we're building (high-level)
+- Architecture impact (which layers/services/components are involved)
+- **UI impact** (explicitly: yes/no, what's affected, platform, aesthetic direction)
+- Scope boundaries (in/out)
+- Key decisions and assumptions
+- Open questions for the planner
 
-**Approval gate:** Unless `auto_approve_brainstorm` is `true` in `.claude/devline.local.md`, stop here and present the brainstorm summary to the user with an explicit approval question:
+This file is the brainstorm output — the planner reads it as input alongside the conversation context.
+
+**Approval gate:** Unless `auto_approve_brainstorm` is `true` in `.claude/devline.local.md`, stop here and present the brainstorm to the user with an explicit approval question:
 
 ```json
 {
-  "question": "Brainstorm complete. Approve this feature spec to proceed to planning?",
+  "question": "Brainstorm written to .devline/brainstorm.md. Approve to proceed to planning?",
   "header": "Approve Brainstorm",
   "options": [
     {"label": "Approve — proceed to planning", "description": "The planner will design the architecture based on this spec"},
@@ -118,29 +118,41 @@ After receiving answers, write a brief **in-conversation summary** (NOT a file) 
 }
 ```
 
-- If the user selects "Needs changes", loop back to adjust the summary and re-confirm.
-- If the user selects "Stop here", end the pipeline gracefully.
+- If the user selects "Needs changes", update `.devline/brainstorm.md` and re-confirm.
+- If the user selects "Stop here", delete `.devline/brainstorm.md` and end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction
 - Only proceed to Stage 1.5 (if UI impact) or Stage 2 on explicit approval or an "Other" instruction that implies approval.
 
-### Stage 1.5: Design System (Automatic — background, conditional)
+### Stage 1.5: Design System (Interactive — foreground, conditional)
 
-**Trigger:** Run this stage if the brainstorm summary indicates UI components will be created, changed, or redesigned. Look for mentions of: UI, frontend, components, screens, views, pages, forms, dashboards, layouts, modals, navigation, or any visual/interactive elements.
+**Trigger:** Read `.devline/brainstorm.md` — if the "UI Impact" section shows "UI touched: yes", run this stage.
 
 **Skip** this stage entirely if the feature is purely backend, API, infrastructure, or tooling with no user-facing UI.
 
-Launch the **frontend-planner** agent in the **background**. It will:
-- Analyze the feature spec to determine product type, platform, and aesthetic direction
+Launch the **frontend-planner** agent in the **foreground**. Tell it to read `.devline/brainstorm.md` as its starting point. It will:
+- Read `.devline/brainstorm.md` for product context, platform, UI scope, and aesthetic direction
 - Search the design intelligence database (67 styles, 161 palettes, 57 font pairings, 161 industry rules) using BM25 ranking
 - Check for existing design systems in the project
-- Write a design system recommendation to `.devline/design-system.md`
 
-**Wait for completion before proceeding to Stage 2.** The planner needs the design system as input.
+**Interactive loop:** Like the planner, the frontend-planner cannot ask the user directly. It may return a `STATUS: NEEDS_INPUT` response containing:
+- **Design Questions** — aesthetic choices, color direction, typography preferences, or layout decisions that need user input
+- **Conflicts Found** — existing design system elements that conflict with the brainstorm direction
 
-When complete, briefly inform the user: "Design system generated — [style direction] with [color mood] palette. Full details at `.devline/design-system.md`." Do not ask for approval — this is an automatic stage. The user can review and override during planning.
+When this happens:
+1. Present the questions to the user using **AskUserQuestion** — map each to an option set with the frontend-planner's recommendation marked "(Recommended)"
+2. **Resume** the frontend-planner agent (using the `resume` parameter with its agent ID) with the user's answers
+3. Repeat if the frontend-planner returns more questions
+
+Once it has all answers, it will:
+- Write the design system to `.devline/design-system.md`
+- Return a brief summary (style direction, color palette, typography pairing, key anti-patterns)
+
+When complete, inform the user: "Design system generated — [style direction] with [color mood] palette. Full details at `.devline/design-system.md`." Then proceed to Stage 2.
 
 ### Stage 2: Plan (Interactive — foreground with resume loop)
-Launch the **planner** agent in the **foreground**. The planner will:
+Launch the **planner** agent in the **foreground**. Tell it to read `.devline/brainstorm.md` for the feature spec, and `.devline/design-system.md` if it exists (it will exist when Stage 1.5 ran). The planner will:
+- Read `.devline/brainstorm.md` for the feature spec, scope boundaries, and architecture impact
+- Read `.devline/design-system.md` (if present) for design constraints, color palette, typography, and anti-patterns
 - Analyze the codebase and design the architecture
 - Challenge its own decisions aggressively
 - Identify proactive improvements for all touched code
@@ -178,7 +190,7 @@ Once the planner has all answers, it will:
 ```
 
 - If the user selects "Needs changes", resume the planner agent with the user's feedback to revise the plan.
-- If the user selects "Stop here", end the pipeline gracefully.
+- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction.
 - Only proceed to Stage 3 on explicit approval or an "Other" instruction that implies approval.
 
@@ -233,26 +245,25 @@ The deep-review performs the final comprehensive review:
 - Code quality and technical debt assessment
 - Convention adherence check
 - **Regression check** — verify all previously working functionality still works (run the full test suite, check for broken behavior)
-- **Feature goal verification** — verify the actual goals of the plan were achieved end-to-end. Not just that implementers wrote passing tests, but that the feature actually works as intended. This is the most important check — green unit tests mean nothing if the feature doesn't function.
+- **Feature goal verification** — verify the feature actually works end-to-end, not just that unit tests pass
 - Quality verdict with severity-classified findings
 
-The deep review classifies every finding as either **minor** (style, small quality issues, minor tech debt) or **major/critical** (security, correctness bugs, regressions, unmet feature goals, broken functionality).
+Findings are classified as **minor** (style, quality, debt) or **major/critical** (security, correctness, regressions, unmet goals).
 
 **Handling findings by severity:**
 
-**Minor findings only (no major/critical):**
-Launch a single **implementer** agent with all minor findings. After the implementer fixes them, launch a normal **reviewer** to verify the fixes. Once the reviewer returns CLEAN, proceed to Complete. This is the fast path — minor issues don't warrant a full deep review re-run.
+**Minor findings only:** Launch a single **implementer** with all minor findings → **reviewer** to verify → proceed to Complete (no deep review re-run).
 
 **Major or critical findings — escalation ladder:**
 
-1. **Attempt 1 — implementer fixes**: Launch **implementer** agents for the major findings (one per affected task, matched by file ownership), followed by a reviewer, that can verify the fixes or provide additional feedback to restart the implementer. After all fixes, re-run the full **deep review**.
-2. **Attempt 2 — debugger investigates**: If the deep review still has major findings, launch the **debugger** agent (foreground). The debugger investigates root causes. Present the plan for approval. On approval, launch implementers for the debugger's tasks → normal review cycle → re-run deep review.
-3. **Attempt 3 — planner replans**: If major findings persist, launch the **planner** agent (foreground) to re-examine the failing area and produce a fundamentally different implementation approach. Present the new plan for approval. On approval, **restart from Stage 3** with the new plan → implement → review → deep review.
-4. **After replanned pipeline still has major findings at deep review**: The pipeline has exhausted all escalation options. **Stop and ask the user for guidance.** Present all remaining findings and the history of fix attempts.
+1. **Attempt 1 — implementer**: Launch implementers for major findings (one per affected task by file ownership) → reviewer → re-run **deep review**
+2. **Attempt 2 — debugger**: Launch **debugger** (foreground) for root cause analysis → present plan → implementers → review → re-run deep review
+3. **Attempt 3 — planner**: Launch **planner** (foreground) for new approach → present plan → **restart from Stage 3**
+4. **Still failing**: Stop and ask the user for guidance with all findings and fix history
 
 ### Complete
 When deep review approves with no findings:
-1. **Mark the plan as completed:** Update `.devline/plan.md` — change `**Status:** active` to `**Status:** completed`. This prevents accidental reuse by implementers in future conversations.
+1. Mark `.devline/plan.md` status as `completed`
 2. Report completion summary:
    - Summary of what was built
    - Files created/modified
@@ -275,44 +286,25 @@ When deep review approves with no findings:
 
 **Handling each option:**
 
-- **"I found a mistake / want to add something / fix a bug"**: Ask the user to describe the issue using AskUserQuestion (free-text).
-  For any non-trivial issue, **reset the pipeline back to Stage 2 (Plan)**.
-  Choose which agent runs Stage 2 based on the nature of the issue:
-  - **Debugger as planner** — for runtime bugs, crashes, errors, wrong output, things that "don't work" with observable symptoms. The debugger investigates root causes, then writes a fix plan to `.devline/plan.md`.
-  - **Planner** — for everything else: missing features, UI issues, behavioral changes, new requirements, "this should also do X." The planner analyzes the issue and writes updated tasks to `.devline/plan.md`.
+- **"I found a mistake / want to add something / fix a bug"**: Ask the user to describe the issue (free-text). Reset pipeline to Stage 2:
+  - **Runtime bugs** (crashes, errors, wrong output) → **debugger as planner**
+  - **Everything else** (missing features, UI, new requirements) → **planner**
 
-  **When resetting the pipeline**, use TaskUpdate to mark all stages from Stage 2 onward as not completed (set status back to `pending`): Plan, Implement, Documentation, Deep Review, Final Gate. This makes it visually clear to the user that the pipeline is running through those stages again.
+  Use TaskUpdate to mark Stage 2 onward as `pending`. After plan approval, continue: Stage 3 → 4 → 5 → Complete.
 
-  After Stage 2 completes and the plan is approved, the full pipeline continues: Stage 3 (implement) → Stage 3 review loop → Stage 4 (docs) → Stage 5 (deep review) → back to Complete. The pipeline only ends when the user selects an exit or commit option.
+- **"Exit"**: Delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
 
-- **"Exit"**: Delete `.devline/plan.md` and end the pipeline.
-
-- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md` and end the pipeline.
+- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
 
 - **"Merge to main and exit"**: Stage and commit all changes on the feature branch. Then:
   1. Draft a squash merge commit message summarizing the entire feature (not individual commits). Present it to the user via AskUserQuestion with the draft as context and options to approve, edit, or provide their own message.
   2. Squash merge into main: `git checkout main && git merge --squash <branch> && git commit -m "<approved message>"`.
-  3. Delete `.devline/plan.md` and end the pipeline.
+  3. Delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
+
   **Before merging, confirm the target branch with the user if it's not obvious.**
 
-## Error Recovery
+## General Rules
 
-All fix loops are driven by the orchestrator — subagents return findings, the orchestrator launches the next agent. **Every finding from every review gets fixed — there is no "pass with warnings."**
-
-**Per-task review escalation (Stage 3):**
-1. **Attempt 1**: reviewer returns HAS_FINDINGS → implementer fixes (with plan context + findings) → re-review
-2. **Attempt 2**: still HAS_FINDINGS → implementer fixes again (with all prior context) → re-review
-3. **Attempt 3 (escalate to planner)**: still HAS_FINDINGS → relaunch **planner** with the original task, all findings, and all fix attempts. The planner rewrites the task with a new implementation approach. Launch implementer with the new task → review → same cycle.
-
-**Deep review escalation (Stage 5) — severity-based:**
-- **Minor findings**: single implementer → normal reviewer → done (no deep review re-run)
-- **Major/critical findings**: implementer → deep review → debugger → deep review → planner (full replan) → restart pipeline → if still failing at deep review, ask user
-
-**User-reported issues at Complete stage — ALL reset to Stage 2:**
-- **Runtime bugs** (crashes, errors, wrong output) → Stage 2 with **debugger as planner** → Stage 3 → review → deep review → Complete
-- **Everything else** (missing features, UI issues, new requirements) → Stage 2 with **planner** → Stage 3 → review → deep review → Complete
-- The pipeline only ends when the user selects Exit, Commit and exit, or Commit, merge, and exit.
-
-**General:**
+- **Every finding from every review gets fixed — there is no "pass with warnings."**
 - **Test failures during implementation**: implementer handles first; if stuck after 3 attempts, escalate to planner
 - **All agents**: if stuck, ask the user for guidance rather than looping forever

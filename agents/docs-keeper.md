@@ -1,33 +1,6 @@
 ---
 name: docs-keeper
-description: Use this agent when code changes need corresponding documentation updates. It handles separate documentation files (README, API docs, architecture docs, guides) — not inline code comments. Triggers after implementation passes review, or when documentation is explicitly requested. Examples:
-
-  <example>
-  Context: Pipeline finishing up, code reviewed and approved
-  user: "Code is reviewed and approved, update the documentation"
-  assistant: "I'll use the docs-keeper agent to update all relevant documentation for the changes."
-  <commentary>
-  Post-review step in the pipeline — docs need to reflect the new code.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User wants docs updated
-  user: "/devline:docs Update the API documentation for the new endpoints"
-  assistant: "I'll use the docs-keeper agent to update the API documentation."
-  <commentary>
-  Direct request to update specific documentation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User notices stale docs
-  user: "The README is outdated, it still references the old config format"
-  assistant: "I'll use the docs-keeper agent to update the README to match the current code."
-  <commentary>
-  Docs are out of sync with code, need to be updated.
-  </commentary>
-  </example>
+description: "Use this agent to update separate documentation files (README, API docs, architecture docs, guides) after code changes. Not for inline code comments.\n\n<example>\nContext: Code reviewed and approved\nuser: \"Update the documentation\"\nassistant: \"I'll use the docs-keeper agent to update documentation for the changes.\"\n</example>\n"
 
 model: inherit
 color: cyan

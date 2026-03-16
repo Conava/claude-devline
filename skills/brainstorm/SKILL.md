@@ -1,23 +1,32 @@
 ---
 name: brainstorm
-description: This skill should be used when the user asks to "brainstorm", "refine an idea", "flesh out a feature", "define requirements". Guides interactive refinement of rough ideas into concise, actionable feature specifications.
+description: This skill should be used when the user asks to "brainstorm", "refine an idea", "flesh out a feature", "define requirements". Guides interactive refinement of rough ideas into concise, actionable feature specifications. Focuses on the "what" and architecture — never the "how".
 user-invocable: true
 disable-model-invocation: false
 ---
 
 # Brainstorming
 
-Guide the user from a rough idea to a clear feature understanding through quick, structured interaction. This is lightweight — no documents, no files. Everything stays in the conversation context for the planner to pick up.
+Guide the user from a rough idea to a clear, high-level feature specification. Focus on **what** we're building and the **architecture** — never on implementation details or the "how." The output is a `brainstorm.md` file in `.devline/` that the planner uses as input.
+
+## Principles
+
+- **Grand scheme, not details.** Think about what the feature is, what it achieves, and where it fits in the system — not how to code it.
+- **Architecture, not implementation.** Identify which layers, services, or components are involved — not which functions to call or patterns to use.
+- **What, not how.** Define behavior, scope, and boundaries — leave implementation strategy to the planner.
+- **UI awareness.** Always identify whether UI components are touched, created, or changed — this drives the design system stage.
+- **Stay shallow.** Don't rabbit-hole into edge cases, error handling strategies, or technical trade-offs. Those are the planner's job.
 
 ## Process
 
 ### 1. Understand the Idea
 
-Read the user's input. Briefly scan the existing codebase for context.
-If deep code understanding is needed or the idea is very technical, use explore subagents for the following questions:
-- What tech stack is in use?
-- What patterns exist?
-- Is there relevant existing code to build on?
+Read the user's input. Briefly scan the existing codebase for context — just enough to understand the landscape:
+- What exists today that this feature relates to?
+- What are the major architectural boundaries (frontend/backend/services/database)?
+- Is there a UI layer that will be affected?
+
+Use explore subagents only if the idea is vague enough to need codebase context. Keep exploration focused on the "what exists" — not deep code analysis.
 
 ### 2. Clarify with Structured Questions
 
@@ -25,85 +34,68 @@ Use the **AskUserQuestion** tool with concrete selectable options — never ask 
 
 **Rules:**
 - Ask **1-4 questions in a single AskUserQuestion call** — never a second round
-- **Scale questions to ambiguity:** A clear, specific idea (e.g., "add webhooks to my Express API") needs only 1-2 questions on the genuinely open decisions. A vague idea (e.g., "I need some kind of notification system") warrants 3-4. Don't ask about things that have obvious answers or industry-standard defaults — just state your assumption in the summary.
+- **Scale questions to ambiguity:** A clear idea needs 0-1 questions. A vague idea needs 2-4. Don't ask about things with obvious defaults — state assumptions in the output.
 - Every question MUST have **2-4 concrete options** with labels and descriptions
-- Use `multiSelect: true` when choices aren't mutually exclusive (e.g., "which platforms?")
-- Use `multiSelect: false` for single-choice decisions (e.g., "what visual tone?")
-- If the idea is already clear enough, skip questions entirely
+- Use `multiSelect: true` when choices aren't mutually exclusive
+- Use `multiSelect: false` for single-choice decisions
 - Add a recommended option first with "(Recommended)" in the label when there's a clear best choice
-- **Always ask about platform** when the feature involves a UI (web, mobile, desktop, etc.) — never assume
+- **Always ask about platform** when the feature involves a UI — never assume
 
-**Example question patterns:**
+**Focus questions on:**
+- Scope and boundaries (what's in, what's out)
+- User-facing behavior (what should the user experience)
+- Platform (web, mobile, desktop) — when UI is involved
+- Aesthetic direction — when UI is involved
+- Integration points (what existing systems does this touch)
 
-For scope decisions:
-```json
-{
-  "question": "Which platforms should this support?",
-  "header": "Platforms",
-  "options": [
-    {"label": "Web only", "description": "Browser-based SPA or SSR app"},
-    {"label": "Web + Mobile", "description": "Web app with iOS/Android companion"},
-    {"label": "Desktop", "description": "Native desktop application"},
-    {"label": "All platforms", "description": "Web, mobile, and desktop"}
-  ],
-  "multiSelect": false
-}
+**Do NOT ask about:**
+- Technical implementation details (libraries, patterns, algorithms)
+- Error handling strategies
+- Testing approaches
+- Performance optimization approaches
+- Database schema design
+
+### 3. Write Brainstorm Document
+
+After receiving answers (or immediately if the idea is clear enough), write `.devline/brainstorm.md` with this structure:
+
+```markdown
+# Brainstorm: [Feature Name]
+
+**Created:** [ISO 8601 date]
+
+## What We're Building
+[1-3 sentences describing the feature at a high level — what it does, who it's for, what problem it solves]
+
+## Architecture Impact
+[Which layers/services/components are involved. Keep it to bullet points identifying areas, not implementation plans]
+
+- **Frontend:** [yes/no — and what parts: new pages, modified components, new UI flows]
+- **Backend:** [yes/no — and what parts: new endpoints, modified services, new data models]
+- **Database:** [yes/no — new tables, schema changes, migrations]
+- **Infrastructure:** [yes/no — new services, config changes, CI/CD updates]
+
+## UI Impact
+[Explicitly state whether UI components are touched, created, or changed. This section drives the design system stage.]
+
+- **UI touched:** [yes/no]
+- **What's affected:** [list of UI areas: pages, components, layouts, navigation, forms, etc.]
+- **Platform:** [web/mobile/desktop/all — only if UI is involved]
+- **Aesthetic direction:** [if discussed — e.g., "match existing", "clean & minimal", "bold & vibrant"]
+
+## Scope
+### In Scope
+[Bullet points of what the feature includes]
+
+### Out of Scope
+[Bullet points of what's explicitly excluded — things someone might assume are included but aren't]
+
+## Key Decisions
+[Bullet points of decisions made during brainstorming, including user choices and stated assumptions]
+
+## Open Questions for Planner
+[Any architectural or design questions that are too deep for brainstorm but the planner should address. Leave empty if none.]
 ```
-
-For UI-related features:
-```json
-{
-  "question": "What visual tone fits this feature?",
-  "header": "Aesthetic",
-  "options": [
-    {"label": "Clean & minimal", "description": "Spacious, understated, refined typography"},
-    {"label": "Bold & vibrant", "description": "Strong colors, large type, energetic feel"},
-    {"label": "Match existing UI", "description": "Follow the current design system and patterns"},
-    {"label": "Dark & technical", "description": "Data-dense, monospace accents, utilitarian"}
-  ],
-  "multiSelect": false
-}
-```
-
-For technical decisions:
-```json
-{
-  "question": "What authentication method should we use?",
-  "header": "Auth method",
-  "options": [
-    {"label": "JWT (Recommended)", "description": "Stateless tokens, good for APIs and SPAs"},
-    {"label": "Session-based", "description": "Server-side sessions, simpler for traditional apps"},
-    {"label": "OAuth/SSO", "description": "Third-party login (Google, GitHub, etc.)"}
-  ],
-  "multiSelect": false
-}
-```
-
-For feature selection:
-```json
-{
-  "question": "Which capabilities should this include?",
-  "header": "Features",
-  "options": [
-    {"label": "Real-time updates", "description": "WebSocket/SSE for live data"},
-    {"label": "Offline support", "description": "Works without internet, syncs later"},
-    {"label": "Export/import", "description": "CSV, JSON, or PDF export"},
-    {"label": "Search & filter", "description": "Full-text search with filters"}
-  ],
-  "multiSelect": true
-}
-```
-
-### 3. Summarize Understanding
-
-After receiving answers, write a brief **in-conversation summary** (NOT a file) that captures:
-- What we're building (1-2 sentences)
-- Key decisions made (bullet points from the answers)
-- Scope boundaries (in/out)
-- Aesthetic direction (if UI is involved)
-- Any assumptions made
-
-This summary is just regular text output in the conversation — **do NOT write any files, documents, or specs.** The planner agent will read the full conversation context including the user's original idea, the questions, the answers, and this summary.
 
 ### 4. Confirm
 
@@ -111,8 +103,8 @@ Use AskUserQuestion to check:
 
 ```json
 {
-  "question": "Does this capture what you want? The planner will use this to design the implementation.",
-  "header": "Confirm",
+  "question": "Brainstorm written to .devline/brainstorm.md. Does this capture what you want?",
+  "header": "Confirm Brainstorm",
   "options": [
     {"label": "Looks good, proceed!", "description": "Hand off to the planner"},
     {"label": "Needs changes", "description": "I want to adjust something"}
@@ -121,12 +113,13 @@ Use AskUserQuestion to check:
 }
 ```
 
-If the user wants changes, adjust the summary and confirm again.
+If the user wants changes, update `.devline/brainstorm.md` and confirm again.
 
 ## Rules
 
-- **Do NOT write any files** — no spec documents, no markdown files, nothing. Everything stays in conversation context.
+- **Write `.devline/brainstorm.md`** — this is the brainstorm output, read by the planner
+- Stay high-level — architecture and scope, not implementation
 - Be conversational and fast — the user wants momentum, not process
 - ALWAYS use AskUserQuestion with structured options — never plain text questions
-- Default to sensible assumptions and state them briefly
-- The planner will have full access to this conversation, so just make sure the decisions are clear in the text
+- Default to sensible assumptions and state them in the document
+- Always identify UI impact explicitly — the planner and design system stage depend on it
