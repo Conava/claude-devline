@@ -1,144 +1,63 @@
 ---
 name: setup
-description: This skill should be used when the user runs "/setup", "setup my project", "initialize CLAUDE.md", "create CLAUDE.md", or wants to set up the devline clarification protocol for a project. Creates a CLAUDE.md that tells agents to stop and ask when they hit something they cannot confidently resolve, and to request the user adds the clarification to CLAUDE.md for future agents.
+description: This skill should be used when the user runs "/setup", "setup my project", "initialize CLAUDE.md", "create CLAUDE.md", or wants to set up the devline clarification protocol for a project. Creates a CLAUDE.md with the clarification protocol and interactively generates a minimal devline.local.md with only non-default settings.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Setup
 
-Create or update a `CLAUDE.md` in the project root. This file holds only non-obvious context that agents need to work efficiently — things that cannot be derived from the code, tests, or git history easily.
+Set up the devline pipeline for a project. Two files are created:
+
+1. **`CLAUDE.md`** in the project root — non-obvious project context + workflow orchestration for devline
+2. **`.claude/devline.local.md`** — pipeline settings (only non-default values)
+
+Assets:
+- **[assets/claude-md-template.md](assets/claude-md-template.md)** — CLAUDE.md template with 6 sections (header, workflow orchestration, core principles, learning & recovery, project context, lessons placeholder)
+- **[assets/devline-local-template.md](assets/devline-local-template.md)** — All available pipeline settings organized in 4 batches with defaults
 
 ## Process
 
-### 1. Check for Existing CLAUDE.md
+### 1. CLAUDE.md
 
 Read `CLAUDE.md` in the working directory root.
 
-- If it already contains the clarification protocol, inform the user and ask whether to stop, overwrite, append or optimize.
-- If it exists without the protocol, and the user chooses to append, append the protocol section only (without the heading and intro paragraph).
-- If it does not exist, or the user chooses override, create it with only the content below.
-- If it exists and the user chooses optimize, attempt to integrate the protocol into the beginning of the CLAUDE.md. Separate from that run a quick explore and then remove any obvious or boilerplate content that is currently present and present the new content to the user for confirmation before writing.
+- **Does not exist** → create with the template.
+- **Exists without the content of the claude-md-template** → ask the user: **append** (add new sections) or **override** (replace with template).
+- **Exists with all or part of the content of the claude-md-template** → inform the user it already has the protocol and ask: **skip**, **override**, or **optimize** (integrate protocol, remove boilerplate after quick explore, confirm before writing).
 
-### 2. Present and Confirm
+Read the template from [assets/claude-md-template.md](assets/claude-md-template.md). Present each section independently — show the default content and ask if the user wants to keep it as-is, modify it, or skip it. Assemble the final file from only the sections the user accepted or modified.
 
-Show the user the exact content using **AskUserQuestion** with a preview. Only write after confirmation.
+After presenting all sections, show the assembled preview using **AskUserQuestion** and write only after confirmation.
 
-Full content for a new CLAUDE.md:
+### 2. devline.local.md
 
-```
-# CLAUDE.md
+Check if `.claude/devline.local.md` exists.
 
-This file is the single source of non-obvious project context — things that cannot be figured out from the code, tests, or git history alone. Do not add anything here that is already discoverable.
+- **Exists** → inform the user, show current contents, ask: **skip**, **override** (replace), or **merge** (add missing settings from what they configure below).
+- **Does not exist** → proceed with interactive setup.
 
-## Clarification Protocol
+Read the settings template from [assets/devline-local-template.md](assets/devline-local-template.md). Walk through all 4 batches. For each batch:
 
-If you run into a problem you cannot confidently resolve while working on this project — whether it is a failing build with no clear fix, a pattern that contradicts the rest of the codebase, implicit domain logic, unclear conventions, or anything else where guessing would be risky — do the following:
+1. Show the batch name, list every setting with its default value
+2. Ask: "Do you want to change anything in this batch, or keep all defaults?"
+3. If they want changes, ask what they want — do not ask for each setting individually
+4. Record only the settings that differ from defaults
 
-1. Stop. Do not guess or silently work around it.
-2. Tell the user exactly what you were doing, what went wrong or confused you, and why you cannot proceed.
-3. Ask the user to add the clarification to this file if it is relevant to the entire project and not just the specific task, so that any agent working on this project in the future will have the answer immediately.
-```
+After all batches, collect only the non-default settings. If no settings were changed, inform the user that defaults will be used and no file is needed — do **not** create an empty or all-defaults file.
 
-### 3. Write the File
+If there are non-default settings, assemble the file using the output format from the template. Show the preview using **AskUserQuestion** and write only after confirmation. Create `.claude/` directory if needed.
 
-Write or append based on what was found in step 1.
+### 3. Closing Instructions
 
-### 4. Confirm
-
-Tell the user the file has been created or updated.
-
-### 5. Create devline.local.md
-
-Check if `.claude/devline.local.md` exists in the project root.
-
-- If it already exists, inform the user and ask whether to skip, overwrite, or merge the new settings into the existing file.
-- If it does not exist, create `.claude/` directory if needed and create the file with the content below.
-
-Show the user the content using **AskUserQuestion** with a preview before writing.
-
-Full content for a new `.claude/devline.local.md`:
+Show the following:
 
 ```
----
-# Devline Local Settings
-# These settings control the behavior of the /devline pipeline for this project.
-# All settings are optional — defaults are shown below.
-# Restart Claude Code after making changes.
+Setup complete. A few tips:
 
-# === Approval Gates ===
-# By default, the pipeline stops after brainstorming and after planning
-# to wait for your explicit approval before proceeding.
-# Set to true to skip the approval gate and proceed automatically.
-auto_approve_brainstorm: false
-auto_approve_plan: false
-
-# === Framework Detection Overrides ===
-# Uncomment to override auto-detection:
-# test_framework: "vitest"
-# frontend_framework: "react"
-# doc_format: "markdown"
-# cloud_provider: "aws"
-
-# === PR Review ===
-# Strictness: block_all | block_critical_warn_minor | custom
-# pr_review_strictness: "block_all"
-# pr_review_block_categories: ["security", "credentials", "quality"]
-# pr_review_warn_categories: ["conventions", "debt"]
-
-# === Git Conventions ===
-# branch_prefix: "{kind}/{title}"
-# commit_format: "kind(scope): details"
-# commit_format_regex: "^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\\([a-zA-Z0-9._-]+\\))?: .+"
-
-# === Dependency Management (shared defaults for CVE patcher, EOL fixer, etc.) ===
-# dep_branch_strategy: "main"         # "main" = commit to default branch, "branch" = create branch per update
-# dep_auto_push: true                 # Push automatically after verification
-# dep_auto_commit: true               # Commit automatically after verification
-# dep_verify_build: true              # Run build check before committing
-# dep_verify_tests: true              # Run test suite before committing
-
-# === CVE Patcher (overrides dep_* defaults for CVE-specific runs) ===
-# cve_branch_strategy: "main"
-# cve_auto_push: true
-# cve_auto_commit: true
-# cve_verify_build: true
-# cve_verify_tests: true
-
-# === Migrate (overrides dep_* defaults for migration runs) ===
-# migrate_branch_strategy: "branch"    # Default is "branch" for migrations (safer for large changes)
-# migrate_auto_push: true
-# migrate_auto_commit: true
-# Note: build and test verification is always on for migrations — cannot be disabled
-
-# === Branch Protection ===
-# Protected branches (regex group). Default: (main|master|develop|release|production|staging)
-# protected_branches: "(main|master)"
-#
-# Merge style allowed on protected branches: squash (default), merge, rebase
-# merge_style: "squash"
-#
-# File extensions allowed to be edited directly on protected branches (regex group).
-# Default: (md|txt|json|yaml|yml|toml|ini|cfg|conf|lock|gitignore|gitattributes|editorconfig|prettierrc|eslintrc|stylelintrc)
-# direct_edit_extensions: "(md|txt|json|yaml|yml|toml)"
----
-```
-
-### 6. Further Instructions
-
-Show the following text to the user:
-
-```
-Maintain the CLAUDE.md file as you work on the project. Whenever you encounter CLAUDE making repeated mistakes or getting stuck on something, add the relevant clarification to CLAUDE.md so that future agents can avoid the same issue. This will make CLAUDE more effective over time and help it understand the unique context of this project.
-Absolutely avoid adding information to CLAUDE.md that can be easily discovered from the code, tests, or git history. The goal is to keep it concise and focused on non-obvious context that agents cannot figure out on their own.
-Stale, inaccurate, or irrelevant content in this file is worse than no content, so if you find something in here that is no longer relevant or helpful, remove it.
-If you require workflow or agent changes, consider cloning this git repository and making the changes in the agents or skills themselves, instead of adding instructions here. CLAUDE.md should be kept focused on project-specific context, not general workflow or agent behavior.
-```
-
-Show the following text about the local settings file:
-
-```
-The `.claude/devline.local.md` file controls how the devline pipeline behaves in this project. All settings are in the YAML frontmatter and are optional — sensible defaults are used when a setting is absent.
-By default, the pipeline stops after brainstorming and after planning to ask for your approval before proceeding. If you prefer a more autonomous workflow, set `auto_approve_brainstorm` and `auto_approve_plan` to `true`.
-You can also override framework detection, customize git branch and commit conventions, and configure PR review strictness. All available settings are documented in the file itself — just uncomment and edit what you need.
-Restart Claude Code after making changes for them to take effect.
+- Keep CLAUDE.md lean and accurate. Add clarifications when agents get stuck; remove stale entries.
+- Do not add information that can easily be derived from code, tests, or git history.
+- If you need to change agent or workflow behavior, consider cloning the devline plugin and editing agents/skills directly — CLAUDE.md should stay focused on project context.
+- devline.local.md only needs non-default settings. Full settings reference is in the devline README.
+- Restart Claude Code after editing devline.local.md.
 ```
