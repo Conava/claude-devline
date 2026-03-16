@@ -117,31 +117,26 @@ Present a detailed summary to the user and **wait for approval** before launchin
 - **Medium risk**: [repos with moderate manual work]
 - **High risk**: [repos with heavy usage of removed/changed APIs]
 
-### Settings
-- Branch strategy: [branch/main] (default: branch)
-- Auto-commit: [yes/no]
-- Auto-push: [yes/no]
+### Verification
 - Build verification: always on (mandatory for migrations)
 - Test verification: always on (mandatory for migrations)
 ```
 
 The user must approve before proceeding. If they want to exclude certain repos or defer high-risk ones, adjust accordingly.
 
-## Step 5: Read Settings
+## Step 5: Launch Dependency-Migrator Agents
 
-Check `.claude/devline.local.md` for migration-specific settings:
+### Git workflow (applies to all modes)
 
-| Setting | Default | Description |
-|---|---|---|
-| `migrate_branch_strategy` | `"branch"` | Default is `"branch"` for migrations (safer for large changes). |
-| `migrate_auto_push` | `true` | Push after successful verification. |
-| `migrate_auto_commit` | `true` | Commit after successful verification. |
+Git workflow is **not configurable** for migrations. Every dependency-migrator agent MUST follow this exact workflow:
 
-Build and test verification are **always enabled** for migrations — there are no settings to disable them.
-
-If migration-specific settings aren't present, fall back to `dep_*` settings, then to defaults (except `dep_branch_strategy` defaults to `"branch"` for migrations regardless).
-
-## Step 6: Launch Dependency-Migrator Agents
+1. **Checkout the default branch** (detect with `git symbolic-ref refs/remotes/origin/HEAD`, fall back to `main` then `master`)
+2. **Pull latest** (`git pull`)
+3. **Create a migration branch**: `chore/migrate-[package]-v[old]-to-v[new]`
+4. **Execute the migration** (tooling + manual)
+5. **Verify** build and tests (mandatory, cannot be skipped)
+6. **Commit** with message: `chore(deps): migrate [package] from v[old] to v[new]`
+7. **Do NOT push** — the launcher handles delivery
 
 ### Single-repo mode
 
@@ -159,13 +154,15 @@ Migration tool: [tool name and command, or "none — manual migration"]
 Migration checklist:
 [The compiled checklist from research]
 
-Commit message: chore(deps): migrate [package] from v[old] to v[new]
+Git workflow:
+1. Checkout the default branch and pull latest
+2. Create branch: chore/migrate-[package]-v[old]-to-v[new]
+3. Execute migration
+4. Verify build and tests
+5. Commit with message: chore(deps): migrate [package] from v[old] to v[new]
+6. Do NOT push — stop after committing
 
-Settings:
-- Branch strategy: [branch/main]
-- Branch name: chore/migrate-[package]-v[old]-to-v[new]
-- Auto-commit: [true/false]
-- Auto-push: [true/false]
+Settings: dep_auto_push=false, dep_branch_strategy=branch
 ```
 
 ### Multi-repo mode
@@ -175,18 +172,18 @@ Launch one **dependency-migrator** agent per repository in parallel (background)
 - The full migration research (guide, breaking changes, tool info)
 - Its specific repository path and current version
 - The migration checklist
-- That repo's settings
+- The git workflow instructions above (checkout default branch, pull, branch, migrate, verify, commit, NO push)
 
 Wait for all agents to complete.
 
-## Step 7: Present Summary
+## Step 6: Present Summary and Delivery Options
 
 ```
 | Repository       | Status    | Tool Used      | Manual Changes | Tests  | Branch                            |
 |------------------|-----------|----------------|----------------|--------|-----------------------------------|
 | my-api           | Migrated  | OpenRewrite    | 12 files       | 98/98  | chore/migrate-spring-boot-2-to-3  |
 | billing-service  | Migrated  | OpenRewrite    | 3 files        | 45/45  | chore/migrate-spring-boot-2-to-3  |
-| legacy-app       | Failed    | OpenRewrite    | —              | 12/30  | (not pushed)                      |
+| legacy-app       | Failed    | OpenRewrite    | —              | 12/30  | (not committed)                   |
 ```
 
 For failed repos, include:
@@ -194,4 +191,37 @@ For failed repos, include:
 - What was already done vs what remains
 - Recommendation (manual fix needed, defer, etc.)
 
-For succeeded repos on branch strategy, remind the user to review and merge the branches.
+Then, for each repository that has successful migrations, ask the user how they want to deliver the changes:
+
+```
+How would you like to deliver these changes?
+
+1. **Create a PR** — push the branch and open a pull request (requires remote access)
+2. **Squash merge locally** — squash-merge the migration branch into the default branch locally (no remote interaction)
+3. **Exit** — leave the migration branch as-is and print the changes so you can handle it manually
+```
+
+### Handling each option:
+
+**Option 1 — Create a PR:**
+- Push the migration branch: `git push -u origin [branch-name]`
+- Create a PR using `gh pr create` with:
+  - Title: `chore(deps): migrate [package] from v[old] to v[new]`
+  - Body: migration summary including breaking changes addressed, tool used, and verification results
+- Report the PR URL
+
+**Option 2 — Squash merge locally:**
+- Checkout the default branch
+- Run `git merge --squash [migration-branch]`
+- Commit with the same message: `chore(deps): migrate [package] from v[old] to v[new]`
+- Delete the migration branch: `git branch -d [migration-branch]`
+- Report: "Changes squash-merged into [default-branch]. Ready to push when you are."
+
+**Option 3 — Exit:**
+- Print a summary of what changed:
+  - Branch name
+  - Files modified (from `git diff --stat [default-branch]..[migration-branch]`)
+  - The commit(s) on the branch
+- Report: "Migration branch [branch-name] is ready. You can push, merge, or cherry-pick manually."
+
+In multi-repo mode, apply the same option to all repos unless the user requests per-repo handling.

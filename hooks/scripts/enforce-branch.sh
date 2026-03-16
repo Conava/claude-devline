@@ -82,20 +82,27 @@ if [[ "$filename" == .* && "$filename" != ".env" ]]; then
 fi
 
 # Block: this is a source code file on a protected branch
-branch_hint="git checkout -b kind/descriptive-title. Branch kinds: feat, fix, refactor, docs, chore, test, ci."
+branch_format="{kind}/{title}"
+branch_kinds="feat, fix, refactor, docs, chore, test, ci"
 commit_hint="Commits must use conventional format: kind(scope): details."
 
 if [[ -f "$LOCAL_MD" ]]; then
   FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
-  custom_branch=$(echo "$FRONTMATTER" | grep '^branch_prefix:' | sed 's/branch_prefix: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_format=$(echo "$FRONTMATTER" | grep '^branch_format:' | sed 's/branch_format: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_kinds=$(echo "$FRONTMATTER" | grep '^branch_kinds:' | sed 's/branch_kinds: *//' | sed 's/^"\(.*\)"$/\1/' | sed 's/|/, /g')
   custom_commit=$(echo "$FRONTMATTER" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/')
-  if [[ -n "$custom_branch" ]]; then
-    branch_hint="Branch convention: $custom_branch"
+  if [[ -n "$custom_format" ]]; then
+    branch_format="$custom_format"
+  fi
+  if [[ -n "$custom_kinds" ]]; then
+    branch_kinds="$custom_kinds"
   fi
   if [[ -n "$custom_commit" ]]; then
     commit_hint="Commit convention: $custom_commit"
   fi
 fi
+
+branch_hint="git checkout -b <branch>. Format: $branch_format. Kinds: $branch_kinds."
 
 echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: Cannot edit source code on protected branch '$current_branch'. Create a feature branch first. $branch_hint $commit_hint\"}" >&2
 exit 2

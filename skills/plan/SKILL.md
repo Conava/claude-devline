@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Create a detailed TDD implementation plan with parallel work packages from a feature spec or description.
+description: Create a detailed TDD implementation plan with parallel tasks from a feature spec or description.
 argument-hint: "<feature spec or description>"
 user-invocable: true
 disable-model-invocation: true
@@ -27,7 +27,7 @@ When this happens:
 
 Once the planner has all answers, it will:
 1. Write the full plan to `.devline/plan.md`
-2. Return a concise summary (architecture overview, work packages, key decisions)
+2. Return a concise summary (architecture overview, tasks, key decisions)
 
 Present the summary to the user for approval. The full plan lives at `.devline/plan.md` — implementers read it directly from disk.
 
