@@ -195,6 +195,14 @@ Every finding must be classified as **minor** or **major/critical**:
 
 ### Summary
 [Overall assessment: Is this code ready to merge? Why or why not?]
+
+### Lessons (optional)
+[Challenge yourself: across all findings, do any reveal a broader, non-obvious pattern about
+this codebase? Something structural that the per-task reviewers missed because they only see
+one task at a time? Cross-cutting issues (shared utilities misused, convention drift across
+tasks, architectural patterns violated) are especially valuable. Skip if nothing qualifies.]
+
+**Pattern**: [what triggers it] | **Reason**: [why it happens] | **Solution**: [how to prevent it]
 ```
 
 ## Verdict

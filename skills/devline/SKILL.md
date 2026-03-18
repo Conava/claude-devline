@@ -61,13 +61,13 @@ Read `.claude/devline.local.md` (if it exists) for pipeline settings:
 Execute these stages in order:
 
 ### Stage 0: Branch Setup (Automatic)
-Ensure the project is on a feature branch:
+Ensure the project is on a non-protected branch:
 1. Read branching settings from `.claude/devline.local.md` if it exists (`branch_format`, `branch_kinds`, `protected_branches`)
-2. If on a protected branch (default: main, master, develop, release, production, staging): create a feature branch using `branch_format` (default: `{kind}/{title}`)
+2. If on a protected branch (default: main, master, develop, release, production, staging): create a branch using `branch_format` (default: `{kind}/{title}`). The `{kind}` MUST be one of `branch_kinds` (default: `feat|fix|refactor|docs|chore|test|ci`) — use these exact values, not synonyms (e.g., `feat/`, not `feature/`)
 3. If already on a feature branch, continue
 4. Create `.devline/` directory and add it to `.gitignore` if not present
 
-5. **Stale artifact check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it (and `.devline/brainstorm.md` and `.devline/design-system.md` if present) and inform the user that stale artifacts were cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh. Also clean up orphaned `.devline/brainstorm.md` or `.devline/design-system.md` files from previous runs if no matching plan exists.
+5. **Stale artifact check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it (and `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` if present) and inform the user that stale artifacts were cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh. Also clean up orphaned `.devline/brainstorm.md`, `.devline/design-system.md`, or `.devline/previews/` files from previous runs if no matching plan exists.
 
 ### Stage 1: Brainstorm (Interactive — runs in main context)
 
@@ -119,13 +119,16 @@ This file is the brainstorm output — the planner reads it as input alongside t
 ```
 
 - If the user selects "Needs changes", update `.devline/brainstorm.md` and re-confirm.
-- If the user selects "Stop here", delete `.devline/brainstorm.md` and end the pipeline gracefully.
+- If the user selects "Stop here", delete `.devline/brainstorm.md` and `.devline/previews/` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction
 - Only proceed to Stage 1.5 (if UI impact) or Stage 2 on explicit approval or an "Other" instruction that implies approval.
 
 ### Stage 1.5: Design System (Interactive — foreground, conditional)
 
-**Trigger:** Read `.devline/brainstorm.md` — if the "UI Impact" section shows "UI touched: yes", run this stage.
+**Trigger:** Read `.devline/brainstorm.md` — if the "UI Impact" section shows "UI touched: yes", evaluate the **scope** of UI changes:
+
+- **Design-level changes** → run this stage. Examples: new pages, new components, visual redesign, new feature with significant UI, new visual identity, layout restructuring.
+- **Cosmetic tweaks** → **skip** this stage and proceed directly to Stage 2. Examples: adjust spacing/padding, move an element, change a single color value, tweak font size, reorder existing elements, fix alignment. The planner can handle these without a full design system.
 
 **Skip** this stage entirely if the feature is purely backend, API, infrastructure, or tooling with no user-facing UI.
 
@@ -133,18 +136,22 @@ Launch the **frontend-planner** agent in the **foreground**. Tell it to read `.d
 - Read `.devline/brainstorm.md` for product context, platform, UI scope, and aesthetic direction
 - Search the design intelligence database (67 styles, 161 palettes, 57 font pairings, 161 industry rules) using BM25 ranking
 - Check for existing design systems in the project
+- Generate HTML preview files for different style directions
 
 **Interactive loop:** Like the planner, the frontend-planner cannot ask the user directly. It may return a `STATUS: NEEDS_INPUT` response containing:
 - **Design Questions** — aesthetic choices, color direction, typography preferences, or layout decisions that need user input
 - **Conflicts Found** — existing design system elements that conflict with the brainstorm direction
+- **Preview Selection** — paths to `.devline/previews/*.html` files for the user to compare and choose from
 
 When this happens:
 1. Present the questions to the user using **AskUserQuestion** — map each to an option set with the frontend-planner's recommendation marked "(Recommended)"
-2. **Resume** the frontend-planner agent (using the `resume` parameter with its agent ID) with the user's answers
-3. Repeat if the frontend-planner returns more questions
+2. For **preview selection**: tell the user to open the HTML files in their browser to compare, then present the options (e.g., "Option A — Glassmorphism with cool tones", "Option B — Minimal with warm earth tones", "Option C — Bold with high contrast"). Include a "None — try different directions" option.
+3. **Resume** the frontend-planner agent (using the `resume` parameter with its agent ID) with the user's answers
+4. Repeat if the frontend-planner returns more questions
 
-Once it has all answers, it will:
+Once it has all answers and the user has chosen a direction, it will:
 - Write the design system to `.devline/design-system.md`
+- Delete `.devline/previews/` directory and all preview files
 - Return a brief summary (style direction, color palette, typography pairing, key anti-patterns)
 
 When complete, inform the user: "Design system generated — [style direction] with [color mood] palette. Full details at `.devline/design-system.md`." Then proceed to Stage 2.
@@ -190,7 +197,7 @@ Once the planner has all answers, it will:
 ```
 
 - If the user selects "Needs changes", resume the planner agent with the user's feedback to revise the plan.
-- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline gracefully.
+- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction.
 - Only proceed to Stage 3 on explicit approval or an "Other" instruction that implies approval.
 
@@ -292,16 +299,28 @@ When deep review approves with no findings:
 
   Use TaskUpdate to mark Stage 2 onward as `pending`. After plan approval, continue: Stage 3 → 4 → 5 → Complete.
 
-- **"Exit"**: Delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
+- **"Exit"**: Delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
 
-- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
+- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
 
 - **"Merge to main and exit"**: Stage and commit all changes on the feature branch. Then:
   1. Draft a squash merge commit message summarizing the entire feature (not individual commits). Present it to the user via AskUserQuestion with the draft as context and options to approve, edit, or provide their own message.
   2. Squash merge into main: `git checkout main && git merge --squash <branch> && git commit -m "<approved message>"`.
-  3. Delete `.devline/plan.md`, `.devline/brainstorm.md`, and `.devline/design-system.md` (if present), then end the pipeline.
+  3. Delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
 
   **Before merging, confirm the target branch with the user if it's not obvious.**
+
+## Lesson Collection
+
+Agents (implementer, reviewer, deep-review) may include a `### Lessons` section in their output when they discover non-obvious codebase patterns worth remembering.
+
+**When you receive agent output with lessons:**
+1. Append each lesson to the `## Lessons and Memory` section of `CLAUDE.md` in the project root
+2. Use the format already in that section: `**Pattern**: ... | **Reason**: ... | **Solution**: ...`
+3. Before appending, check if a similar lesson already exists — update it rather than duplicating
+4. Do not ask for approval — the agent already analyzed the issue and determined it's a broader pattern
+
+**In the completion summary**, list any lessons that were added during this pipeline run so the user is aware.
 
 ## General Rules
 

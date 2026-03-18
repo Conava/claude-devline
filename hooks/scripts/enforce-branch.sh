@@ -25,6 +25,7 @@ if ! git -C "$cwd" rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 
 # Defaults
+ENFORCE_FEATURE_BRANCHES="false"
 PROTECTED_BRANCHES='(main|master|develop|release|production|staging)'
 
 # Files allowed to be edited directly on protected branches
@@ -39,16 +40,27 @@ LOCAL_MD="$git_root/.claude/devline.local.md"
 if [[ -f "$LOCAL_MD" ]]; then
   FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
 
-  custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_enforce=$(echo "$FRONTMATTER" | grep '^enforce_feature_branches:' | sed 's/enforce_feature_branches: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+  if [[ -n "$custom_enforce" ]]; then
+    ENFORCE_FEATURE_BRANCHES="$custom_enforce"
+  fi
+
+  custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/' || true)
   if [[ -n "$custom_protected" ]]; then
     PROTECTED_BRANCHES="$custom_protected"
   fi
 
   # Read additional allowed extensions from devline.local.md
-  custom_allowed=$(echo "$FRONTMATTER" | grep '^direct_edit_extensions:' | sed 's/direct_edit_extensions: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_allowed=$(echo "$FRONTMATTER" | grep '^direct_edit_extensions:' | sed 's/direct_edit_extensions: *//' | sed 's/^"\(.*\)"$/\1/' || true)
   if [[ -n "$custom_allowed" ]]; then
     ALLOWED_EXTENSIONS="$custom_allowed"
   fi
+fi
+
+# Feature branch enforcement is opt-in (default: off)
+# When off, users can freely edit and commit on protected branches — only push is blocked (by validate-bash.sh)
+if [[ "$ENFORCE_FEATURE_BRANCHES" != "true" ]]; then
+  exit 0
 fi
 
 current_branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null || echo "")
@@ -88,9 +100,9 @@ commit_hint="Commits must use conventional format: kind(scope): details."
 
 if [[ -f "$LOCAL_MD" ]]; then
   FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
-  custom_format=$(echo "$FRONTMATTER" | grep '^branch_format:' | sed 's/branch_format: *//' | sed 's/^"\(.*\)"$/\1/')
-  custom_kinds=$(echo "$FRONTMATTER" | grep '^branch_kinds:' | sed 's/branch_kinds: *//' | sed 's/^"\(.*\)"$/\1/' | sed 's/|/, /g')
-  custom_commit=$(echo "$FRONTMATTER" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/')
+  custom_format=$(echo "$FRONTMATTER" | grep '^branch_format:' | sed 's/branch_format: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+  custom_kinds=$(echo "$FRONTMATTER" | grep '^branch_kinds:' | sed 's/branch_kinds: *//' | sed 's/^"\(.*\)"$/\1/' | sed 's/|/, /g' || true)
+  custom_commit=$(echo "$FRONTMATTER" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/' || true)
   if [[ -n "$custom_format" ]]; then
     branch_format="$custom_format"
   fi

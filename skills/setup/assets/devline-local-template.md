@@ -16,6 +16,7 @@ auto_approve_plan: false          — Pause for approval after planning
 ## Batch 2 — Branching & Commits
 
 ```
+enforce_feature_branches: false   — Block source code edits on protected branches (forces feature branch workflow)
 branch_format: "{kind}/{title}"  — Branch naming format ({kind}, {title} placeholders)
 branch_kinds: "feat|fix|refactor|docs|chore|test|ci"  — Allowed branch kinds (pipe-separated)
 protected_branches: "(main|master|develop|release|production|staging)"  — Protected branches (regex group)

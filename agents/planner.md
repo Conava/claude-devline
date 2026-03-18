@@ -36,10 +36,12 @@ Before designing anything, understand what you're working with **at execution-pa
 
 **Execution-path tracing (mandatory — this is what separates good plans from plans that cause review failures):**
 - **Trace runtime flow end-to-end.** For every new behavior, walk the execution path from trigger to result. Read the real code — don't assume. Document this flow in the plan.
-- **Map observer/event/notification patterns.** Identify every place state changes must propagate. List the exact notify/emit/dispatch calls and listeners. Missing a notification is a silent failure.
+- **Map observer/event/notification patterns.** Identify every place state changes must propagate. List the exact notify/emit/dispatch calls and listeners. Missing a notification is a silent failure. **These become Integration Contracts in the task — specify the exact method call, event name, and expected listener.**
 - **Map UI lifecycle and rendering flow.** Trace data from state to screen — initialization, update hooks, render cycles. Document explicit refresh calls and differences between initial/subsequent renders.
-- **Analyze concurrency and shared state.** Identify shared mutable state, synchronization patterns, and potential TOCTOU races. Document specific sync requirements (e.g., "use atomic remove-and-return").
-- **Verify platform/framework constraints.** Confirm APIs, style properties, and features are supported in the target platform/version before planning to use them.
+- **Analyze concurrency and shared state.** Identify shared mutable state, synchronization patterns, and potential TOCTOU races. Document specific sync requirements (e.g., "use atomic remove-and-return"). **These become Integration Contracts in the task.**
+- **Verify platform/framework constraints.** Confirm APIs, style properties, and features are supported in the target platform/version before planning to use them. **Unsupported APIs become Platform Constraints in the task — the reviewer and implementer will both verify these.**
+
+**Translate traces into reviewable artifacts:** Every finding from execution-path tracing must land in a task as an Integration Contract, Platform Constraint, or Review Checklist item. If a trace finding isn't in a task, the reviewer won't check it and the implementer won't know about it.
 
 ### 2. Surface Questions, Findings, and Proactive Improvements
 
@@ -208,21 +210,39 @@ Do NOT paste the full plan into the conversation — it's on disk where implemen
 3. [integration] [Test name] — [what it verifies across components]
 
 **Implementation Steps:**
-1. [Step with detail]
-2. [Step with detail]
+[Describe WHAT to achieve and WHY, not HOW to code it. The implementer is an engineer —
+give behavioral contracts, not code dictation. "Add validation that rejects expired tokens
+with 401" not "call jwt.verify(token, secret) and catch TokenExpiredError".
+Over-prescriptive steps become wrong when the code doesn't match your assumptions.]
+1. [Behavioral step — what this achieves, not exact code]
+2. [Behavioral step — what this achieves, not exact code]
 
 **Integration Contracts:**
 [For each file this task modifies, describe how it connects to the rest of the system.
-Specify: observer/event notifications that must fire, lifecycle hooks that must be called,
-state updates that must propagate, synchronization requirements for shared state.
-This section prevents the #1 class of bugs: code that compiles and passes unit tests
-but silently fails to integrate because a notification, refresh, or sync call is missing.]
+Be specific — the reviewer will verify each contract line-by-line against the implementation:]
+- [Exact notification/event: "`GameManager` must call `notifyObservers(GameEvent.CODE_CONSUMED)` after removing a code from the map"]
+- [Exact lifecycle hook: "`NewPanel` must register with `LifecycleManager.register()` in its constructor and call `dispose()` in `onClose()`"]
+- [Exact state propagation: "When `config.theme` changes, `ThemeService.applyTheme()` must be called, which triggers CSS variable updates on `document.documentElement`"]
+- [Exact sync requirement: "`SessionStore.remove()` must use atomic `ConcurrentHashMap.remove(key)` that returns the value, not separate `get()` + `remove()`"]
+
+**Platform Constraints:**
+[APIs, CSS properties, or framework features this task must avoid or use carefully.
+The reviewer will verify the implementation respects these. Leave empty if none.]
+- [e.g., "JavaFX does not support `rgba()` in CSS — use `derive()` or hex colors with `-fx-opacity`"]
+- [e.g., "Target browser list includes Safari 14 — do not use `Array.at()` or CSS `aspect-ratio`"]
 
 **Proactive Improvements:**
 - [What's being fixed/improved in the touched files and why]
 
 **Acceptance Criteria:**
 - [ ] [Criterion from feature spec this task addresses]
+
+**Review Checklist:**
+[Specific verification points for the reviewer — things that are high-risk for this task
+and easy to miss in a code-level review. The reviewer will check every item.]
+- [ ] [e.g., "Observer notification fires after state change in `processOrder()`, not before"]
+- [ ] [e.g., "New endpoint has auth middleware applied — check route registration, not just handler"]
+- [ ] [e.g., "Proactive improvement: race condition fix in `consumeCode()` uses atomic remove"]
 
 ### Task 2: [Name]
 ...
