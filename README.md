@@ -32,7 +32,7 @@ Every finding from every review gets fixed — there is no "pass with warnings."
 claude plugin add devline
 ```
 
-Requires Claude Code with plugin support, `jq`, and `git`.
+Requires Claude Code with plugin support, `jq`, `git`, and [`gh`](https://cli.github.com/) (GitHub CLI).
 
 Run `/devline:setup` in your project to create a CLAUDE.md and configure pipeline settings interactively.
 
@@ -129,7 +129,7 @@ Devline ships with PreToolUse hooks that block dangerous operations before they 
 |----------|---------|
 | Destructive filesystem | `rm -rf /`, paths outside working dir, non-git directories |
 | Git destructive | Force push, hard reset, force clean, stash drop |
-| Protected branches | Push, rebase, delete, force create, source code writes |
+| Protected branches | Push, rebase, delete, force create (source code writes blocked only with `enforce_feature_branches: true`) |
 | Publishing | `npm publish`, `docker push`, `git tag`, `gh release create` |
 | GitHub mutations | `gh pr merge`, `gh pr close`, `gh issue close` |
 | Database | `DROP TABLE`, `TRUNCATE`, bulk `DELETE FROM` |
@@ -137,7 +137,7 @@ Devline ships with PreToolUse hooks that block dangerous operations before they 
 | External mutations | HTTP POST/PUT/DELETE to non-localhost, SSH, service control |
 | Commit format | Conventional commits validation (customizable) |
 
-Protected branches default to: main, master, develop, release, production, staging. Docs and config files can still be edited directly on protected branches.
+Protected branches default to: main, master, develop, release, production, staging. By default, you can work and commit freely on protected branches — only pushing is blocked. Set `enforce_feature_branches: true` to require feature branches for source code changes.
 
 ## Configuration
 
@@ -188,11 +188,12 @@ commit_format_regex: "^(✨|🐛|♻️|📝|🔧|✅|🔨|🚀|⬆️|⏪) .+"
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| `enforce_feature_branches` | `false` | Block source code edits on protected branches (forces feature branch workflow) |
 | `branch_format` | `"{kind}/{title}"` | Branch naming format (`{kind}`, `{title}` placeholders) |
 | `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds |
 | `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Protected branches (regex) |
 | `merge_style` | `"squash"` | Merge into protected: `squash`, `merge`, or `rebase` |
-| `direct_edit_extensions` | `"(md\|txt\|json\|yaml\|...)"` | Extensions allowed on protected branches |
+| `direct_edit_extensions` | `"(md\|txt\|json\|yaml\|...)"` | Extensions allowed on protected branches (only when `enforce_feature_branches` is `true`) |
 
 </details>
 
@@ -259,6 +260,7 @@ For higher rate limits, set `CONTEXT7_API_KEY` in your shell profile or run `npx
 - **Use `/devline:implement` for well-defined tasks** — skip brainstorming when you already know exactly what to build.
 - **Use `/devline:debug` instead of manual debugging** — the scientific method catches root causes, not symptoms.
 - **Add "think hard" for complex decisions** — matches reasoning depth to problem difficulty.
+- **Install [RTK](https://github.com/rtk-ai/rtk) for 60-90% token savings** — a CLI proxy that filters noise from command output before it hits your context window. Especially effective with devline's parallel agents. Run `/devline:setup` to install it, or `curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh && rtk init -g`.
 
 ## License
 

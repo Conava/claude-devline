@@ -125,9 +125,47 @@ If the project uses a specific framework, also run:
 cd "$PLUGIN_DIR" && python3 search.py "<query>" --stack react  # or vue, flutter, nextjs, svelte, etc.
 ```
 
-### 4. Apply Design Reasoning
+### 4. Generate HTML Previews
 
-Take the search results and apply judgment:
+Before finalizing the design direction, generate **2-3 distinct style options** as self-contained HTML preview files so the user can visually compare them.
+
+Create `.devline/previews/` directory and generate one HTML file per option:
+
+- `.devline/previews/option-a-[style-name].html`
+- `.devline/previews/option-b-[style-name].html`
+- `.devline/previews/option-c-[style-name].html` (optional third)
+
+Each preview file must be a **single self-contained HTML file** (inline CSS, no external dependencies) that demonstrates:
+- The proposed color palette applied to realistic UI elements (cards, buttons, inputs, navigation)
+- Typography pairing with heading and body text samples
+- Layout pattern showing component arrangement
+- Light and dark mode (use a toggle or show both side-by-side)
+- Key effects (shadows, borders, hover states via CSS)
+
+Each option should represent a meaningfully different direction — not just minor color variations. For example: different style families (glassmorphism vs. minimal vs. bold), different color moods (warm vs. cool vs. neutral), or different layout approaches (sidebar vs. top-nav vs. dashboard grid).
+
+Use the feature context from the brainstorm to make previews realistic — if it's a dashboard, show a dashboard layout; if it's a form, show form elements; if it's a landing page, show hero + CTA sections.
+
+After generating previews, return `STATUS: NEEDS_INPUT` with a **Preview Selection** section:
+
+```
+STATUS: NEEDS_INPUT
+
+## Preview Selection
+Compare the style options by opening these files in your browser:
+
+1. **Option A — [style name]**: `.devline/previews/option-a-[name].html` — [1-line description: mood, color direction, layout]
+2. **Option B — [style name]**: `.devline/previews/option-b-[name].html` — [1-line description]
+3. **Option C — [style name]**: `.devline/previews/option-c-[name].html` — [1-line description] (if generated)
+
+(Recommended): Option [X] — [brief rationale]
+```
+
+Wait for the user's selection before proceeding. If the user selects "None", ask the orchestrator what direction they want and generate new previews.
+
+### 5. Apply Design Reasoning
+
+Take the search results and the user's chosen preview direction, then apply judgment:
 
 1. **Match to context**: Do the recommended styles fit the product type and audience? A healthcare app shouldn't get brutalism. A creative agency shouldn't get corporate minimalism.
 2. **Resolve conflicts**: If the reasoning rules suggest one style but the existing codebase uses another, document both and recommend how to bridge them.
@@ -135,7 +173,7 @@ Take the search results and apply judgment:
 4. **Stack-specific guidance**: If a framework was detected, include stack-specific UX guidelines from the search results.
 5. **Apply priority ordering**: When recommendations conflict, higher-priority categories win. Accessibility (P1) always overrides aesthetics (P4).
 
-### 5. Select Relevant Design Rules
+### 6. Select Relevant Design Rules
 
 Read `references/design-rules.md` and select the rule categories that apply to this feature:
 
@@ -149,7 +187,7 @@ Read `references/design-rules.md` and select the rule categories that apply to t
 
 Do NOT dump all 200+ rules. Select only the rules from the relevant categories and only the specific rules within those categories that apply to the feature scope.
 
-### 6. Write Design System Document
+### 7. Write Design System Document
 
 Write the design system to `.devline/design-system.md` with this structure:
 
@@ -292,7 +330,15 @@ Write the design system to `.devline/design-system.md` with this structure:
 - [ ] Accessibility traits/roles/states announced correctly
 ```
 
-### 7. Return Summary
+### 8. Clean Up Previews
+
+After writing `.devline/design-system.md`, delete the previews directory:
+
+```bash
+rm -rf .devline/previews
+```
+
+### 9. Return Summary
 
 Return a concise summary to the orchestrator:
 - Product type matched

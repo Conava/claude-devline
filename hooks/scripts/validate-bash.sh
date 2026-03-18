@@ -42,13 +42,13 @@ if [[ -n "$cwd" ]]; then
     FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
 
     # Read protected_branches as pipe-separated regex group: (main|master|custom)
-    custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/')
+    custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/' || true)
     if [[ -n "$custom_protected" ]]; then
       PROTECTED_BRANCHES="$custom_protected"
     fi
 
     # Read merge_style: squash (default), merge, rebase
-    custom_merge=$(echo "$FRONTMATTER" | grep '^merge_style:' | sed 's/merge_style: *//' | sed 's/^"\(.*\)"$/\1/')
+    custom_merge=$(echo "$FRONTMATTER" | grep '^merge_style:' | sed 's/merge_style: *//' | sed 's/^"\(.*\)"$/\1/' || true)
     if [[ -n "$custom_merge" ]]; then
       MERGE_STYLE="$custom_merge"
     fi
@@ -207,11 +207,6 @@ if printf '%s' "$command" | grep -qPi "git\s+merge\s+" && on_protected_branch; t
   esac
 fi
 
-# --- Commit on protected branches ---
-if printf '%s' "$command" | grep -qPi 'git\s+commit\s' && on_protected_branch; then
-  ask "Committing on protected branch '$(current_branch)'."
-fi
-
 # =============================================================================
 # PIPELINE ARTIFACT PROTECTION
 # =============================================================================
@@ -242,13 +237,13 @@ if printf '%s' "$command" | grep -qP 'git\s+commit\s+.*-m\s'; then
         git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>&3 || echo "$cwd")
         LOCAL_MD="$git_root/.claude/devline.local.md"
         if [[ -f "$LOCAL_MD" ]]; then
-          custom_regex=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format_regex:' | sed 's/commit_format_regex: *//' | sed 's/^"\(.*\)"$/\1/')
+          custom_regex=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format_regex:' | sed 's/commit_format_regex: *//' | sed 's/^"\(.*\)"$/\1/' || true)
         fi
       fi
 
       if [[ -n "$custom_regex" ]]; then
         if ! printf '%s' "$first_line" | grep -qP "$custom_regex"; then
-          custom_desc=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/')
+          custom_desc=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/' || true)
           deny "Commit message does not match project convention: ${custom_desc:-$custom_regex}"
         fi
       else
@@ -328,8 +323,8 @@ fi
 # CREDENTIAL AND SECRET EXPOSURE
 # =============================================================================
 
-if printf '%s' "$command" | grep -qPi '(curl|wget)\s.*\|\s*(ba)?sh'; then
-  deny "Piping curl/wget output to shell is a security risk."
+if printf '%s' "$command" | grep -qPi '(curl|wget)\s.*\|\s*(ba|z|fi)?sh'; then
+  ask "Piping curl/wget to shell executes arbitrary code from the internet."
 fi
 
 if printf '%s' "$command" | grep -qPi '(echo|printf|cat)\s.*\$(.*_(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE).*)'; then
