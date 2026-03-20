@@ -102,7 +102,27 @@ For each goal:
 
 If a feature goal is not verifiably working end-to-end, this is a **major/critical** finding — even if all unit tests pass.
 
-### 5. Test Quality
+### 5. Cross-Task Integration Sweep
+
+**This section catches the #1 class of bugs that per-task reviewers miss** — integration contracts that span task boundaries where each side passes review in isolation but the connection between them is broken.
+
+Read the `## Integration Testing` section of `.devline/plan.md` for the list of cross-task contracts. For each one:
+
+1. **Trace both sides.** If Task A creates an event type and Task B should dispatch it, verify Task B's code actually contains the dispatch call. Don't trust that "Task B's review passed" — the per-task reviewer only checked Task B's own contracts.
+2. **Search for orphaned declarations.** `grep` for event types, interface methods, webhook event names, and enum values that were declared but never referenced from another file. A declaration without a callsite is a dead integration.
+3. **Verify listener/handler registration.** If Task A creates a listener/handler and Task B should trigger it, confirm the registration exists and the trigger fires. Missing registrations are silent failures — the code compiles and tests pass, but the feature doesn't work.
+
+Flag any broken cross-task connection as a **major/critical** finding — these are the bugs that slip through per-task review and only surface in production.
+
+### 6. Stale Artifact & Duplicate Detection
+
+Parallel task implementation creates files incrementally. Check for artifacts that should have been cleaned up:
+
+- **Duplicate class/component declarations:** Search for classes or components defined in multiple files (e.g., a monolithic `Entities.kt` alongside individual entity files). These cause compilation errors at best, subtle shadowing bugs at worst.
+- **Scaffold/placeholder files:** Check for generic placeholder files (`app/page.tsx`, `index.ts` with `// TODO`) that should have been replaced by the real implementation.
+- **Stale imports/references:** After file renames or splits, check that old import paths were updated everywhere.
+
+### 7. Test Quality
 
 Run the full test suite. Don't just check that tests exist — check that they're meaningful.
 
@@ -111,8 +131,11 @@ Run the full test suite. Don't just check that tests exist — check that they'r
 - Are integration points tested with real dependencies where it matters?
 - Are E2E tests present for critical user journeys?
 - Is the test naming descriptive — can you understand what broke from the name alone?
+- **Weak assertion audit:** Scan for `.not.toBeNull()`, `.toBeDefined()`, `.toContain()` assertions where a specific value check (`.toBe()`, `.toEqual()`) is warranted. These are the assertions that pass even when the value is wrong.
+- **Mock-vs-reality check:** For tests that mock framework behavior (repository.save(), async dispatch, transaction boundaries), verify the mock matches what the framework actually does. Synchronous mocks of deferred operations are a recurring source of "tests pass, production breaks."
+- **Security test completeness:** For every auth-protected endpoint, verify tests check BOTH that permitted roles succeed AND that forbidden roles are rejected. Happy-path-only security tests create false confidence.
 
-### 6. Plan Compliance
+### 8. Plan Compliance
 
 Read the original feature spec and implementation plan (`.devline/plan.md` if it exists).
 
@@ -122,7 +145,7 @@ Read the original feature spec and implementation plan (`.devline/plan.md` if it
 - Proactive improvements from the plan — were they actually done?
 - Architecture matches the plan's design decisions
 
-### 7. Documentation & Operational Readiness
+### 9. Documentation & Operational Readiness
 
 - New features documented (README, API docs, user-facing guides)
 - API changes reflected in docs

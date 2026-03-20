@@ -3,10 +3,12 @@
 """
 UI/UX Pro Max Search - BM25 search engine for UI/UX style guides
 Usage: python search.py "<query>" [--domain <domain>] [--stack <stack>] [--max-results 3]
+       python search.py "<query>" --mood [--max-results 3]
        python search.py "<query>" --design-system [-p "Project Name"]
        python search.py "<query>" --design-system --persist [-p "Project Name"] [--page "dashboard"]
 
-Domains: style, prompt, color, chart, landing, product, ux, typography
+Domains: style, prompt, color, chart, landing, product, ux, typography, animation
+Mood search: Bridges mood descriptors (warm, dark, cool, playful) to color palettes via reasoning rules
 Stacks: html-tailwind, react, nextjs
 
 Persistence (Master + Overrides pattern):
@@ -17,7 +19,7 @@ Persistence (Master + Overrides pattern):
 import argparse
 import sys
 import io
-from core import CSV_CONFIG, AVAILABLE_STACKS, MAX_RESULTS, search, search_stack
+from core import CSV_CONFIG, AVAILABLE_STACKS, MAX_RESULTS, search, search_stack, search_color_by_mood
 from design_system import generate_design_system, persist_design_system
 
 # Force UTF-8 for stdout/stderr to handle emojis on Windows (cp1252 default)
@@ -64,6 +66,8 @@ if __name__ == "__main__":
     parser.add_argument("--design-system", "-ds", action="store_true", help="Generate complete design system recommendation")
     parser.add_argument("--project-name", "-p", type=str, default=None, help="Project name for design system output")
     parser.add_argument("--format", "-f", choices=["ascii", "markdown"], default="ascii", help="Output format for design system")
+    # Mood-based color search
+    parser.add_argument("--mood", action="store_true", help="Search colors by mood/description (bridges reasoning rules to palettes)")
     # Persistence (Master + Overrides pattern)
     parser.add_argument("--persist", action="store_true", help="Save design system to design-system/MASTER.md (creates hierarchical structure)")
     parser.add_argument("--page", type=str, default=None, help="Create page-specific override file in design-system/pages/")
@@ -96,6 +100,14 @@ if __name__ == "__main__":
             print(f"📖 Usage: When building a page, check design-system/{project_slug}/pages/[page].md first.")
             print(f"   If exists, its rules override MASTER.md. Otherwise, use MASTER.md.")
             print("=" * 60)
+    # Mood-based color search
+    elif args.mood:
+        result = search_color_by_mood(args.query, args.max_results)
+        if args.json:
+            import json
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(format_output(result))
     # Stack search
     elif args.stack:
         result = search_stack(args.query, args.stack, args.max_results)

@@ -29,7 +29,8 @@ SEARCH_CONFIG = {
     "style": {"max_results": 3},
     "color": {"max_results": 2},
     "landing": {"max_results": 2},
-    "typography": {"max_results": 2}
+    "typography": {"max_results": 2},
+    "animation": {"max_results": 5}
 }
 
 
@@ -182,6 +183,7 @@ class DesignSystemGenerator:
         color_results = self._extract_results(search_results.get("color", {}))
         typography_results = self._extract_results(search_results.get("typography", {}))
         landing_results = self._extract_results(search_results.get("landing", {}))
+        animation_results = self._extract_results(search_results.get("animation", {}))
 
         best_style = self._select_best_match(style_results, reasoning.get("style_priority", []))
         best_color = color_results[0] if color_results else {}
@@ -230,6 +232,7 @@ class DesignSystemGenerator:
                 "css_import": best_typography.get("CSS Import", "")
             },
             "key_effects": combined_effects,
+            "animations": animation_results,
             "anti_patterns": reasoning.get("anti_patterns", ""),
             "decision_rules": reasoning.get("decision_rules", {}),
             "severity": reasoning.get("severity", "MEDIUM")
@@ -337,6 +340,29 @@ def format_ascii_box(design_system: dict) -> str:
             lines.append(line.ljust(BOX_WIDTH) + "|")
         lines.append("|" + " " * BOX_WIDTH + "|")
 
+    # Animations section
+    animations = design_system.get("animations", [])
+    if animations:
+        lines.append("|  RECOMMENDED ANIMATIONS:".ljust(BOX_WIDTH) + "|")
+        for anim in animations:
+            name = anim.get("Component Name", "")
+            category = anim.get("Category", "")
+            lib = anim.get("Animation Library", "")
+            trigger = anim.get("Trigger Type", "")
+            complexity = anim.get("Complexity", "")
+            mobile = anim.get("Mobile Friendly", "")
+            lines.append(f"|     {name} ({category})".ljust(BOX_WIDTH) + "|")
+            lines.append(f"|       Library: {lib} | Trigger: {trigger} | Complexity: {complexity} | Mobile: {mobile}".ljust(BOX_WIDTH) + "|")
+            desc = anim.get("Description", "")
+            if desc:
+                for line in wrap_text(desc, "|       ", BOX_WIDTH):
+                    lines.append(line.ljust(BOX_WIDTH) + "|")
+            hints = anim.get("Implementation Hints", "")
+            if hints:
+                for line in wrap_text(f"Hints: {hints}", "|       ", BOX_WIDTH):
+                    lines.append(line.ljust(BOX_WIDTH) + "|")
+        lines.append("|" + " " * BOX_WIDTH + "|")
+
     # Anti-patterns section
     if anti_patterns:
         lines.append("|  AVOID (Anti-patterns):".ljust(BOX_WIDTH) + "|")
@@ -436,6 +462,35 @@ def format_markdown(design_system: dict) -> str:
         lines.append("### Key Effects")
         lines.append(f"{effects}")
         lines.append("")
+
+    # Animations section
+    animations = design_system.get("animations", [])
+    if animations:
+        lines.append("### Recommended Animations")
+        lines.append("")
+        lines.append("| Component | Category | Library | Trigger | Complexity | Mobile |")
+        lines.append("|-----------|----------|---------|---------|------------|--------|")
+        for anim in animations:
+            name = anim.get("Component Name", "")
+            cat = anim.get("Category", "")
+            lib = anim.get("Animation Library", "")
+            trigger = anim.get("Trigger Type", "")
+            complexity = anim.get("Complexity", "")
+            mobile = anim.get("Mobile Friendly", "")
+            lines.append(f"| {name} | {cat} | {lib} | {trigger} | {complexity} | {mobile} |")
+        lines.append("")
+        for anim in animations:
+            name = anim.get("Component Name", "")
+            desc = anim.get("Description", "")
+            hints = anim.get("Implementation Hints", "")
+            a11y = anim.get("Accessibility Notes", "")
+            if desc or hints:
+                lines.append(f"**{name}**: {desc}")
+                if hints:
+                    lines.append(f"- *Implementation*: {hints}")
+                if a11y:
+                    lines.append(f"- *Accessibility*: {a11y}")
+                lines.append("")
 
     # Anti-patterns section
     if anti_patterns:

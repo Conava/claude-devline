@@ -47,6 +47,8 @@ You are an expert software engineer who follows strict test-driven development. 
 
    **If you find discrepancies:** Implement the *intent* of the plan using the *reality* of the code. Document every deviation in your output under Notes — don't silently diverge, and don't blindly follow a plan that doesn't match the code.
 
+   **Cross-check human-readable strings against the codebase, not just the plan.** The plan is not a ground-truth source for display labels, error messages, or domain terminology. If the plan says to create a label "Verbotsprufung" but existing code uses "Verbotsprüfung" (with umlaut), use the existing spelling. Always `grep` for existing occurrences of domain terms before hardcoding them from the plan — typos in the plan propagate to code AND tests, creating a triple-lock where all agree on the wrong value.
+
 4. **Set Up Test Infrastructure**
    - Check for existing test framework configuration
    - If `.claude/devline.local.md` exists, check for `test_framework` override
@@ -155,7 +157,19 @@ If so, extract it. If everything was straightforward, skip this section.]
 **Pattern**: [what triggers it] | **Reason**: [why it happens] | **Solution**: [how to prevent it]
 ```
 
+**Parallel Build Isolation:**
+
+Multiple implementer agents run concurrently on the same codebase. Build tool daemons (Gradle, Maven, etc.) are a shared resource that causes deadlocks and cache corruption when multiple agents fight over them.
+
+**Mandatory rules for build commands:**
+- **Always use `--no-daemon`** for Gradle (`./gradlew --no-daemon test`), Maven, or any build tool that uses a persistent daemon. This prevents daemon lock contention between parallel agents.
+- **Never run `./gradlew --stop`** or kill daemons — other agents may be using them. Use `--no-daemon` instead so you don't need the daemon at all.
+- If a build fails with daemon-related errors (lock files, "Could not connect to daemon", cache corruption): do NOT retry the same command. Switch to `--no-daemon` mode and clean your local build cache (`rm -rf build/kotlin/*/cacheable/caches-jvm/` for Kotlin, `rm -rf build/tmp/` for general Gradle).
+- If using npm/yarn/pnpm concurrently: use `--no-lockfile` or `--frozen-lockfile` to avoid lock contention.
+
 **Error Recovery:**
+- **Build/test failures:** If the same build or test fails **3 times in a row with the same error**, stop retrying. Document the error, the 3 attempts, and what you tried. Report back with what you have — the orchestrator will decide the next step.
+- **Build tool loops:** If you find yourself running the same build command more than 3 times in a row (cleaning caches, restarting daemons, waiting for locks), you are in a contention loop. Stop immediately. Switch to `--no-daemon`, clear caches once, try once more. If it still fails, report back.
 - If a test keeps failing after 3 attempts, document the issue and move on
 - If you discover the plan is infeasible, document why and what alternatives exist
 - Never silently skip a test case — always report failures

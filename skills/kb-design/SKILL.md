@@ -1,6 +1,6 @@
 ---
 name: kb-design
-description: Design intelligence for UI/UX — injected into the frontend-planner agent. Provides BM25-searchable database of 67 styles, 161 color palettes, 57 font pairings, 161 industry rules, plus framework-agnostic design guidelines. Not invoked directly.
+description: Design intelligence for UI/UX — injected into the frontend-planner agent. Provides BM25-searchable database of 67 styles, 161 color palettes, 57 font pairings, 160 animated component patterns, 161 industry rules, plus framework-agnostic design guidelines. Not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -53,11 +53,41 @@ Commit to a cohesive aesthetic. Use CSS variables (or platform equivalent) for c
 
 ### Motion & Animation
 
-Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
+Create **memorable, interactive experiences** through animated components. Focus on high-impact moments: one well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions.
 
-- Prioritize CSS-only solutions for HTML. Use Motion library for React when available.
-- Keep functional animations under 300ms for responsiveness
-- Respect `prefers-reduced-motion` media query (web)
+**Animation Component Categories** (search `--domain animation` for implementation details):
+- **Text** (26): Split reveals, scramble/decrypt, typewriter, glitch, gradient fill, blur reveal, variable font cursor, circular text, count-up, flip words, jitter, wave reveal, text explode, mirror, mask text, bold copy, text highlight, text along SVG path, animated number ticker
+- **Background** (25): Aurora gradients, particles, noise grain, liquid chrome, grid distortion, waves, iridescence, plasma, meteor shower, spotlight/lamp, background beams, vortex, tracing beam, canvas reveal, dither shader, border trail, ripple, sparkles, background boxes, glowing stars, noise field
+- **Interaction** (23): Click spark, elastic line, drag elements, sticker peel, electric/star border, following pointer, lens effect, link preview, animated tooltip, multi-step loader, ripple button, swipe button, file upload drag, vanishing input, confetti, countdown timer, accordion, morphing button, webcam pixel grid, animated gradient button
+- **Card** (16): Tilt 3D, flip, stacking, swap/swipe, bounce entrance, glass, spotlight, decay, evervault, direction-aware hover, wobble, expandable, glowing, LED board, card spread, fluid glass
+- **Scroll** (10): Parallax layers, scroll reveal, velocity text, stacking cards, horizontal scroll, stagger grid, progress bar, smooth snap, scroll storytelling, scroll-linked video
+- **Navigation** (8): Dock magnify, gooey nav, staggered menu, flowing menu, pill indicator, animated sidebar, elastic slider, infinite menu
+- **Data Visualization** (8): GitHub globe, world map connections, animated timeline, 3D pin map, commit graph, animated bar/donut/gauge charts
+- **Hero** (7): Hero parallax images, Macbook scroll, lamp effect, shape shifter, sticky scroll reveal, compare slider, container cover
+- **Cursor/Hover** (7): Blob cursor, magnetic elements, spotlight, tilt 3D, image trail, glare, proximity reactions
+- **Physics** (6): Spring animations, gravity drops, elastic interactions, magnetic snap, floating elements, ballpit
+- **SVG** (5): Gooey filter, morphing shapes, path drawing, metaballs, pixelate filter
+- **Marquee** (5): Infinite horizontal/vertical, logo loops, along SVG path, orbiting elements
+- **Layout** (5): Bento grid, layout grid stagger, 3D marquee, animated list, morphing dialog
+- **Transitions** (5): Page transitions, shared element/hero, modal/sheet, skeleton loading, pixelated image transition
+- **3D** (4): Model viewer, 3D card stack, orbit gallery, cubes background
+
+**Library Selection** (pick ONE motion library per project):
+- **CSS only**: Simple transitions, hover effects, continuous loops, marquees — zero bundle cost
+- **Motion (Framer Motion)**: Declarative React animations, layout transitions, gestures, springs (~30KB)
+- **GSAP**: Complex timelines, scroll-driven, SVG morphing — framework-agnostic (~25KB)
+- **Three.js / R3F**: 3D scenes, WebGL effects, model viewers — only when actual 3D needed (~150KB)
+- **Lenis**: Smooth scrolling, scroll velocity tracking (~5KB)
+
+**Implementation Rules**:
+- Prioritize CSS-only solutions; add JS libraries only when CSS can't achieve the effect
+- Keep functional animations under 300ms; complex transitions under 400ms
+- Animate only `transform` and `opacity` — never `width`, `height`, `top`, `left`
+- Respect `prefers-reduced-motion` — provide static or instant fallback for every animation
+- Disable cursor-following effects on touch devices (`pointer: coarse`)
+- Reduce particle counts and effect complexity on mobile / low-end devices
+- Use `will-change` sparingly; `contain: layout paint` on animated elements
+- All animations must be interruptible — never block user input during animation
 - Use platform-native animation libraries when available
 
 ### Spatial Composition
@@ -156,6 +186,7 @@ Accessibility is non-negotiable — beautiful AND accessible:
 
 - **`references/design-rules.md`** — Priority-ordered design rules (200+ rules across 10 categories: accessibility, touch, performance, style, layout, typography, animation, forms, navigation, charts) with pre-delivery checklist
 - **`references/aesthetics-guide.md`** — Detailed aesthetic philosophy, examples, and anti-patterns
+- **`references/animation-components.md`** — Comprehensive animated component guide: library selection, implementation patterns (text, scroll, cursor, background, physics, SVG, transitions), performance budgets, accessibility requirements
 
 #### Design System Tokens
 - **`references/token-architecture.md`** — Three-layer token system (primitive → semantic → component)
@@ -187,6 +218,7 @@ Accessibility is non-negotiable — beautiful AND accessible:
 - **`data/landing.csv`** — Landing page patterns with CTA placement and conversion strategies
 - **`data/icons.csv`** — Icon library recommendations by category
 - **`data/app-interface.csv`** — App interface guidelines
+- **`data/animations.csv`** — 160 animated component patterns across 15 categories (text, scroll, cursor, background, physics, card, navigation, SVG, marquee, transition, hero, interaction, data visualization, layout, 3D) with library recommendations, implementation hints, complexity ratings, and accessibility notes
 - **`data/react-performance.csv`** — React/Next.js performance guidelines (45 entries)
 - **`data/google-fonts.csv`** — Google Fonts catalog (1,924 fonts with classifications, variable axes, popularity)
 - **`data/stacks/*.csv`** — Stack-specific guidelines for 13 frameworks

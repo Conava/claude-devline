@@ -60,6 +60,11 @@ CSV_CONFIG = {
         "search_cols": ["Category", "Issue", "Keywords", "Description"],
         "output_cols": ["Category", "Issue", "Platform", "Description", "Do", "Don't", "Code Example Good", "Code Example Bad", "Severity"]
     },
+    "animation": {
+        "file": "animations.csv",
+        "search_cols": ["Component Name", "Category", "Keywords", "Description", "Best For", "Animation Library", "Trigger Type"],
+        "output_cols": ["Component Name", "Category", "Keywords", "Description", "Animation Library", "CSS Only", "Trigger Type", "Complexity", "Performance Impact", "Accessibility Notes", "Best For", "Do Not Use For", "Mobile Friendly", "Implementation Hints"]
+    },
     "web": {
         "file": "app-interface.csv",
         "search_cols": ["Category", "Issue", "Keywords", "Description"],
@@ -202,7 +207,8 @@ def detect_domain(query):
         "landing": ["landing", "page", "cta", "conversion", "hero", "testimonial", "pricing", "section"],
         "product": ["saas", "ecommerce", "e-commerce", "fintech", "healthcare", "gaming", "portfolio", "crypto", "dashboard", "fitness", "restaurant", "hotel", "travel", "music", "education", "learning", "legal", "insurance", "medical", "beauty", "pharmacy", "dental", "pet", "dating", "wedding", "recipe", "delivery", "ride", "booking", "calendar", "timer", "tracker", "diary", "note", "chat", "messenger", "crm", "invoice", "parking", "transit", "vpn", "alarm", "weather", "sleep", "meditation", "fasting", "habit", "grocery", "meme", "wardrobe", "plant care", "reading", "flashcard", "puzzle", "trivia", "arcade", "photography", "streaming", "podcast", "newsletter", "marketplace", "freelancer", "coworking", "airline", "museum", "theater", "church", "non-profit", "charity", "kindergarten", "daycare", "senior care", "veterinary", "florist", "bakery", "brewery", "construction", "automotive", "real estate", "logistics", "agriculture", "coding bootcamp"],
         "style": ["style", "design", "ui", "minimalism", "glassmorphism", "neumorphism", "brutalism", "dark mode", "flat", "aurora", "prompt", "css", "implementation", "variable", "checklist", "tailwind"],
-        "ux": ["ux", "usability", "accessibility", "wcag", "touch", "scroll", "animation", "keyboard", "navigation", "mobile"],
+        "animation": ["animate", "animation", "animated", "motion", "transition", "hover effect", "scroll reveal", "parallax", "particle", "cursor effect", "blob cursor", "magnetic", "tilt", "glare", "marquee", "typewriter", "scramble", "glitch", "spring", "physics", "3d effect", "gooey", "morph", "aurora", "floating", "stagger", "card flip", "gradient text", "text reveal", "scroll velocity", "elastic", "bounce", "orbit", "spotlight", "noise grain", "wave", "metaball", "pixel", "dock", "skeleton", "page transition", "shared element", "liquid", "chrome", "iridescent", "fancy component", "creative component", "interactive component"],
+        "ux": ["ux", "usability", "accessibility", "wcag", "touch", "scroll", "keyboard", "navigation", "mobile"],
         "typography": ["font pairing", "typography pairing", "heading font", "body font"],
         "google-fonts": ["google font", "font family", "font weight", "font style", "variable font", "noto", "font for", "find font", "font subset", "font language", "monospace font", "serif font", "sans serif font", "display font", "handwriting font", "font", "typography", "serif", "sans"],
         "icons": ["icon", "icons", "lucide", "heroicons", "symbol", "glyph", "pictogram", "svg icon"],
@@ -232,6 +238,77 @@ def search(query, domain=None, max_results=MAX_RESULTS):
         "domain": domain,
         "query": query,
         "file": config["file"],
+        "count": len(results),
+        "results": results
+    }
+
+
+def search_color_by_mood(query, max_results=MAX_RESULTS):
+    """
+    Bridge mood descriptors to color palettes via reasoning rules.
+
+    Searches ui-reasoning.csv for matching Color_Mood entries,
+    then returns the corresponding color palettes from colors.csv.
+
+    Example: "warm dark earth tones" → finds "Restaurant/Café" reasoning rule
+    with Color_Mood "Warm earth tones + Appetite reds" → returns that palette.
+    """
+    reasoning_file = DATA_DIR / "ui-reasoning.csv"
+    colors_file = DATA_DIR / CSV_CONFIG["color"]["file"]
+
+    if not reasoning_file.exists() or not colors_file.exists():
+        return {"error": "Reasoning or color data files not found", "domain": "mood"}
+
+    # Step 1: Search reasoning rules by Color_Mood and UI_Category
+    reasoning_data = _load_csv(reasoning_file)
+    documents = [
+        f"{row.get('Color_Mood', '')} {row.get('UI_Category', '')} {row.get('Typography_Mood', '')} {row.get('Style_Priority', '')}"
+        for row in reasoning_data
+    ]
+
+    bm25 = BM25()
+    bm25.fit(documents)
+    ranked = bm25.score(query)
+
+    # Get top matching categories
+    matched_categories = []
+    for idx, score in ranked[:max_results * 2]:  # Search wider, filter later
+        if score > 0:
+            matched_categories.append({
+                "category": reasoning_data[idx].get("UI_Category", ""),
+                "color_mood": reasoning_data[idx].get("Color_Mood", ""),
+                "style_priority": reasoning_data[idx].get("Style_Priority", ""),
+                "score": score
+            })
+
+    if not matched_categories:
+        # Fallback: direct color search
+        return search(query, "color", max_results)
+
+    # Step 2: For each matched category, find the corresponding color palette
+    color_data = _load_csv(colors_file)
+    color_config = CSV_CONFIG["color"]
+    results = []
+
+    for match in matched_categories[:max_results]:
+        category = match["category"].lower()
+        for row in color_data:
+            product_type = row.get("Product Type", "").lower()
+            if category in product_type or product_type in category:
+                result = {col: row.get(col, "") for col in color_config["output_cols"] if col in row}
+                result["_matched_mood"] = match["color_mood"]
+                result["_matched_category"] = match["category"]
+                results.append(result)
+                break
+
+    # If no exact category match, fall back to BM25 on colors directly
+    if not results:
+        return search(query, "color", max_results)
+
+    return {
+        "domain": "mood→color",
+        "query": query,
+        "file": "ui-reasoning.csv → colors.csv",
         "count": len(results),
         "results": results
     }

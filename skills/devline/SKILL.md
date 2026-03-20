@@ -33,13 +33,13 @@ Do NOT create task list entries for individual implementation tasks. Instead, di
 ```
 ## Implementation Progress
 
-| # | Wave | Task               | Deps  | Implement | Review     | Status   |
-|---|------|--------------------|-------|-----------|------------|----------|
-| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     |
-| 2 | 1    | Database layer     | —     | ✅        | 🔄 Fix #1 | Fixing   |
-| 3 | 1    | API routes         | —     | 🔄        |            | Building |
-| 4 | 2    | Frontend views     | 1, 3  | ⏳        |            | Blocked  |
-| 5 | 3    | Integration tests  | 1-4   | ⏳        |            | Blocked  |
+| # | Wave | Task               | Deps  | Implement | Review     | Status   | Deferred |
+|---|------|--------------------|-------|-----------|------------|----------|----------|
+| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     | 2        |
+| 2 | 1    | Database layer     | —     | ✅        | 🔄 Fix #1 | Fixing   |          |
+| 3 | 1    | API routes         | —     | 🔄        |            | Building |          |
+| 4 | 2    | Frontend views     | 1, 3  | ⏳        |            | Blocked  |          |
+| 5 | 3    | Integration tests  | 1-4   | ⏳        |            | Blocked  |          |
 ```
 
 - **#**: Task number from the plan — one per implementer agent
@@ -48,6 +48,73 @@ Do NOT create task list entries for individual implementation tasks. Instead, di
 - Icons: ⏳ blocked, 🔄 in progress, ✅ done, ❌ failed
 
 Re-display this table after every status change. Always output text between background agent completions — never stay silent while agents run.
+
+## State Persistence (Context Survival)
+
+**Problem:** Long pipeline sessions generate substantial context from agent outputs, progress updates, and health checks. Context compaction will discard this, losing track of pipeline state. The solution: persist all mutable state to files, keep only brief summaries in conversation.
+
+### State file: `.devline/state.md`
+
+This is the **single source of truth** for pipeline state. Create it when entering Stage 3 and update it after **every status change** (task started, review verdict, fix cycle, escalation, completion).
+
+```markdown
+## Pipeline State
+- **Stage:** implement
+- **Updated:** 2026-03-20T14:32:00
+
+## Task Progress
+| # | Status | Review Attempts | Notes |
+|---|--------|-----------------|-------|
+| 1 | done | 1 (CLEAN) | |
+| 2 | fixing | 2 (HAS_BLOCKING, HAS_BLOCKING) | Escalating to planner |
+| 3 | building | 0 | Agent launched 14:28 |
+| 4 | blocked | 0 | Waiting on 1, 3 |
+
+## Running Agents
+| Task | Agent ID | Type | Launched | Purpose |
+|------|----------|------|----------|---------|
+| 3 | abc123 | implementer | 14:28 | Initial implementation |
+
+## Deferred Findings Count
+Total: 5 (see .devline/deferred-findings.md)
+```
+
+### Deferred findings file: `.devline/deferred-findings.md`
+
+Append deferrable findings here as they arrive — do NOT keep them in conversation context.
+
+```markdown
+## Deferred Findings
+
+### Task 1: Auth module
+1. **Code Quality** `src/auth.ts:42` — Variable `x` should be renamed to `tokenExpiry`
+   - **Severity:** suggestion
+   - **Fix:** Rename `x` to `tokenExpiry`
+
+### Task 3: API routes
+1. **Code Quality** `src/routes.ts:15` — Extract duplicated validation into helper
+   - **Severity:** suggestion
+   - **Fix:** Create `validateParams()` helper used by both endpoints
+```
+
+### Context discipline rules
+
+1. **After receiving any agent output:** extract the actionable verdict, update `.devline/state.md`, append any deferred findings to `.devline/deferred-findings.md`, then output a **brief summary** to the user (verdict + 1-2 sentences). Do NOT paste full agent outputs into conversation context.
+2. **Progress table:** display it to the user after status changes (it's useful for them), but the authoritative state lives in `.devline/state.md`, not in conversation history.
+3. **Health check results:** summarize in one line ("Task 3 agent responded, making progress on test setup"). Do not preserve full agent responses.
+4. **Review findings sent to implementer:** write them to a temporary file (`.devline/fix-task-{N}.md`) and tell the implementer to read it, rather than inlining all findings in the agent prompt. Delete the file after the fix cycle completes.
+
+### Recovery protocol (post-compaction)
+
+If you find yourself unsure of pipeline state — whether after compaction, a conversation resume, or any gap — execute this recovery sequence before taking any action:
+
+1. Read `.devline/state.md` — restores task statuses, review attempts, running agents
+2. Read `.devline/deferred-findings.md` — restores collected deferrable findings
+3. Read `.devline/plan.md` — restores the task list, dependencies, and acceptance criteria
+4. Check running background agents with `TaskList` — reconcile with the agent table in state.md
+5. Resume orchestration from the recovered state
+
+**This is not optional.** If you cannot recall the current stage or task statuses, you MUST read state files before proceeding. Do not guess or reconstruct from fragments of compacted context.
 
 ## Configuration
 
@@ -67,7 +134,7 @@ Ensure the project is on a non-protected branch:
 3. If already on a feature branch, continue
 4. Create `.devline/` directory and add it to `.gitignore` if not present
 
-5. **Stale artifact check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it (and `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` if present) and inform the user that stale artifacts were cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh. Also clean up orphaned `.devline/brainstorm.md`, `.devline/design-system.md`, or `.devline/previews/` files from previous runs if no matching plan exists.
+5. **Stale artifact check:** If `.devline/plan.md` already exists, read its `**Branch:**` header. If it references a different branch or the `**Status:**` is `completed`, delete it (and `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` if present) and inform the user that stale artifacts were cleaned up. If it references the current branch and status is `active`, ask the user whether to resume the existing plan or start fresh — if resuming, read `.devline/state.md` to restore pipeline state (this enables mid-session recovery). Also clean up orphaned `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, or `.devline/previews/` files from previous runs if no matching plan exists.
 
 ### Stage 1: Brainstorm (Interactive — runs in main context)
 
@@ -132,11 +199,11 @@ This file is the brainstorm output — the planner reads it as input alongside t
 
 **Skip** this stage entirely if the feature is purely backend, API, infrastructure, or tooling with no user-facing UI.
 
-Launch the **frontend-planner** agent in the **foreground**. Tell it to read `.devline/brainstorm.md` as its starting point. It will:
+Launch the **frontend-planner** agent in the **foreground**. Tell it to read `.devline/brainstorm.md` as its starting point (pipeline mode). If the brainstorm or user specifies a number of preview options (e.g., "I want 8 options"), include that count in the prompt — it overrides the default of 3. It will:
 - Read `.devline/brainstorm.md` for product context, platform, UI scope, and aesthetic direction
-- Search the design intelligence database (67 styles, 161 palettes, 57 font pairings, 161 industry rules) using BM25 ranking
+- Search the design intelligence database (67 styles, 161 palettes, 57 font pairings, 160 animated components, 161 industry rules) using BM25 ranking
 - Check for existing design systems in the project
-- Generate HTML preview files for different style directions
+- Generate N HTML preview files for different style directions (default 3, overridable)
 
 **Interactive loop:** Like the planner, the frontend-planner cannot ask the user directly. It may return a `STATUS: NEEDS_INPUT` response containing:
 - **Design Questions** — aesthetic choices, color direction, typography preferences, or layout decisions that need user input
@@ -151,8 +218,9 @@ When this happens:
 
 Once it has all answers and the user has chosen a direction, it will:
 - Write the design system to `.devline/design-system.md`
-- Delete `.devline/previews/` directory and all preview files
 - Return a brief summary (style direction, color palette, typography pairing, key anti-patterns)
+
+Note: `.devline/previews/` is kept so the user can reference them during planning and implementation. They are cleaned up with all other `.devline/` artifacts at pipeline exit.
 
 When complete, inform the user: "Design system generated — [style direction] with [color mood] palette. Full details at `.devline/design-system.md`." Then proceed to Stage 2.
 
@@ -163,7 +231,7 @@ Launch the **planner** agent in the **foreground**. Tell it to read `.devline/br
 - Analyze the codebase and design the architecture
 - Challenge its own decisions aggressively
 - Identify proactive improvements for all touched code
-- Break work into small, focused tasks with explicit dependencies
+- Break work into **granular tasks** (5–15 minutes each for an implementer) with explicit dependencies — hundreds of tasks are expected for large features
 - Define TDD test cases per task
 
 **Interactive loop:** The planner cannot ask the user directly. Instead it may return a `STATUS: NEEDS_INPUT` response containing any combination of:
@@ -197,17 +265,20 @@ Once the planner has all answers, it will:
 ```
 
 - If the user selects "Needs changes", resume the planner agent with the user's feedback to revise the plan.
-- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline gracefully.
+- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction.
 - Only proceed to Stage 3 on explicit approval or an "Other" instruction that implies approval.
 
 ### Stage 3: Implement (Autonomous — background, dependency-driven)
 Once the plan is approved, execute tasks based on their dependency graph:
 
+**Initialization:** Create `.devline/state.md` and `.devline/deferred-findings.md` with all tasks in their initial state (blocked or ready). This is the first write — from this point, update state files after every status change.
+
 **Execution model:**
 - Read all tasks from `.devline/plan.md` and their dependencies
 - Launch all tasks with no unresolved dependencies immediately, in parallel, in the background (`run_in_background: true`)
-- When a task completes its full review cycle (CLEAN), check if any blocked tasks are now unblocked (all their dependencies are done and reviewed) and launch those immediately
+- When a task completes its full review cycle (CLEAN or DEFERRED_ONLY), update `.devline/state.md`, check if any blocked tasks are now unblocked (all their dependencies are done and reviewed) and launch those immediately
+- **Track launch time** for every agent — record in `.devline/state.md` when each agent was launched
 
 **Agent selection:**
 - Use **implementer** agents for feature/application tasks
@@ -215,25 +286,71 @@ Once the plan is approved, execute tasks based on their dependency graph:
 - The planner's **Agent** field on each task indicates which agent to use
 - Assign each agent its task number and tell it to read the plan from `.devline/plan.md`
 - Each follows strict TDD: red → green → refactor
+- **Build isolation:** When launching implementer agents, always include this instruction in the prompt: "Use `--no-daemon` for all build tool commands (Gradle, Maven, etc.) to avoid daemon contention with parallel agents." This is critical for projects with 5+ parallel agents.
+
+**Agent health monitoring:**
+
+Background agents can get stuck — most commonly on build tool daemon contention (Gradle, Maven), infinite test retry loops, or compilation errors from concurrent file edits. The orchestrator MUST actively monitor and enforce hard time limits.
+
+1. **Progress table with elapsed time:** Add a `Time` column to the progress table showing elapsed time since agent launch (e.g., `3m`, `12m`, `1h 05m`). Update this every time the table is re-displayed.
+
+```
+| # | Wave | Task               | Deps  | Implement | Review     | Status   | Time   |
+|---|------|--------------------|-------|-----------|------------|----------|--------|
+| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     | 8m     |
+| 2 | 1    | Database layer     | —     | 🔄        |            | Building | 14m    |
+| 3 | 1    | API routes         | —     | 🔄        |            | Building | 12m    |
+```
+
+2. **Time-based escalation ladder:**
+   - **Under 20 minutes**: no action needed — normal operation.
+   - **20 minutes**: send a `SendMessage` nudge: "Status check — what's your progress and are you blocked?" Add ⚠️ to the progress table.
+   - **30 minutes**: actively investigate — check what files the agent has written/modified, query it via `SendMessage` for a detailed status. Add 🐌 to the progress table. If the agent is clearly making progress (new files appearing, tests running), let it continue.
+   - **45 minutes**: consider killing and relaunching. If the agent has made no meaningful progress since the 30-minute check (no new files, same error loop, no response to nudges), `TaskStop` and relaunch with a fresh agent. If it IS making progress but slowly, let it continue to the hard limit. Add 🔁 to the progress table if killed.
+   - **1 hour — hard kill.** No exceptions. `TaskStop` the agent and relaunch with a fresh agent. Include what the previous agent wrote (check files) and the blocker (if known), with instruction to take a different approach. Update `.devline/state.md`.
+   - If a task fails on its **second relaunch** (three total attempts): escalate to the user — the task likely has a systemic blocker that needs human input.
+
+   **This is the #1 enforcement failure.** Previous runs had agents running 1-2+ hours because nudges were sent but kills were not. The 1-hour hard kill is non-negotiable — a fresh agent with context from the previous attempt is ALWAYS more productive than an agent stuck in a loop.
+
+3. **Proactive check-ins between completions:** If no agent has completed in 15 minutes, proactively check on all running agents (don't wait for a completion event to trigger monitoring). Query each running agent for status and display an updated progress table to the user.
+
+4. **Common stuck patterns and responses:**
+   - **Build daemon contention** (Gradle lock errors, "Could not connect to daemon", cache corruption): the replacement agent must use `--no-daemon`. Tell it explicitly: "The previous agent got stuck on Gradle daemon contention. Use `./gradlew --no-daemon` for ALL build commands."
+   - **Test retry loops** (same test failing 3+ times): the replacement agent should check if the test itself is wrong or if there's a real bug, not just re-run the same test.
+   - **Compilation errors from other agents' edits**: the replacement agent should pull the latest state of all files before starting, as other agents may have changed shared dependencies.
+   - **Agent completed but no notification**: if files exist for a task but no agent completion was received, check with `TaskList`. If the agent is gone, treat the task as complete and send it to review.
+
+5. **Do NOT work around stuck agents by editing code yourself.** You are the orchestrator — you do not write code. If an agent is stuck, kill it and relaunch a fresh one. If the fresh agent is also stuck, escalate to the user. Never bypass the agent model by making "quick fixes" directly.
 
 **Per-task review loop:** After each task is implemented, launch the **reviewer** agent in the background.
 
-The reviewer returns either **CLEAN** (zero findings) or **HAS_FINDINGS** (list of issues). **ALL findings — regardless of severity — must be sent back to an implementer for fixing.** There is no "pass with warnings."
+The reviewer returns one of three verdicts:
+- **CLEAN** — zero findings
+- **HAS_BLOCKING** — at least one blocking finding (may also include deferrable findings)
+- **DEFERRED_ONLY** — only deferrable findings (minor quality, style, suggestions)
+
+**Deferred findings collection:** When a reviewer returns deferrable findings (in either `HAS_BLOCKING` or `DEFERRED_ONLY` verdicts), append them to `.devline/deferred-findings.md` under the task's heading. Do NOT keep these in conversation context.
 
 The fix cycle works as follows:
 
-1. **Reviewer returns CLEAN**: mark the task as done in the progress table. Check if any blocked tasks are now unblocked and launch them.
-2. **Reviewer returns HAS_FINDINGS**: launch an **implementer** agent with:
+1. **Reviewer returns CLEAN**: update `.devline/state.md`, mark the task as done in the progress table. Check if any blocked tasks are now unblocked and launch them.
+2. **Reviewer returns DEFERRED_ONLY**: append deferrable findings to `.devline/deferred-findings.md`, update `.devline/state.md`, then mark the task as done. The task is not blocked — deferrable findings don't impact dependent tasks. Check if any blocked tasks are now unblocked and launch them.
+3. **Reviewer returns HAS_BLOCKING**: append any deferrable findings to `.devline/deferred-findings.md`, then write the blocking findings to `.devline/fix-task-{N}.md` and launch an **implementer** agent with:
    - The original task from the plan (so it has full context of what was being built)
-   - The complete list of reviewer findings with file:line references and fix suggestions
-   - Instruction to fix ALL findings, not just critical ones
-3. After the implementer fixes the findings, re-launch the **reviewer** on the fixed code
-4. **If the reviewer returns HAS_FINDINGS again (attempt 2)**: launch another **implementer** with the new findings plus context from both previous attempts
-5. **If the reviewer returns HAS_FINDINGS a third time (attempt 3 — escalate to planner)**: Relaunch the **planner** agent with:
+   - Instruction to read `.devline/fix-task-{N}.md` for the blocking findings to fix
+   - Update `.devline/state.md` with the new review attempt
+4. After the implementer fixes the blocking findings, delete `.devline/fix-task-{N}.md`, re-launch the **reviewer** on the fixed code
+5. **If the reviewer returns HAS_BLOCKING again (attempt 2)**: write new findings to `.devline/fix-task-{N}.md`, launch another **implementer** pointing to that file, plus context from previous attempts
+6. **If the reviewer returns HAS_BLOCKING a third time (attempt 3 — escalate to planner)**: Relaunch the **planner** agent with:
    - The original task
-   - All findings from all review attempts
+   - All blocking findings from all review attempts (reference the fix-task file history)
    - All fix attempts from implementers
    The planner investigates why the task is failing review and rewrites the task in `.devline/plan.md` with a new implementation approach. This is a critical escalation — it means the original implementation approach isn't working and a new plan is needed to get it over the finish line.
+
+**Deferred Findings Batch Fix:** After ALL tasks have passed review (CLEAN or DEFERRED_ONLY), and before proceeding to Stage 4 (Documentation):
+1. If `.devline/deferred-findings.md` has findings: launch a single **implementer** and tell it to read `.devline/deferred-findings.md` for the complete list of all deferred findings across all tasks
+2. After the implementer finishes, launch the **reviewer** to verify the batch fixes — this review follows the same fix cycle rules above (if blocking issues are introduced during the batch fix, they must be fixed immediately)
+3. If there are no deferred findings: proceed directly to Stage 4
 
 Update and display the progress table after each status change. The "Implement" pipeline task stays `in_progress` until ALL tasks have a CLEAN review.
 
@@ -301,7 +418,7 @@ When deep review approves with no findings:
 
 - **"Exit"**: Delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
 
-- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
+- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` (if present), then end the pipeline.
 
 - **"Merge to main and exit"**: Stage and commit all changes on the feature branch. Then:
   1. Draft a squash merge commit message summarizing the entire feature (not individual commits). Present it to the user via AskUserQuestion with the draft as context and options to approve, edit, or provide their own message.
@@ -324,6 +441,6 @@ Agents (implementer, reviewer, deep-review) may include a `### Lessons` section 
 
 ## General Rules
 
-- **Every finding from every review gets fixed — there is no "pass with warnings."**
+- **Every finding from every review gets fixed** — blocking findings are fixed immediately; deferrable findings (minor quality, style, suggestions) are collected and batch-fixed by a single implementer after all tasks complete. There is no "ignore and move on."
 - **Test failures during implementation**: implementer handles first; if stuck after 3 attempts, escalate to planner
 - **All agents**: if stuck, ask the user for guidance rather than looping forever

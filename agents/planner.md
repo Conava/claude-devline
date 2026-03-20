@@ -43,6 +43,15 @@ Before designing anything, understand what you're working with **at execution-pa
 
 **Translate traces into reviewable artifacts:** Every finding from execution-path tracing must land in a task as an Integration Contract, Platform Constraint, or Review Checklist item. If a trace finding isn't in a task, the reviewer won't check it and the implementer won't know about it.
 
+**Cross-task integration verification (critical — prevents the #1 class of silent failures):**
+
+When an integration contract spans two tasks (Task A creates an entity/event/interface, Task B wires the call), task-isolated review will pass BOTH tasks individually while the integration is broken. This has caused repeated production bugs.
+
+For every integration contract that crosses a task boundary:
+1. **Add a Review Checklist item to the downstream task** that explicitly names the upstream artifact and the expected call. E.g., "Verify `OrderService.create()` (Task 5) calls `webhookService.dispatchEvent(ORDER_CREATED)` — the event type was added in Task 2."
+2. **If the integration is critical**, create a dedicated integration verification task that depends on both tasks and includes a test proving the connection works end-to-end (not mocked).
+3. **List all cross-task contracts** in the Integration Testing section of the plan so the deep review knows what to sweep.
+
 ### 2. Surface Questions, Findings, and Proactive Improvements
 
 The planning phase is interactive — you will be resumed multiple times. You cannot ask the user directly. Instead, return a structured response and halt. The orchestrator relays your questions and resumes you with answers.
@@ -155,7 +164,15 @@ Each task is a small, self-contained unit of work for one implementer agent with
 - **File-isolated** for parallel tasks — MUST NOT touch the same file
 - **Independently testable** — tests run without other tasks
 - **Self-contained** — includes proactive improvements for owned files
-- **Right-sized** — one coherent concern per task. If you can't describe it in one sentence, split it.
+- **Granular** — each task should take an implementer **5–15 minutes**, not hours. If you can't describe it in one sentence, split it. If a task touches more than 2-3 files, split it. If a task has more than 5 implementation steps, split it.
+
+**Task sizing — this is critical:**
+- A task that "builds the auth module" is **too large** — split into: create user model, add password hashing utility, create login endpoint, create registration endpoint, add JWT token generation, add auth middleware, add token refresh endpoint, etc.
+- A task that "implements the API layer" is **too large** — split into one task per endpoint or per closely-related endpoint group.
+- A task that "creates the dashboard page" is **too large** — split into: layout shell, header component, sidebar navigation, each widget/card, data fetching hook, etc.
+- **Hundreds of tasks are normal** for an MVP or large feature. Do not artificially constrain the task count. A 50-file feature should produce 50–150+ tasks, not 8–12.
+- The implementer is a Sonnet-class agent — it works best with small, focused tasks it can complete quickly. Large tasks cause it to lose focus, skip edge cases, and produce lower-quality code.
+- When in doubt, split further. Two 5-minute tasks are better than one 15-minute task — they parallelize better, review faster, and fail in smaller blast radii.
 
 All tasks run on the same branch. Parallel tasks don't share files; dependent tasks run sequentially.
 
