@@ -1,7 +1,7 @@
 ---
 name: debugger
 description: "Use this agent for bugs, test failures, or unexpected behavior. Follows scientific debugging: reproduce, gather evidence, hypothesize, test, fix, verify.\\n\\n<example>\\nContext: Tests failing\\nuser: \"The auth tests are failing with a null pointer exception\"\\nassistant: \"I'll use the debugger agent to investigate the null pointer exception.\"\\n</example>\\n"
-tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch, Skill, EnterWorktree, ExitWorktree, ToolSearch
+tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch, Skill, ToolSearch
 model: opus
 bypassPermissions: true
 skills: kb-debugging, find-docs

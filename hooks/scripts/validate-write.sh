@@ -12,6 +12,12 @@ if [[ -z "$file_path" ]]; then
   exit 0
 fi
 
+# --- Detect test files (skip secret detection — test code uses fake credentials) ---
+is_test_file=false
+if printf '%s\n' "$file_path" | grep -qEi '(/test/|/tests/|/__tests__/|\.test\.|\.spec\.|/fixtures/|/testdata/|/test-resources/|/testFixtures/)'; then
+  is_test_file=true
+fi
+
 # --- Block writing to sensitive system files ---
 
 if printf '%s\n' "$file_path" | grep -qEi '^/(etc|sys|proc|boot|usr/sbin)/'; then
@@ -33,7 +39,7 @@ fi
 
 # --- Block writing hardcoded secrets ---
 
-if [[ -n "$content" ]]; then
+if [[ -n "$content" && "$is_test_file" != "true" ]]; then
   # Detect AWS access keys (AKIA pattern)
   if printf '%s\n' "$content" | grep -qE 'AKIA[0-9A-Z]{16}'; then
     echo '{"hookSpecificOutput":{"permissionDecision":"deny"},"systemMessage":"BLOCKED: AWS access key detected in file content. Use environment variables instead."}' >&2

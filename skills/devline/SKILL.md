@@ -33,19 +33,22 @@ Do NOT create task list entries for individual implementation tasks. Instead, di
 ```
 ## Implementation Progress
 
-| # | Wave | Task               | Deps  | Implement | Review     | Status   | Deferred |
-|---|------|--------------------|-------|-----------|------------|----------|----------|
-| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     | 2        |
-| 2 | 1    | Database layer     | —     | ✅        | 🔄 Fix #1 | Fixing   |          |
-| 3 | 1    | API routes         | —     | 🔄        |            | Building |          |
-| 4 | 2    | Frontend views     | 1, 3  | ⏳        |            | Blocked  |          |
-| 5 | 3    | Integration tests  | 1-4   | ⏳        |            | Blocked  |          |
+| # | Wave | Task               | Deps  | Implement | Review     | Status   | Time | Deferred |
+|---|------|--------------------|-------|-----------|------------|----------|------|----------|
+| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     | 8m   | 2        |
+| 2 | 1    | Database layer     | —     | ✅        | 🔄 Fix #1 | Fixing   | 14m  |          |
+| 3 | 1    | API routes         | —     | 🔄        |            | Building | 12m  |          |
+| 4 | 2    | Frontend views     | 1, 3  | ⏳        |            | Blocked  |      |          |
+| 5 | 3    | Integration tests  | 1-4   | ⏳        |            | Blocked  |      |          |
 ```
 
 - **#**: Task number from the plan — one per implementer agent
 - **Wave**: Visual grouping from dependency graph (Wave 1 = no deps, Wave 2 = depends on Wave 1, etc.). Execution is driven by individual dependency resolution.
 - **Deps**: Task dependencies. "—" for none.
+- **Time**: Elapsed time since agent launch (e.g., `3m`, `12m`, `1h 05m`). Update every time the table is re-displayed.
 - Icons: ⏳ blocked, 🔄 in progress, ✅ done, ❌ failed
+
+**Table format is mandatory.** Every re-display MUST include ALL columns (#, Wave, Task, Deps, Implement, Review, Status, Time, Deferred). Every task gets its own row — NEVER group multiple tasks into a single row (e.g., never write `7,10-12 | Test consolidation`). The table always shows ALL tasks, not just the ones that changed.
 
 Re-display this table after every status change. Always output text between background agent completions — never stay silent while agents run.
 
@@ -276,9 +279,38 @@ Once the plan is approved, execute tasks based on their dependency graph:
 
 **Execution model:**
 - Read all tasks from `.devline/plan.md` and their dependencies
-- Launch all tasks with no unresolved dependencies immediately, in parallel, in the background (`run_in_background: true`)
+- Launch all tasks with no unresolved dependencies immediately, in parallel, in the background (`run_in_background: true`), each with **worktree isolation** (see below)
+- When a task completes: merge its worktree branch back, clean up the worktree, then launch the reviewer
 - When a task completes its full review cycle (CLEAN or DEFERRED_ONLY), update `.devline/state.md`, check if any blocked tasks are now unblocked (all their dependencies are done and reviewed) and launch those immediately
 - **Track launch time** for every agent — record in `.devline/state.md` when each agent was launched
+
+**Worktree Isolation (mandatory for all implementer/devops agents):**
+
+All implementer and devops agents MUST be launched with `isolation: "worktree"`. This gives each agent an isolated copy of the repository, preventing parallel agents from overwriting each other's changes or triggering race conditions.
+
+```
+Agent(subagent_type="devline:implementer", isolation="worktree", run_in_background=true, ...)
+```
+
+**Merge-back protocol — after each agent completes:**
+
+The agent result includes the worktree path and branch name. Execute these steps sequentially:
+
+1. **Merge** the worktree branch into the current feature branch:
+   ```bash
+   git merge <worktree-branch> --no-edit
+   ```
+2. **If merge conflicts occur:** resolve trivially if possible (e.g., both sides added to the same list), otherwise note the conflict and relaunch the implementer on the feature branch (without worktree isolation) to resolve manually.
+3. **Clean up** the worktree and branch:
+   ```bash
+   git worktree remove <worktree-path> --force 2>/dev/null
+   git branch -d <worktree-branch> 2>/dev/null
+   ```
+4. **Then** launch the reviewer — it runs on the merged code in the main working directory (no worktree needed for reviewers since they only read and run tests).
+
+**Important:** If the agent result says no changes were made, the worktree is auto-cleaned — skip steps 1-3.
+
+Fix-cycle implementers (relaunched after reviewer finds blocking issues) also use `isolation: "worktree"` and follow the same merge-back protocol. The deferred-findings batch-fix implementer also uses worktree isolation.
 
 **Agent selection:**
 - Use **implementer** agents for feature/application tasks
@@ -292,15 +324,7 @@ Once the plan is approved, execute tasks based on their dependency graph:
 
 Background agents can get stuck — most commonly on build tool daemon contention (Gradle, Maven), infinite test retry loops, or compilation errors from concurrent file edits. The orchestrator MUST actively monitor and enforce hard time limits.
 
-1. **Progress table with elapsed time:** Add a `Time` column to the progress table showing elapsed time since agent launch (e.g., `3m`, `12m`, `1h 05m`). Update this every time the table is re-displayed.
-
-```
-| # | Wave | Task               | Deps  | Implement | Review     | Status   | Time   |
-|---|------|--------------------|-------|-----------|------------|----------|--------|
-| 1 | 1    | Auth module        | —     | ✅        | ✅         | Done     | 8m     |
-| 2 | 1    | Database layer     | —     | 🔄        |            | Building | 14m    |
-| 3 | 1    | API routes         | —     | 🔄        |            | Building | 12m    |
-```
+1. **Progress table with elapsed time:** The `Time` column in the progress table (defined above) shows elapsed time since agent launch. Update it every time the table is re-displayed. Add escalation icons to the Status column as described below.
 
 2. **Time-based escalation ladder:**
    - **Under 20 minutes**: no action needed — normal operation.
