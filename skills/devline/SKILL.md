@@ -12,7 +12,7 @@ Orchestrate the full development lifecycle from idea to merge-ready code. Follow
 
 ## CRITICAL: Orchestrator Role
 
-**You are an ORCHESTRATOR, not an implementer.** You MUST NOT edit any source code yourself. ALL code changes are delegated to agents (implementer, devops, debugger). You coordinate agents, present results, and manage the pipeline flow.
+**You are an ORCHESTRATOR, not an implementer.** You MUST NOT edit any source code yourself — not even "simple" or "trivial" fixes. ALL code changes are delegated to agents (implementer, devops, debugger). This includes blocking review findings, merge conflict resolutions in application code, and one-line fixes. If a reviewer finds a blocking issue, launch an implementer to fix it — do not fix it yourself. You coordinate agents, present results, and manage the pipeline flow.
 
 ## Progress Tracking
 
@@ -172,7 +172,7 @@ After receiving answers, write `.devline/brainstorm.md` capturing:
 
 This file is the brainstorm output — the planner reads it as input alongside the conversation context.
 
-**Approval gate:** Unless `auto_approve_brainstorm` is `true` in `.claude/devline.local.md`, stop here and present the brainstorm to the user with an explicit approval question:
+**MANDATORY APPROVAL GATE — you MUST stop here.** Do NOT proceed to Stage 1.5 or Stage 2 without explicit user approval. The only exception is if `auto_approve_brainstorm` is explicitly set to `true` in `.claude/devline.local.md`. Present the brainstorm to the user with this approval question:
 
 ```json
 {
@@ -192,6 +192,8 @@ This file is the brainstorm output — the planner reads it as input alongside t
 - If the user selects "Stop here", delete `.devline/brainstorm.md` and `.devline/previews/` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction
 - Only proceed to Stage 1.5 (if UI impact) or Stage 2 on explicit approval or an "Other" instruction that implies approval.
+
+**If you find yourself about to launch the planner or frontend-planner without having received the user's answer to the approval question above — STOP. You are violating the gate.**
 
 ### Stage 1.5: Design System (Interactive — foreground, conditional)
 
@@ -233,14 +235,14 @@ Launch the **planner** agent in the **foreground**. Tell it to read `.devline/br
 - Read `.devline/design-system.md` (if present) for design constraints, color palette, typography, and anti-patterns
 - Analyze the codebase and design the architecture
 - Challenge its own decisions aggressively
-- Identify proactive improvements for all touched code
+- Identify proactive improvements discovered during research — issues anywhere in the codebase, not just files being touched — and propose them as standalone tasks
 - Break work into **granular tasks** (5–15 minutes each for an implementer) with explicit dependencies — hundreds of tasks are expected for large features
 - Define TDD test cases per task
 
 **Interactive loop:** The planner cannot ask the user directly. Instead it may return a `STATUS: NEEDS_INPUT` response containing any combination of:
 - **Design Questions** — architectural or behavioral choices that need user input
 - **Code Issues Found** — bugs, flaws, or tech debt discovered in the blast radius that the user should decide whether to fix
-- **Proactive Improvements** — enhancements the planner wants to include in the plan for the user to approve or reject
+- **Proactive Improvements** — issues discovered during research that the planner wants to address as standalone tasks, for the user to approve or reject
 
 When this happens:
 1. Present ALL sections to the user using **AskUserQuestion** — for design questions, map each to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options. For code issues and proactive improvements, present them as checklists the user can approve/reject.
@@ -251,7 +253,7 @@ Once the planner has all answers, it will:
 - **Write the full plan to `.devline/plan.md`** — this is the single source of truth for all subsequent stages.
 - Return a concise summary to conversation (architecture overview, task list with dependencies, key decisions)
 
-**Approval gate:** Unless `auto_approve_plan` is `true` in `.claude/devline.local.md`, stop here and present the plan summary to the user with an explicit approval question:
+**MANDATORY APPROVAL GATE — you MUST stop here.** Do NOT proceed to Stage 3 without explicit user approval. The only exception is if `auto_approve_plan` is explicitly set to `true` in `.claude/devline.local.md`. Present the plan summary to the user with this approval question:
 
 ```json
 {
@@ -271,6 +273,8 @@ Once the planner has all answers, it will:
 - If the user selects "Stop here", delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` (if present), then end the pipeline gracefully.
 - If the user selects "Other", read their free-text input and follow their instruction.
 - Only proceed to Stage 3 on explicit approval or an "Other" instruction that implies approval.
+
+**If you find yourself about to launch implementer agents without having received the user's answer to the approval question above — STOP. You are violating the gate.**
 
 ### Stage 3: Implement (Autonomous — background, dependency-driven)
 Once the plan is approved, execute tasks based on their dependency graph:
@@ -292,7 +296,19 @@ All implementer and devops agents MUST be launched with `isolation: "worktree"`.
 Agent(subagent_type="devline:implementer", isolation="worktree", run_in_background=true, ...)
 ```
 
-**Merge-back protocol — after each agent completes:**
+Fix-cycle implementers (relaunched after reviewer finds blocking issues) also use `isolation: "worktree"` and follow the same merge-back protocol. The deferred-findings batch-fix implementer also uses worktree isolation.
+
+**NEVER nest worktrees.** Before launching any agent with `isolation: "worktree"`, check your working directory:
+
+```bash
+pwd | grep -q '\.claude/worktrees/' && echo "INSIDE_WORKTREE" || echo "ROOT_REPO"
+```
+
+If you are inside a worktree (`INSIDE_WORKTREE`): you MUST NOT use `isolation: "worktree"`. Nested worktrees create deeply nested paths, break merge-back (inner branches are based on the outer worktree, not the real feature branch), and leave orphaned directories. Instead:
+- Launch implementers **sequentially without isolation** — they commit directly to the current branch, so no merge-back is needed. Skip the merge-back protocol entirely and go straight to launching the reviewer.
+- Do NOT launch parallel implementers without isolation — they would overwrite each other's changes.
+
+**Merge-back protocol (worktree agents only) — after each agent completes:**
 
 The agent result includes the worktree path and branch name. Execute these steps sequentially:
 
@@ -309,8 +325,6 @@ The agent result includes the worktree path and branch name. Execute these steps
 4. **Then** launch the reviewer — it runs on the merged code in the main working directory (no worktree needed for reviewers since they only read and run tests).
 
 **Important:** If the agent result says no changes were made, the worktree is auto-cleaned — skip steps 1-3.
-
-Fix-cycle implementers (relaunched after reviewer finds blocking issues) also use `isolation: "worktree"` and follow the same merge-back protocol. The deferred-findings batch-fix implementer also uses worktree isolation.
 
 **Agent selection:**
 - Use **implementer** agents for feature/application tasks

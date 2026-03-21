@@ -23,8 +23,8 @@ Launch **implementer** agents to execute tasks using test-driven development.
 If the user provides or references a plan with tasks:
 1. **Validate the plan first:** Read `.devline/plan.md` and check the `**Branch:**` and `**Status:**` headers. If the branch doesn't match the current git branch or the status is `completed`, warn the user and ask whether to proceed — do not silently implement a stale plan.
 2. Parse the tasks and their dependency graph
-3. Launch implementer agents for all tasks that can run in parallel, each with `isolation: "worktree"` to prevent race conditions between parallel agents
-4. When each agent completes: merge its worktree branch back (`git merge <branch> --no-edit`), then clean up (`git worktree remove <path> --force && git branch -d <branch>`)
+3. Launch implementer agents for all tasks that can run in parallel, each with `isolation: "worktree"` to prevent race conditions between parallel agents. **Exception:** if `pwd` contains `.claude/worktrees/`, you are inside a worktree — do NOT nest worktrees. Launch implementers **sequentially without isolation** instead (they commit directly to the current branch, skip merge-back).
+4. When each worktree agent completes: merge its worktree branch back (`git merge <branch> --no-edit`), then clean up (`git worktree remove <path> --force && git branch -d <branch>`)
 5. Wait for dependent tasks to complete before launching their dependents
 6. Each implementer follows strict TDD: write tests → implement → verify
 

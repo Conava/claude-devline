@@ -12,7 +12,7 @@
       "name": "devline",
       "source": "./",
       "description": "Full development lifecycle pipeline: brainstorm, plan, implement (parallel TDD), review, debug, document — with strict security hooks",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "author": {
         "name": "Marlon Kranz",
         "email": "dev@marlonkranz.com"

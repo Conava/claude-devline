@@ -142,7 +142,7 @@ Read the original feature spec and implementation plan (`.devline/plan.md` if it
 - Every acceptance criterion — is it implemented AND tested?
 - No scope creep — nothing added beyond the plan without justification
 - Nothing skipped or partially implemented
-- Proactive improvements from the plan — were they actually done?
+- Standalone improvement tasks — were they completed and do the fixes hold up?
 - Architecture matches the plan's design decisions
 
 ### 9. Documentation & Operational Readiness

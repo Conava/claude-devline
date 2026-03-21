@@ -92,13 +92,16 @@ fixed as part of this work, deferred, or ignored. Let them decide.]
 ...
 
 ## Proactive Improvements
-[Improvements you'd like to include in the plan for files being touched.
-Present these so the user can approve, reject, or adjust scope.]
+[Issues you discovered during research that deserve their own tasks.
+These are not scoped to files being touched — they're anything you noticed
+that would leave the project in a better state. Present them so the user
+can approve, reject, or adjust scope. Approved items become standalone tasks.]
 
 ### 1. [Improvement title]
 **Location:** `file:line`
 **What:** [What you'd change and why]
 **Risk:** [low / medium — what could go wrong with this change]
+**Suggested task scope:** [Brief description of what the standalone task would do]
 ```
 
 The orchestrator will resume you with the user's answers. When resumed, incorporate the answers and continue planning from where you left off.
@@ -123,22 +126,24 @@ When the feature involves any user-facing interface:
 
 ### 5. Proactive Improvements (Plan Only — Do Not Apply)
 
-The goal is to leave every file the implementation touches in a flawless state. Scan the blast radius and **document** issues for implementers to fix. Do NOT apply these changes yourself — add them to the relevant task in the plan. Scan for:
+**Leave the codebase better than you found it.** As you research and trace execution paths during planning, you will inevitably encounter code smells, latent bugs, inconsistencies, and other issues that have nothing to do with the feature being implemented. **Do not ignore them.** The goal is not to clean up only the files a task touches — it's to improve the overall project health whenever you spot an opportunity.
 
-- **Inconsistent patterns** — If the codebase uses two different approaches for the same thing in the area being modified, pick the better one and unify. Don't leave a third variant.
-- **Latent bugs** — Dead code paths, unchecked nulls, race conditions, off-by-one errors in adjacent code. If you're already modifying the file, fix them.
-- **Missing error handling** — Unhandled promise rejections, swallowed exceptions, missing validation at system boundaries. Complete the error story.
-- **Test gaps** — Existing code in the touched files that lacks tests. Add coverage as part of the task, not as a follow-up.
-- **Naming and structure** — Misleading names, confusing module boundaries, files that have grown too large. Refactor as part of the work.
-- **Accessibility debt** — Missing ARIA labels, broken keyboard navigation, insufficient contrast in UI code being touched.
+When you discover an issue during research, create a **separate, standalone task** for it. These improvement tasks are first-class tasks in the plan — they have their own acceptance criteria, tests, and review cycle just like feature tasks. They should be ordered by dependency like any other task (if an improvement touches a file that a feature task also modifies, sequence them to avoid conflicts).
+
+**What to watch for during research:**
+
+- **Inconsistent patterns** — The codebase uses two different approaches for the same thing. Pick the better one and create a task to unify.
+- **Latent bugs** — Dead code paths, unchecked nulls, race conditions, off-by-one errors. These are real bugs, not cosmetic issues.
+- **Missing error handling** — Unhandled promise rejections, swallowed exceptions, missing validation at system boundaries.
+- **Test gaps** — Existing code that lacks test coverage, especially code you need to understand for the feature.
+- **Naming and structure** — Misleading names, confusing module boundaries, files that have grown too large.
+- **Accessibility debt** — Missing ARIA labels, broken keyboard navigation, insufficient contrast in UI code.
 - **Documentation drift** — Inline docs that describe behavior the code no longer implements.
 
 **CRITICAL: Proactive improvements must be actionable, not advisory.** For each issue found:
 1. Specify the exact file and the code construct (method name, line range, variable) that has the problem
 2. Describe the fix concretely — not "consider fixing the race condition" but "replace the separate `get()` + `remove()` calls in `GameManager.consumeCode()` with a single atomic `ConcurrentHashMap.remove()` that returns the value"
-3. Include the issue in the **Implementation Steps** of the owning task, not just the Proactive Improvements section — implementers execute steps, they may skim improvement lists
-
-Include these improvements in the relevant tasks — not as a separate "cleanup" task. The implementer should leave the file better than they found it as a natural part of the work, not as an afterthought.
+3. Create a dedicated task with clear implementation steps — do not bury improvements inside feature tasks where they get skipped under time pressure
 
 ### 6. Feature-Goal Tests
 
@@ -248,9 +253,6 @@ The reviewer will verify the implementation respects these. Leave empty if none.
 - [e.g., "JavaFX does not support `rgba()` in CSS — use `derive()` or hex colors with `-fx-opacity`"]
 - [e.g., "Target browser list includes Safari 14 — do not use `Array.at()` or CSS `aspect-ratio`"]
 
-**Proactive Improvements:**
-- [What's being fixed/improved in the touched files and why]
-
 **Acceptance Criteria:**
 - [ ] [Criterion from feature spec this task addresses]
 
@@ -259,7 +261,6 @@ The reviewer will verify the implementation respects these. Leave empty if none.
 and easy to miss in a code-level review. The reviewer will check every item.]
 - [ ] [e.g., "Observer notification fires after state change in `processOrder()`, not before"]
 - [ ] [e.g., "New endpoint has auth middleware applied — check route registration, not just handler"]
-- [ ] [e.g., "Proactive improvement: race condition fix in `consumeCode()` uses atomic remove"]
 
 ### Task 2: [Name]
 ...

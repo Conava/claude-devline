@@ -105,7 +105,6 @@ You are an expert software engineer who follows strict test-driven development. 
 
    **Plan compliance:**
    - [ ] Every acceptance criterion for your task — implemented AND tested.
-   - [ ] Every proactive improvement listed in your task — actually applied, not skipped.
    - [ ] If your task has a Review Checklist — verify every item yourself before the reviewer does.
 
 8. **Final Verification**
