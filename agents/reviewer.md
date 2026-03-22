@@ -86,7 +86,10 @@ You are a meticulous senior code reviewer with expertise in software security, p
    - **Documentation orphans:** If the task removes a feature or renames a concept, check that JSDoc, README references, and CSS comments were updated.
 
 10. **Run Tests**
-   - Execute the test suite to verify everything passes
+   - Execute the test suite **once** to verify everything passes — do not re-run with different output filters
+   - Never run separate compile commands before test — `test` already compiles
+   - Use the Bash tool's `timeout` parameter (300000ms for full suite) to prevent hangs
+   - If you need failure details, read test report files (e.g., `build/reports/tests/`) instead of re-running
    - Check for flaky tests
    - Verify coverage of critical paths
 

@@ -284,8 +284,9 @@ Once the plan is approved, execute tasks based on their dependency graph:
 **Execution model:**
 - Read all tasks from `.devline/plan.md` and their dependencies
 - Launch all tasks with no unresolved dependencies immediately, in parallel, in the background (`run_in_background: true`), each with **worktree isolation** (see below)
+- **Concurrency limit: 10 agents max.** Never have more than 10 background agents (implementers + reviewers combined) running at the same time. If 10 agents are active and a new task is unblocked, queue it until a slot opens. Track the count in `.devline/state.md`.
 - When a task completes: merge its worktree branch back, clean up the worktree, then launch the reviewer
-- When a task completes its full review cycle (CLEAN or DEFERRED_ONLY), update `.devline/state.md`, check if any blocked tasks are now unblocked (all their dependencies are done and reviewed) and launch those immediately
+- When a task completes its full review cycle (CLEAN or DEFERRED_ONLY), update `.devline/state.md`, check if any blocked tasks are now unblocked (all their dependencies are done and reviewed) and launch those immediately — respecting the concurrency limit
 - **Track launch time** for every agent — record in `.devline/state.md` when each agent was launched
 
 **Worktree Isolation (mandatory for all implementer/devops agents):**
@@ -310,19 +311,27 @@ If you are inside a worktree (`INSIDE_WORKTREE`): you MUST NOT use `isolation: "
 
 **Merge-back protocol (worktree agents only) — after each agent completes:**
 
-The agent result includes the worktree path and branch name. Execute these steps sequentially:
+The agent result includes the worktree path and branch name. Execute these steps **sequentially as foreground commands** — each step MUST complete before the next begins.
+
+**CRITICAL: Use `git merge`, NEVER `cp`/`copy`.** The worktree agent committed its changes to a git branch. Merging that branch is the correct, atomic way to bring changes back. Manually copying files from the worktree directory is **forbidden** — it causes race conditions (worktree deleted before copy finishes), misses files, and loses git history. This is the #1 merge-back failure mode.
 
 1. **Merge** the worktree branch into the current feature branch:
    ```bash
    git merge <worktree-branch> --no-edit
    ```
 2. **If merge conflicts occur:** resolve trivially if possible (e.g., both sides added to the same list), otherwise note the conflict and relaunch the implementer on the feature branch (without worktree isolation) to resolve manually.
-3. **Clean up** the worktree and branch:
+3. **Clean up** the worktree and branch (only AFTER step 1 succeeds):
    ```bash
    git worktree remove <worktree-path> --force 2>/dev/null
    git branch -d <worktree-branch> 2>/dev/null
    ```
 4. **Then** launch the reviewer — it runs on the merged code in the main working directory (no worktree needed for reviewers since they only read and run tests).
+
+**Anti-patterns that WILL lose changes — check yourself before every merge-back:**
+- `cp` / `rsync` / any file copy from worktree to main repo → **FORBIDDEN**. Always `git merge <branch>`. File copy causes race conditions, misses files, and loses git history. This is the #1 cause of lost work.
+- Running merge/cleanup steps with `run_in_background` → cleanup deletes source before merge finishes. **All merge-back steps MUST be foreground.**
+- Cleaning up worktree before confirming merge succeeded → changes lost permanently
+- Running `git merge` and `git worktree remove` in the same `&&` chain → if merge fails, cleanup still runs and destroys the branch
 
 **Important:** If the agent result says no changes were made, the worktree is auto-cleaned — skip steps 1-3.
 
@@ -332,7 +341,7 @@ The agent result includes the worktree path and branch name. Execute these steps
 - The planner's **Agent** field on each task indicates which agent to use
 - Assign each agent its task number and tell it to read the plan from `.devline/plan.md`
 - Each follows strict TDD: red → green → refactor
-- **Build isolation:** When launching implementer agents, always include this instruction in the prompt: "Use `--no-daemon` for all build tool commands (Gradle, Maven, etc.) to avoid daemon contention with parallel agents." This is critical for projects with 5+ parallel agents.
+- **Build isolation:** When launching implementer agents, always include this instruction in the prompt: "Use `--no-daemon` for all build tool commands (Gradle, Maven, etc.) to avoid daemon contention with parallel agents. Since you are in a worktree, isolate Gradle caches by running `export GRADLE_USER_HOME=\"$(pwd)/.gradle-home\"` before any build command." This is critical for projects with 2+ parallel agents — without `GRADLE_USER_HOME` isolation, shared `~/.gradle/` caches cause intermittent compile/test failures even with `--no-daemon`.
 
 **Agent health monitoring:**
 
@@ -345,10 +354,13 @@ Background agents can get stuck — most commonly on build tool daemon contentio
    - **20 minutes**: send a `SendMessage` nudge: "Status check — what's your progress and are you blocked?" Add ⚠️ to the progress table.
    - **30 minutes**: actively investigate — check what files the agent has written/modified, query it via `SendMessage` for a detailed status. Add 🐌 to the progress table. If the agent is clearly making progress (new files appearing, tests running), let it continue.
    - **45 minutes**: consider killing and relaunching. If the agent has made no meaningful progress since the 30-minute check (no new files, same error loop, no response to nudges), `TaskStop` and relaunch with a fresh agent. If it IS making progress but slowly, let it continue to the hard limit. Add 🔁 to the progress table if killed.
-   - **1 hour — hard kill.** No exceptions. `TaskStop` the agent and relaunch with a fresh agent. Include what the previous agent wrote (check files) and the blocker (if known), with instruction to take a different approach. Update `.devline/state.md`.
+   - **45 minutes — hard kill.** No exceptions. `TaskStop` the agent and relaunch with a fresh agent. Include what the previous agent wrote (check files) and the blocker (if known), with instruction to take a different approach. Update `.devline/state.md`.
    - If a task fails on its **second relaunch** (three total attempts): escalate to the user — the task likely has a systemic blocker that needs human input.
 
-   **This is the #1 enforcement failure.** Previous runs had agents running 1-2+ hours because nudges were sent but kills were not. The 1-hour hard kill is non-negotiable — a fresh agent with context from the previous attempt is ALWAYS more productive than an agent stuck in a loop.
+   **THIS IS THE #1 ENFORCEMENT FAILURE.** Previous runs had agents running 1-2+ hours because nudges were sent but kills were never executed. The rules above are NON-NEGOTIABLE:
+   - A nudge is NOT a kill. Sending a "status check" message does NOT count as enforcement — it counts as doing nothing.
+   - The 45-minute hard kill is a MUST, not a SHOULD. If an agent has been running for 45 minutes, you MUST `TaskStop` it immediately. Do not send another nudge. Do not wait for a response. Do not give it "a few more minutes."
+   - A fresh agent with context from the stuck agent's files is ALWAYS more productive than letting a stuck agent continue.
 
 3. **Proactive check-ins between completions:** If no agent has completed in 15 minutes, proactively check on all running agents (don't wait for a completion event to trigger monitoring). Query each running agent for status and display an updated progress table to the user.
 
@@ -454,14 +466,19 @@ When deep review approves with no findings:
 
   Use TaskUpdate to mark Stage 2 onward as `pending`. After plan approval, continue: Stage 3 → 4 → 5 → Complete.
 
-- **"Exit"**: Delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
+All exit options below MUST run the **exit cleanup sequence** (in this order, all foreground):
+1. Clean up orphaned worktrees: `git worktree list --porcelain | grep '^worktree.*\.claude/worktrees' | sed 's/^worktree //' | xargs -I{} git worktree remove {} --force 2>/dev/null`
+2. Delete `.devline/` artifacts: `rm -rf .devline/plan.md .devline/brainstorm.md .devline/design-system.md .devline/state.md .devline/deferred-findings.md .devline/fix-task-*.md .devline/previews/ 2>/dev/null`
+3. Output the final summary and **stop immediately** — no further tool calls.
 
-- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` (if present), then end the pipeline.
+- **"Exit"**: Run the exit cleanup sequence.
+
+- **"Commit and exit"**: Stage and commit all changes on the feature branch (follow the standard git commit protocol — review changes, draft message, create commit). Then run the exit cleanup sequence.
 
 - **"Merge to main and exit"**: Stage and commit all changes on the feature branch. Then:
   1. Draft a squash merge commit message summarizing the entire feature (not individual commits). Present it to the user via AskUserQuestion with the draft as context and options to approve, edit, or provide their own message.
   2. Squash merge into main: `git checkout main && git merge --squash <branch> && git commit -m "<approved message>"`.
-  3. Delete `.devline/plan.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, and `.devline/previews/` (if present), then end the pipeline.
+  3. Run the exit cleanup sequence.
 
   **Before merging, confirm the target branch with the user if it's not obvious.**
 
@@ -476,6 +493,16 @@ Agents (implementer, reviewer, deep-review) may include a `### Lessons` section 
 4. Do not ask for approval — the agent already analyzed the issue and determined it's a broader pattern
 
 **In the completion summary**, list any lessons that were added during this pipeline run so the user is aware.
+
+## Bash Tool Discipline
+
+**Never use `run_in_background` for Bash commands.** Background Bash tasks whose output is never consumed show as "running" indefinitely in the UI — even if the command finished in milliseconds. This makes the pipeline appear stuck and is the #1 cause of "phantom stuck" indicators.
+
+- **ALL Bash commands run in the foreground.** This includes: file operations, git commands, merge-back steps, cleanup, `git worktree remove`, and any other shell command.
+- **Only Agent tool uses `run_in_background`** — for launching implementer/reviewer/docs-keeper agents. Never for Bash.
+- **Always set `timeout` on git merge commands** (120000ms) — a merge that hangs indicates a lock or conflict that won't self-resolve.
+
+**Pipeline exit:** After running cleanup commands and outputting the final summary, **stop immediately**. Do not make additional tool calls, do not generate further output, do not loop back to check anything. The pipeline is done.
 
 ## General Rules
 
