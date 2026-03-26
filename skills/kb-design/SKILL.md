@@ -206,6 +206,16 @@ Accessibility is non-negotiable — beautiful AND accessible:
 - **`references/tailwind-customization.md`** — Extending Tailwind with custom utilities, plugins, @theme
 - **`references/canvas-design-system.md`** — Canvas-based visual design system patterns
 
+### Script Path
+
+Design intelligence scripts are at: `${CLAUDE_SKILL_DIR}/scripts/`
+
+Use this path for all search and generation commands:
+```bash
+cd "${CLAUDE_SKILL_DIR}/scripts" && python3 search.py "<query>" --domain <domain> --max N
+cd "${CLAUDE_SKILL_DIR}/scripts" && python3 design_system.py "<context>" --format markdown
+```
+
 ### Data Files (BM25-searchable via scripts/)
 
 - **`data/styles.csv`** — 67 UI styles with keywords, colors, effects, accessibility ratings
