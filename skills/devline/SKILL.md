@@ -144,7 +144,7 @@ Output: `.devline/design-system.md`. Inform user and proceed to Stage 2.
 
 Launch **planner** in foreground. It reads `.devline/brainstorm.md` and `.devline/design-system.md` (if exists).
 
-**Interactive loop:** The planner may return `STATUS: NEEDS_INPUT` with design questions, code issues, and proactive improvements. Present all sections via AskUserQuestion (recommendations marked "(Recommended)", code issues and improvements as checklists). Resume with answers. Repeat until complete.
+**Interactive loop:** The planner may return `STATUS: NEEDS_INPUT` with design questions, code issues, and proactive improvements the planner is unsure about including. Present all sections via AskUserQuestion (recommendations marked "(Recommended)", code issues and improvements as include/skip choices). Resume with answers. Repeat until complete.
 
 Output: `.devline/plan.md` + summary in conversation.
 
@@ -158,13 +158,15 @@ Output: `.devline/plan.md` + summary in conversation.
 - Read tasks and dependencies from `.devline/plan.md`
 - Launch all unblocked tasks immediately, in parallel, in background, with worktree isolation (see `references/worktree-protocol.md`)
 - **Concurrency limit: 10 agents max.** Queue tasks if limit reached.
-- When a task completes: merge its worktree branch, clean up, launch reviewer
+- When a task completes: merge its worktree branch, clean up, **launch reviewer**
 - When a task passes review: update state, launch newly unblocked tasks
 
 **Agent selection:**
 - **implementer** for feature/application tasks
 - **devops** for build, CI/CD, Docker, infrastructure, tooling tasks
 - The plan's **Agent** field indicates which to use
+
+**MANDATORY: Every task gets a reviewer agent.** After merging an implementer's worktree branch, launch a **reviewer** agent. No exceptions — not for "trivial" tasks, not for DDL-only changes, not for config changes, not for enum additions. The orchestrator does NOT review code itself. Reading files and grepping to "verify" is not a review. Only a reviewer agent verdict (CLEAN / HAS_BLOCKING / DEFERRED_ONLY) can mark a task's Review column as ✅. If you find yourself writing "no review needed" or "clean implementation, task done" without having launched a reviewer — you are violating the pipeline.
 
 **Per-task review loop:**
 

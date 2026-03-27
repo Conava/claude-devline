@@ -4,11 +4,11 @@
 # Implementation Plan: [Feature Name]
 
 **Branch:** [current git branch name]
-**Created:** [ISO 8601 date, e.g. 2026-03-13]
+**Created:** [ISO 8601 date]
 **Status:** active
 
 ## Architecture Overview
-[High-level design, component diagram if helpful]
+[High-level design: components, data flow, key abstractions. Component diagram if helpful.]
 
 ## Design Decisions
 | Decision | Choice | Rationale | Alternatives Considered |
@@ -18,52 +18,48 @@
 ## Tasks
 
 ### Task 1: [Name]
-**Agent:** [implementer / devops — use devops for build, CI/CD, Docker, infra, tooling work]
-**UI:** [yes / no — set to yes if this task creates or modifies UI files. Include design system references in the task description.]
-**Files owned:** [list of files this task creates/modifies]
+**Agent:** [implementer / devops]
+**UI:** [yes / no]
+**Files owned:** [exact list of files this task creates/modifies]
 **Depends on:** [none / Task N, Task M]
 
+**Spec:**
+
+[The precise specification of what this task produces. This is the core of the plan — it must be detailed enough that the implementer makes zero design decisions.]
+
+For each function/class/endpoint/component this task creates or modifies, specify:
+- **Signature:** name, parameters with types, return type
+- **Behavior:** what it does, step by step
+- **Inputs:** valid ranges, formats, constraints
+- **Outputs:** exact shape of return values, response bodies, emitted events
+- **Errors:** what can go wrong and exactly how to handle each case (throw, return error, log, retry)
+- **Integration points:** exact method calls, event names, and expected listeners that connect this code to the rest of the system. The reviewer verifies these line-by-line.
+- **Constraints:** platform limitations, framework quirks, performance requirements
+
+For UI tasks, additionally specify:
+- Component hierarchy and props
+- State management (what state, where it lives, how it updates)
+- Design system tokens to use (from `.devline/design-system.md`)
+
 **Test Cases:**
-1. [unit] [Test name] — [what it verifies]
-2. [integration] [Test name] — [what it verifies across components]
-
-**Implementation Steps:**
-[Describe WHAT to achieve and WHY, not HOW to code it. The implementer is an engineer —
-give behavioral contracts, not code dictation.]
-1. [Behavioral step — what this achieves]
-2. [Behavioral step — what this achieves]
-
-**Integration Contracts:**
-[How this code connects to the rest of the system. Be specific — the reviewer verifies each line-by-line:]
-- [Exact notification/event: "`GameManager` must call `notifyObservers(GameEvent.CODE_CONSUMED)` after removing a code"]
-- [Exact lifecycle hook: "`NewPanel` must register with `LifecycleManager.register()` in constructor and call `dispose()` in `onClose()`"]
-- [Exact state propagation: "When `config.theme` changes, `ThemeService.applyTheme()` must trigger CSS variable updates"]
-- [Exact sync requirement: "`SessionStore.remove()` must use atomic `ConcurrentHashMap.remove(key)` that returns the value"]
-
-**Platform Constraints:**
-[APIs, CSS properties, or framework features to use carefully. Leave empty if none.]
-- [e.g., "JavaFX CSS uses `derive()` or hex — no `rgba()`"]
-- [e.g., "Target browsers include Safari 14 — use `Array.at()` polyfill or alternative"]
+1. [unit] [Test name] — [exact input → expected output/behavior]
+2. [unit] [Test name] — [exact input → expected output/behavior]
+3. [integration] [Test name] — [setup → action → expected result]
 
 **Acceptance Criteria:**
-- [ ] [Criterion from feature spec this task addresses]
-
-**Review Checklist:**
-[High-risk verification points for the reviewer]
-- [ ] [e.g., "Observer notification fires after state change, not before"]
-- [ ] [e.g., "New endpoint has auth middleware — check route registration"]
+- [ ] [Criterion — verifiable, not vague]
 
 ### Task 2: [Name]
 ...
 
 ## Feature-Goal Tests
-[Tests proving the feature works as a whole, not just individual pieces]
+[Tests proving the feature works end-to-end, assigned to the last task in the dependency chain or a dedicated integration test task.]
 
-### 1. [Test name] — [which goal/acceptance criterion this proves]
-**Type:** [integration / e2e / UI]
+### 1. [Test name]
+**Type:** [integration / e2e]
 **Trigger:** [What initiates the behavior]
 **Expected result:** [The observable output]
-**Verification method:** [How the test asserts this]
+**Verification:** [How the test asserts this]
 **Assigned to:** Task N
 
 ## Dependency Graph
@@ -71,16 +67,4 @@ give behavioral contracts, not code dictation.]
             ├──→ [Task 4] ──→ [Task 5]
 [Task 2] ──┘
 [Task 3] ──────────────────→ [Task 5]
-
-## Risks and Mitigations
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| ... | ... | ... |
-
-## Integration Testing
-[Cross-task integration tests verifying interactions with real dependencies.
-If integration tests span multiple tasks, define a dedicated integration test task.]
-
-## E2E Testing
-[Critical user journeys to verify end-to-end. 5-15 tests covering highest-value paths.]
 ```

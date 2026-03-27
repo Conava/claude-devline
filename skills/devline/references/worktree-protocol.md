@@ -62,4 +62,4 @@ When you TaskStop a stuck agent, salvage uncommitted work before cleanup:
 ## Build Isolation Instructions
 
 When launching implementers, include in the prompt:
-> Use `--no-daemon` for all build tool commands (Gradle, Maven, etc.) to avoid daemon contention. Since you are in a worktree, isolate Gradle caches: `export GRADLE_USER_HOME="$(pwd)/.gradle-home"` before any build command.
+> Use `--no-daemon` for all build tool commands (Gradle, Maven, etc.) to avoid daemon contention. Since you are in a worktree, isolate Gradle caches by running this as your FIRST command before any build: `export GRADLE_USER_HOME="$(pwd)/.gradle-home"`. This MUST resolve to your worktree path (e.g., `/home/user/repo/.claude/worktrees/abc123/.gradle-home`), NOT the main repo path. Verify with `echo $GRADLE_USER_HOME` — if it points to the main repo, parallel builds will corrupt each other's caches.

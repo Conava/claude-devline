@@ -15,11 +15,11 @@ Launch the **planner** agent in the **foreground** with the user's feature speci
 The planner may return a `STATUS: NEEDS_INPUT` response instead of a finished plan. This response can contain any combination of:
 - **Design Questions** — architectural or behavioral choices that need user input
 - **Code Issues Found** — bugs, flaws, or tech debt discovered in the blast radius that the user should decide whether to fix
-- **Proactive Improvements** — issues discovered during research that the planner wants to address as standalone tasks, for the user to approve or reject
+- **Proactive Improvements** — issues the planner is unsure about including (bake into existing task, standalone task, or skip)
 
 When this happens:
 
-1. Present ALL sections to the user using **AskUserQuestion** — for design questions, map each to an option set with the planner's recommendation marked "(Recommended)" and its alternatives as additional options. For code issues and proactive improvements, present them as checklists the user can approve/reject.
+1. Present ALL sections to the user using **AskUserQuestion** — for design questions, map each to an option set with the planner's recommendation marked "(Recommended)". For code issues and improvements, present as include/skip choices.
 2. **Resume** the planner agent (using the `resume` parameter with its agent ID) with the user's answers
 3. Repeat if the planner returns more questions or findings — the planner is encouraged to iterate multiple times to refine the plan
 

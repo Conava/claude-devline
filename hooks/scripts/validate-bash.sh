@@ -86,13 +86,13 @@ current_branch() {
 
 # Detect rm with recursive+force flags
 if printf '%s' "$command" | grep -qP 'rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
-  target=$(printf '%s' "$command" | grep -oP 'rm\s+(-[a-zA-Z]+\s+)*/?\K(/[^\s;|&"]+)' | head -1)
+  target=$(printf '%s' "$command" | grep -oP 'rm\s+(-[a-zA-Z]+\s+)*\K([^\s;|&"]+)' | head -1 || true)
 
   if [[ -n "$target" ]]; then
     if [[ -n "$cwd" ]]; then
-      abs_target=$(cd "$cwd" && realpath -m "$target" || echo "$target")
+      abs_target=$(cd "$cwd" && realpath -m "$target" 2>/dev/null || echo "$target")
     else
-      abs_target="$target"
+      abs_target=$(realpath -m "$target" 2>/dev/null || echo "$target")
     fi
 
     case "$abs_target" in
@@ -366,34 +366,6 @@ fi
 
 if printf '%s' "$command" | grep -qPi '`.*rm\s+-[a-zA-Z]*r.*`'; then
   deny "Dangerous command in backtick substitution."
-fi
-
-# =============================================================================
-# BUILD INVOCATION BUDGET
-# Agents sometimes run expensive build/test commands too many times.
-# The instruction-level budget (15 invocations) is unreliable — Sonnet forgets.
-# This hook enforces it at infrastructure level. Counter is per working directory
-# (each worktree gets its own budget). Stored in /tmp, not committed.
-# =============================================================================
-
-BUILD_CMD_PATTERN='(gradlew|gradle|mvn |mvnw |npm\s+test|npx\s+jest|yarn\s+test|pnpm\s+test|cargo\s+test|go\s+test|dotnet\s+test|pytest|python.*-m\s+pytest|phpunit|bundle\s+exec\s+rspec)'
-
-if printf '%s' "$command" | grep -qPi "$BUILD_CMD_PATTERN"; then
-  MAX_INVOCATIONS=12
-  WARN_AT=10
-  dir_hash=$(printf '%s' "$cwd" | md5sum | cut -d' ' -f1)
-  COUNTER_FILE="/tmp/.devline-build-count-${dir_hash}"
-
-  count=$(cat "$COUNTER_FILE" 2>/dev/null || echo "0")
-  count=$((count + 1))
-  echo "$count" > "$COUNTER_FILE"
-
-  if [[ $count -gt $MAX_INVOCATIONS ]]; then
-    deny "Build invocation budget exceeded (${count}/${MAX_INVOCATIONS}). Commit what you have, document remaining failures, and report back. To reset: delete ${COUNTER_FILE}"
-  elif [[ $count -ge $WARN_AT ]]; then
-    # Allow but warn via stderr (visible to agent)
-    echo "WARNING: Build invocation ${count}/${MAX_INVOCATIONS}. Budget almost exhausted." >&3
-  fi
 fi
 
 # All checks passed
