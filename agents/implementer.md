@@ -81,8 +81,8 @@ After all tests are green, before declaring done:
 - **Acceptance criteria:** Every criterion — implemented AND tested.
 
 ### 8. Final Verification
-- Run the **complete project test suite** once. If it passes, proceed to commit immediately.
-- If it fails, fix the failures and run once more. If you need failure details, read test report files (e.g., `build/reports/tests/`) instead of re-running.
+- Run the **complete project test suite exactly once**, capturing the full output with `| tail -50` (not `grep`). The exit code tells you pass/fail. Read the output for test counts.
+- **Do NOT re-run the suite.** If the run fails and you need details, read test report files (e.g., `build/reports/tests/`, `target/surefire-reports/`) instead of running the suite again. If the run passes, proceed to commit immediately.
 - Report exact test counts (passed/failed/skipped)
 
 ### 9. Commit
@@ -105,10 +105,10 @@ Output the report (see format below) and make zero additional tool calls.
 Minimize build invocations — each cold start adds 10-15s overhead.
 
 **General rules:**
-1. Run only the specific test class during TDD cycles, the full suite once at the end (step 8)
-2. Combine tasks into single invocations where possible
+1. **During TDD cycles: run ONLY your specific test class.** Never run the full suite to check one test. Use the targeted test command from the table below. Piping through `grep`/`tail` to reduce noise is fine.
+2. **Full suite: exactly once, at the very end** (step 8), after all your tests pass individually. This is the only time you run the full suite.
 3. Use incremental builds — only clean for specific cache corruption
-4. **Timeouts:** The Bash tool defaults to 120s — sufficient for most commands including targeted test runs. Set `timeout: 600000` only for the final full-suite run (step 8) to accommodate large projects.
+4. **Timeouts:** The Bash tool defaults to 120s — sufficient for targeted test runs. Set `timeout: 600000` only for the final full-suite run (step 8).
 
 **Parallel isolation (when in a worktree):**
 - Use `--no-daemon` for Gradle/Maven to avoid daemon lock contention

@@ -89,7 +89,20 @@ As you research, you will encounter code smells, latent bugs, inconsistencies.
 
 ### 5. Define Tasks
 
-Each task is a precise spec for one implementer agent.
+Each task is a spec for one agent running in an isolated worktree.
+
+**What the planner decides vs. what the implementer decides:**
+- **Planner decides:** what to build, why, which files are touched, interface contracts (signatures, types, return types), edge cases, error handling strategy, integration points, agent type, model tier
+- **Implementer decides:** how to build it — internal implementation details, variable names, helper methods, code structure within the constraints
+
+The plan must be **complete** (the implementer has all the context to understand the goal and constraints) but not **prescriptive** (don't write pseudocode or step-by-step instructions). Give the why, the what, and the boundaries — trust the implementer with the how.
+
+**Agent and model selection per task:**
+- **implementer** — feature/application code (default)
+- **devops** — build, CI/CD, Docker, infrastructure, tooling
+- **debugger** — fixing failing tests or unexpected behavior
+- **sonnet** (default) — standard tasks with clear specs
+- **opus** — complex architectural reasoning, large refactors, tricky logic, tasks touching many integration points
 
 **Dependency rules:**
 - Same-file tasks MUST depend on each other
@@ -97,10 +110,17 @@ Each task is a precise spec for one implementer agent.
 - No shared files + no type references + no logical dependency = parallel
 
 **Task design principles:**
-- **File-isolated** — parallel tasks must not touch the same files
+- **One task = one isolated implementer.** Each task is implemented by exactly one agent running in a worktree. The implementer has no access to other agents' changes until the wave is merged. Design every task so it can be completed in full isolation.
+- **Zero file overlap within a wave** — no two tasks in the same wave may touch the same file. If two tasks need the same file, they MUST be in different waves with an explicit dependency. This is non-negotiable — parallel worktrees cannot merge cleanly if they edit the same file.
+- **Zero dependencies within a wave** — tasks in the same wave must not depend on each other's output (types, interfaces, generated code, test fixtures). If Task A needs something Task B creates, they cannot be in the same wave.
 - **Independently testable**
 - **Granular** — 5-15 minutes each. More than 2-3 files or more than 5 steps? Split it. Two 5-minute tasks parallelize better than one 15-minute task.
-- **Spec-complete** — the implementer should not need to make design decisions. Every input, output, error case, and integration point is specified.
+- **Context-rich** — every task must include a **Context** section explaining why the change is needed (the problem, the requirement, the regulation). An implementer who understands the motivation makes better decisions than one following blind instructions.
+
+**Wave assignment:**
+Tasks are grouped into waves based on the dependency graph. Waves are strict execution barriers — all tasks in a wave run in parallel in isolated worktrees, and the next wave starts only after every task in the current wave is fully done (implemented, reviewed, merged). Assign each task a wave number in the plan. Waves must be topologically sorted: a task in Wave N can only depend on tasks in Wave N-1 or earlier.
+
+**Validation before finalizing the plan:** For each wave, verify that no two tasks share a file in their expected file list. If they do, move one to a later wave.
 
 ### 6. Write Plan to Disk
 

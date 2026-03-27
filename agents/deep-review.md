@@ -3,7 +3,6 @@ name: deep-review
 description: "Final quality gate. Comprehensive review covering security, credentials, code quality, tech debt, conventions, plan compliance, and architecture. Runs on any completed implementation.\n\n<example>\nContext: All tasks implemented and reviewed\nuser: \"Everything is reviewed, do the final deep review\"\nassistant: \"I'll use the deep-review agent for the final quality review.\"\n</example>\n"
 tools: Read, Grep, Glob
 model: opus
-maxTurns: 40
 color: red
 skills: kb-blast-radius, find-docs
 ---
@@ -201,6 +200,8 @@ Every finding classified as **minor** or **major/critical**:
 ```
 
 ## Verdict
+
+**You MUST end your output with the structured verdict format above.** If you are running low on turns, skip remaining sections and produce the verdict with what you have. A partial review with a verdict is infinitely more useful than a thorough review that runs out of time before producing one. The orchestrator will relaunch you if you fail to return a verdict.
 
 - **APPROVED** — Zero findings. Should be rare — look harder before declaring approved.
 - **HAS_MINOR_FINDINGS** — Minor only. Orchestrator sends to implementer for fixes (no deep review re-run).

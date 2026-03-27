@@ -45,19 +45,16 @@ If the agent result says no changes were made, the worktree is auto-cleaned — 
 
 ## Killed-Agent Recovery
 
-When you TaskStop a stuck agent, salvage uncommitted work before cleanup:
+When you TaskStop a stuck agent or an agent completes without committing:
 
-1. Commit uncommitted work:
+1. **Clean up** the worktree and branch — don't try to salvage uncommitted work:
    ```bash
-   git -C <worktree-path> add -A && git -C <worktree-path> diff --cached --quiet || git -C <worktree-path> commit -m "WIP: salvage from killed agent for task N"
+   git worktree remove <worktree-path> --force 2>/dev/null
+   git branch -D <worktree-branch> 2>/dev/null
    ```
-2. Merge the branch (now includes salvaged commit):
-   ```bash
-   git merge <worktree-branch> --no-edit
-   ```
-3. If conflicts: abort merge, clean up worktree, relaunch fresh implementer with context about previous work.
-4. Clean up the worktree (after merge succeeds).
-5. Decide: if salvaged work looks complete, send to review. If incomplete, relaunch to finish.
+2. **Relaunch** a fresh implementer for the same task. The new agent starts clean from the current branch state.
+
+Do NOT inspect the worktree's diff, commit on behalf of the agent, or try to merge partial work. A failed agent means a fresh start.
 
 ## Build Isolation Instructions
 

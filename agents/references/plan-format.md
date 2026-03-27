@@ -18,23 +18,26 @@
 ## Tasks
 
 ### Task 1: [Name]
-**Agent:** [implementer / devops]
+**Wave:** [1 / 2 / 3 / ...]
+**Agent:** [implementer / devops / debugger]
+**Model:** [sonnet (default) / opus — use opus for tasks requiring complex architectural reasoning, large refactors, or tricky logic]
 **UI:** [yes / no]
 **Files owned:** [exact list of files this task creates/modifies]
 **Depends on:** [none / Task N, Task M]
 
+**Context:**
+
+[Why this task exists. What problem it solves, what requirement it fulfills, what was wrong or missing before. The implementer needs to understand the motivation to make good judgment calls during implementation. Include references to specs, articles, regulations, or prior decisions where relevant.]
+
 **Spec:**
 
-[The precise specification of what this task produces. This is the core of the plan — it must be detailed enough that the implementer makes zero design decisions.]
+[What this task produces and the constraints it must satisfy. Focus on the **what** and the **boundaries** — not step-by-step implementation instructions. The implementer is a capable engineer; give them the goal, the interface contracts, and the edge cases, then let them figure out the implementation.]
 
-For each function/class/endpoint/component this task creates or modifies, specify:
-- **Signature:** name, parameters with types, return type
-- **Behavior:** what it does, step by step
-- **Inputs:** valid ranges, formats, constraints
-- **Outputs:** exact shape of return values, response bodies, emitted events
-- **Errors:** what can go wrong and exactly how to handle each case (throw, return error, log, retry)
-- **Integration points:** exact method calls, event names, and expected listeners that connect this code to the rest of the system. The reviewer verifies these line-by-line.
-- **Constraints:** platform limitations, framework quirks, performance requirements
+- **Interface contracts:** signatures, types, return types for public APIs this task creates or modifies
+- **Behavior:** what the code must do, described in terms of inputs → outputs, not implementation steps
+- **Edge cases and errors:** what can go wrong and how each case should be handled
+- **Integration points:** what existing code this connects to — method calls, event names, expected listeners. The reviewer verifies these.
+- **Constraints:** platform limitations, framework quirks, performance requirements, conventions to follow (reference existing patterns in the codebase)
 
 For UI tasks, additionally specify:
 - Component hierarchy and props
@@ -63,8 +66,7 @@ For UI tasks, additionally specify:
 **Assigned to:** Task N
 
 ## Dependency Graph
-[Task 1] ──┐
-            ├──→ [Task 4] ──→ [Task 5]
-[Task 2] ──┘
-[Task 3] ──────────────────→ [Task 5]
+Wave 1: [Task 1], [Task 2], [Task 3]
+Wave 2: [Task 4] (← 1, 2)
+Wave 3: [Task 5] (← 3, 4)
 ```
