@@ -41,7 +41,27 @@ Use the **AskUserQuestion** tool with concrete selectable options.
 
 **Focus questions on:** scope and boundaries, user-facing behavior, platform, aesthetic direction, integration points.
 
-### 3. Write Brainstorm Document
+### 3. Evaluate Scope and Detect Phases
+
+Before writing the document, evaluate whether the feature warrants splitting into sequential phases. Apply this heuristic:
+
+**Trigger conditions — use phases if ANY of these are true:**
+- The feature touches 3+ distinct systems, modules, or architectural layers
+- A single plan would likely exceed 8-10 tasks
+- Changes cross multiple architectural boundaries (e.g., database schema + API + frontend)
+- The depth of changes spans surface-level config through core logic
+
+**When the heuristic triggers:**
+- Split the work into 2-4 sequential phases
+- Order phases so each one builds on the previous — foundation first, user-facing last
+- Each phase must be a coherent unit of work, not an arbitrary split
+- Include a `## Phases` section in the output (see template below)
+
+**When the heuristic does NOT trigger:**
+- Omit the `## Phases` section entirely — the brainstorm.md format is identical to today's output
+- This is the backward-compatible path; most features will take this path
+
+### 4. Write Brainstorm Document
 
 After receiving answers (or immediately if the idea is clear enough), write `.devline/brainstorm.md`:
 
@@ -75,11 +95,20 @@ After receiving answers (or immediately if the idea is clear enough), write `.de
 ## Key Decisions
 [Decisions made during brainstorming, including user choices and stated assumptions]
 
+## Phases
+<!-- Optional — only include this section when the phase detection heuristic triggers (see step 3). Omit entirely for small-scope features. -->
+
+### Phase 1: [Name]
+[1-3 sentences: what this phase accomplishes, which parts of the codebase it touches]
+
+### Phase 2: [Name]
+[1-3 sentences: what this phase accomplishes, how it builds on Phase 1]
+
 ## Open Questions for Planner
 [Architectural or design questions too deep for brainstorm. Leave empty if none.]
 ```
 
-### 4. Confirm
+### 5. Confirm
 
 Use AskUserQuestion:
 ```json
