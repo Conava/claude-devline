@@ -23,12 +23,24 @@ When this happens:
 2. **Resume** the planner agent (using the `resume` parameter with its agent ID) with the user's answers
 3. Repeat if the planner returns more questions or findings — the planner is encouraged to iterate multiple times to refine the plan
 
+## Phase Context (Multi-Phase Pipelines)
+
+When the devline orchestrator invokes this skill during a multi-phase pipeline, it passes phase context to the planner:
+
+- **Phase number** — which phase is currently being planned (e.g., 2 of 3)
+- **Prior plan file paths** — paths to all already-completed phase plans (e.g., `.devline/plan-phase-1.md`)
+- **Output path** — the planner writes to `.devline/plan-phase-N.md` instead of `.devline/plan.md`
+
+Pass this context through when launching the planner agent. The planner uses it to scope the plan to the current phase and avoid re-planning prior phases' work.
+
+When no phase context is provided (the default), the planner writes to `.devline/plan.md` exactly as today — this path is unchanged.
+
 ## After Planning
 
 Once the planner has all answers, it will:
-1. Write the full plan to `.devline/plan.md`
+1. Write the full plan to `.devline/plan.md` (single-phase) or `.devline/plan-phase-N.md` (multi-phase)
 2. Return a concise summary (architecture overview, tasks, key decisions)
 
-Present the summary to the user for approval. The full plan lives at `.devline/plan.md` — implementers read it directly from disk.
+Present the summary to the user for approval. The full plan lives at the output path — implementers read it directly from disk.
 
 This skill does NOT automatically continue into implementation. To proceed, run `/devline:implement` with the approved plan, or `/devline` for the full pipeline.
