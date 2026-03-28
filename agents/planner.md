@@ -179,7 +179,7 @@ After writing the plan, return only:
 - Key trade-offs or decisions made
 - Proactive improvements (baked in, standalone, or deferred to user)
 - Documentation updates identified
-- Path: `.devline/plan.md`
+- Path: the plan file written (`.devline/plan.md` or `.devline/plan-phase-N.md` in phase mode)
 
 The orchestrator handles user approval.
 
