@@ -6,6 +6,7 @@
 **Branch:** [current git branch name]
 **Created:** [ISO 8601 date]
 **Status:** active
+**Phase:** [N of M — or "single" for non-phased plans]
 
 ## Architecture Overview
 [High-level design: components, data flow, key abstractions. Component diagram if helpful.]
@@ -15,15 +16,27 @@
 |----------|--------|-----------|------------------------|
 | ... | ... | ... | ... |
 
+## Dependency Graph
+
+This is the SINGLE SOURCE OF TRUTH for task ordering. Everything about which tasks run when, what depends on what, and which tasks can parallelize is defined here and ONLY here.
+
+Wave 1: [Task 1], [Task 2], [Task 3]
+Wave 2: [Task 4] (← 1, 2), [Task 5] (← 3)
+Wave 3: [Task 6] (← 4, 5)
+
+Rules enforced by the orchestrator:
+- All tasks in a wave run in parallel in isolated worktrees
+- A wave starts ONLY after every task in the previous wave is done (implemented + reviewed + merged)
+- The `←` notation lists which earlier tasks this task depends on (must be from a prior wave)
+- Tasks within the same wave have ZERO dependencies on each other — no shared files, no type references, no logical ordering
+
 ## Tasks
 
 ### Task 1: [Name]
-**Wave:** [1 / 2 / 3 / ...]
 **Agent:** [implementer / devops / debugger]
 **Model:** [sonnet (default) / opus — use opus for tasks requiring complex architectural reasoning, large refactors, or tricky logic]
 **UI:** [yes / no]
 **Files owned:** [exact list of files this task creates/modifies]
-**Depends on:** [none / Task N, Task M]
 
 **Context:**
 
@@ -65,8 +78,15 @@ For UI tasks, additionally specify:
 **Verification:** [How the test asserts this]
 **Assigned to:** Task N
 
-## Dependency Graph
-Wave 1: [Task 1], [Task 2], [Task 3]
-Wave 2: [Task 4] (← 1, 2)
-Wave 3: [Task 5] (← 3, 4)
+## Documentation Updates
+[Project-level documentation that the docs-keeper should update after implementation. NOT inline code comments or Javadoc — those are the implementer's responsibility.]
+
+### 1. [Target file — existing path or new file to create]
+**Type:** [ADR / architecture doc / feature spec / API doc / roadmap / changelog]
+**What to update:** [Describe the change — what to add, modify, or restructure]
+**Driven by:** [Which tasks or design decisions require this doc update]
+
+### 2. ...
+
+[If no documentation updates are needed, write "None identified." Do not omit the section.]
 ```
