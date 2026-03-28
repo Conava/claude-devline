@@ -284,14 +284,14 @@ Fix cycle escalation:
 
 **Runtime dependency discovery:** If an implementer reports that it cannot compile because types from another task don't exist yet, this is a missing dependency. Update the active plan file (`.devline/plan.md` or `.devline/plan-phase-N.md`) to add the dependency, update `.devline/state.md` to mark the task as `blocked`, and requeue it to launch after the dependency task completes and merges back. Merge whatever partial work the implementer committed (it may have completed non-dependent parts of the task).
 
-**Stage 3.5: Deferred Findings Batch Fix (after last wave, before deep review)**
+**Stage 3.5: Deferred Findings Batch Fix (after last wave of each phase)**
 
-After ALL waves are complete (every task implemented + reviewed + merged), but BEFORE launching the deep review:
+After ALL waves are complete (every task implemented + reviewed + merged) for the current plan:
 
-1. Check `.devline/deferred-findings.md` — if empty or no findings, skip to Stage 5.
+1. Check `.devline/deferred-findings.md` — if empty or all findings already marked `[FIXED]`, skip this step. In single-phase mode, proceed to Stage 4. In multi-phase mode, return to the multi-phase loop to advance to Phase N+1 (or proceed to Stage 4 if this was the final phase).
 2. Launch one implementer with `.devline/deferred-findings.md` as its task. Instruct it to prefix each fixed finding with `[FIXED]` in the file as it works through them — this makes partial progress trackable if the agent gets stuck or is killed.
 3. Launch reviewer to verify the batch fixes.
-4. Only after the reviewer returns CLEAN or DEFERRED_ONLY (with zero remaining deferred findings), proceed to Stage 5 (deep review).
+4. Only after the reviewer returns CLEAN or DEFERRED_ONLY (with zero remaining unfixed findings): in single-phase mode, proceed to Stage 4 (Documentation). In multi-phase mode, return to the multi-phase loop to advance to Phase N+1 (or proceed to Stage 4 if this was the final phase).
 
 The deep review is the final quality gate — it cannot defer findings. All deferrable work must be resolved before it runs.
 
