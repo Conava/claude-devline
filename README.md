@@ -174,7 +174,7 @@ flowchart LR
     class plan replan
 ```
 
-A build invocation counter (enforced by hook) prevents agents from running expensive commands indefinitely. Each agent also has a hard turn limit (`maxTurns`) as a backstop.
+A build invocation counter (enforced by hook) prevents agents from running expensive commands indefinitely. Agent health monitoring with a 45-minute hard kill serves as a backstop.
 
 </details>
 
