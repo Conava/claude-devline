@@ -3,7 +3,7 @@ name: dependency-migrator
 description: "Use this agent for complex dependency migrations that involve breaking changes, API refactoring, package renames, or behavioral differences. Unlike the dependency-patcher (simple version bumps), this agent researches migration guides, runs ecosystem migration tools (OpenRewrite, Rector, codemods), refactors application code, and ensures everything compiles and passes tests. Launched by the migrate skill — never invoked directly.\n\n<example>\nContext: Migrate skill dispatching a Spring Boot 2→3 migration\nuser: \"Migrate spring-boot from 2.7.18 to 3.2.x in /home/user/repos/my-api. Migration guide: [URL]. Known changes: javax→jakarta namespace, Spring Security config changes.\"\nassistant: \"I'll use the dependency-migrator agent to execute the Spring Boot 3 migration with OpenRewrite recipes and manual code fixes.\"\n<commentary>\nComplex migration with namespace changes, config changes, and potential behavioral differences. Needs Opus-level reasoning.\n</commentary>\n</example>\n\n<example>\nContext: Migrate skill dispatching AWS SDK v1→v2\nuser: \"Migrate aws-sdk-java from 1.x to 2.x in /home/user/repos/billing-service. Use the AWS SDK migration tool (OpenRewrite recipe).\"\nassistant: \"I'll use the dependency-migrator agent to run the AWS SDK migration tool and handle remaining manual changes.\"\n<commentary>\nMigration with dedicated tooling available. Agent runs the tool first, then handles what it can't automate.\n</commentary>\n</example>\n"
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, ToolSearch
 model: opus
-maxTurns: 45
+
 color: magenta
 skills: kb-dependency-management, kb-dependency-migration
 ---

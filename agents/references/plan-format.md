@@ -68,25 +68,32 @@ For UI tasks, additionally specify:
 ### Task 2: [Name]
 ...
 
-## Feature-Goal Tests
-[Tests proving the feature works end-to-end, assigned to the last task in the dependency chain or a dedicated integration test task.]
+## Feature E2E Task
 
-### 1. [Test name]
-**Type:** [integration / e2e]
-**Trigger:** [What initiates the behavior]
-**Expected result:** [The observable output]
-**Verification:** [How the test asserts this]
-**Assigned to:** Task N
+The final wave MUST include a dedicated E2E test task. This task writes no implementation code — only end-to-end tests that verify the feature works as a whole, including interactions with pre-existing code.
 
-## Documentation Updates
-[Project-level documentation that the docs-keeper should update after implementation. NOT inline code comments or Javadoc — those are the implementer's responsibility.]
+### Task N: Feature E2E Tests
+**Agent:** implementer
+**Model:** sonnet
+**UI:** no
+**Files owned:** [E2E test files only]
 
-### 1. [Target file — existing path or new file to create]
-**Type:** [ADR / architecture doc / feature spec / API doc / roadmap / changelog]
-**What to update:** [Describe the change — what to add, modify, or restructure]
-**Driven by:** [Which tasks or design decisions require this doc update]
+**Context:**
 
-### 2. ...
+End-to-end verification of the complete feature. These tests exercise the full stack — from user entry point through all layers to observable outcomes — and naturally cover pre-existing code paths that the feature builds on.
 
-[If no documentation updates are needed, write "None identified." Do not omit the section.]
+**Spec:**
+
+[Describe the E2E test infrastructure to use (Testcontainers, Playwright, supertest, etc.) and any test utilities to leverage from the existing test suite.]
+
+**Test Cases:**
+1. [e2e] [User journey name] — [entry point] → [steps through the system] → [observable outcome]. Pre-existing paths exercised: [list which existing code this journey touches]
+2. [e2e] [User journey name] — ...
+3. [e2e] [Critical error path] — [trigger] → [expected error handling across the stack]
+
+**Acceptance Criteria:**
+- [ ] All E2E tests pass against real infrastructure (no mocks except external services)
+- [ ] Each test creates and cleans up its own data
+- [ ] Pre-existing code paths are exercised (not just new code)
+
 ```

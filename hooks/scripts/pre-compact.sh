@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+trap 'exit 0' ERR
 
 # Devline PreCompact hook: re-inject pipeline state into context after compaction.
 # If .devline/state.md exists (active pipeline), read it and output as additionalContext

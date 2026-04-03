@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+trap 'exit 0' ERR
 
 # Devline workflow hook: enforce feature branch before code changes
 # Blocks Write/Edit on protected branches for source code files

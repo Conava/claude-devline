@@ -1,5 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+
+# Safety net: if the hook crashes unexpectedly, allow the action to proceed
+# rather than showing "hook error" to the user. Exit 0 = action proceeds.
+trap 'exit 0' ERR
 
 # Devline security hook: validate Bash commands in bypass mode
 # Blocks destructive, dangerous, and credential-leaking commands
@@ -19,10 +23,10 @@ if [[ -n "$cwd" && ! -d "$cwd" ]]; then
 fi
 
 # Redirect stderr to fd 3 for deny()/ask(), suppress grep warnings globally
-exec 3>&2 2>/dev/null
+exec 3>&2 2>>/tmp/devline-hook-debug.log
 
 deny() {
-  echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: $1\"}" >&3
+  echo "BLOCKED: $1" >&3
   exit 2
 }
 
@@ -84,8 +88,8 @@ current_branch() {
 # DESTRUCTIVE FILESYSTEM OPERATIONS (always hard deny)
 # =============================================================================
 
-# Detect rm with recursive+force flags
-if printf '%s' "$command" | grep -qP 'rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
+# Detect rm with recursive+force flags (exclude `git rm` which only affects the index)
+if printf '%s' "$command" | grep -qP '(?<!git\s)rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
   target=$(printf '%s' "$command" | grep -oP 'rm\s+(-[a-zA-Z]+\s+)*\K([^\s;|&"]+)' | head -1 || true)
 
   if [[ -n "$target" ]]; then
@@ -166,7 +170,9 @@ fi
 # git branch -D on non-protected branches: ask (squash-merged branches need force delete)
 # git branch -d on non-protected branches: allow (safe delete, git checks merge status)
 # Note: case-SENSITIVE match — -D only, not -d
-if printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)'; then
+# Exception: worktree-agent-* branches are temporary cleanup — always safe to force-delete
+if printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)' && \
+   ! printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)\s+worktree-agent-'; then
   ask "Force-deleting a branch. This is needed after squash-merge since git can't verify the merge."
 fi
 

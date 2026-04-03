@@ -1,6 +1,6 @@
 # TDD Framework Patterns
 
-Language and framework-specific TDD patterns. Use the find-docs skill (`npx ctx7@latest`) to look up current API documentation for any framework mentioned here.
+Language and framework-specific TDD patterns. Use the find-docs skill (`npx -y ctx7`) to look up current API documentation for any framework mentioned here.
 
 ## JavaScript / TypeScript
 

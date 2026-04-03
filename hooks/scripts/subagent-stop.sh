@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+trap 'exit 0' ERR
 
 # Devline SubagentStop hook: log agent completion to .devline/agent-log.md
 # Only fires when .devline/state.md exists (active pipeline).

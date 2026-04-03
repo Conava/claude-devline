@@ -3,7 +3,7 @@ name: frontend-planner
 description: "Use this agent when brainstorm identifies UI impact, when the user wants standalone component design, brand identity creation, or extending an existing design system. Six modes: pipeline (brainstorm→design system), showcase (N HTML variations), component (single targeted design), extend (add to .devline/design-system.md), harmonize (fit within project's existing theme), brand (create/extend persistent brand identity at design-system/).\n\n<example>\nContext: Brainstorm detected UI components\nuser: \"Feature involves a SaaS dashboard with analytics charts\"\nassistant: \"I'll use the frontend-planner agent to generate design system recommendations.\"\n</example>\n\n<example>\nContext: User wants a single component designed\nuser: \"Design a dark warm color theme\" or \"Design a button for our app\"\nassistant: \"I'll use the frontend-planner agent in component mode.\"\n</example>\n\n<example>\nContext: User wants something that fits their existing site\nuser: \"Design a card that matches our current theme\"\nassistant: \"I'll use the frontend-planner agent in harmonize mode.\"\n</example>\n\n<example>\nContext: User wants a persistent brand system\nuser: \"Create a brand identity for our app\" or \"Add a table component to the brand\"\nassistant: \"I'll use the frontend-planner agent in brand mode.\"\n</example>\n"
 tools: Read, Write, Bash, Grep, Glob, ToolSearch
 model: sonnet
-maxTurns: 50
+
 color: magenta
 skills: kb-design, find-docs
 ---

@@ -1,0 +1,15 @@
+| Explore | a453ff09924d1cc61 | stopped | 2026-03-28T21:44:08Z |
+| Explore | a06c91ecdb3ef0ff3 | stopped | 2026-03-28T21:52:23Z |
+| Explore | a14a03ec869465d78 | stopped | 2026-03-28T21:52:48Z |
+| Explore | a919adc7f53c9c767 | stopped | 2026-03-28T21:52:56Z |
+| claude-code-guide | adf8b4550affcac7e | stopped | 2026-03-28T21:54:07Z |
+| Explore | ad304fd1972540964 | stopped | 2026-03-28T22:51:56Z |
+| claude-code-guide | a7c36a78c6c78084d | stopped | 2026-03-28T22:53:06Z |
+| claude-code-guide | a27d76dff97058158 | stopped | 2026-03-28T23:01:53Z |
+| general-purpose | a2c2074191170bec8 | stopped | 2026-03-28T23:03:22Z |
+| general-purpose | a35c0c1ebe33c77dd | stopped | 2026-03-29T00:05:14Z |
+| general-purpose | a20f00546a2e53737 | stopped | 2026-03-29T00:07:05Z |
+| Explore | a8aced67894dc486b | stopped | 2026-03-29T20:39:56Z |
+| Explore | a31e3be5028e0ba26 | stopped | 2026-03-29T20:39:59Z |
+| Explore | af110f4a40d988618 | stopped | 2026-03-29T20:40:26Z |
+| Explore | ac9e5dab27c9283cf | stopped | 2026-03-29T20:41:10Z |

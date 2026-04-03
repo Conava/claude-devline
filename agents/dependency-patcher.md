@@ -3,7 +3,7 @@ name: dependency-patcher
 description: "Use this agent to patch dependencies in a single repository. It detects ecosystems, checks if dependencies are affected, updates versions, verifies the build/tests pass, and commits+pushes. Launched by cve-patcher, eol-fixer, or other dependency management skills — never invoked directly by the user.\n\n<example>\nContext: CVE patcher launching per-repo agents\nuser: \"Patch CVE-2024-38816 (spring-webmvc, Maven, fix: 6.1.13) in /home/user/repos/my-api\"\nassistant: \"I'll use the dependency-patcher agent to check and patch the Spring vulnerability in my-api.\"\n<commentary>\nCVE patcher researched the CVE and is now dispatching a patcher agent to handle one repo.\n</commentary>\n</example>\n\n<example>\nContext: EOL fixer launching per-repo agents\nuser: \"Update express from 4.18.2 to 4.19.0 (CVE-2024-XXXXX) in /home/user/repos/frontend-app\"\nassistant: \"I'll use the dependency-patcher agent to update express in frontend-app.\"\n<commentary>\nCVE patcher dispatching a simple version bump to a second repo in parallel.\n</commentary>\n</example>\n"
 tools: Read, Write, Edit, Bash, Grep, Glob, ToolSearch
 model: sonnet
-maxTurns: 25
+
 color: yellow
 skills: kb-dependency-management
 ---

@@ -3,7 +3,7 @@ name: devops
 description: "Use this agent for build systems, CI/CD, Docker/containers, infrastructure as code, dev tooling, package management, or deployment.\n\n<example>\nContext: CI/CD work\nuser: \"Set up GitHub Actions for the new service\"\nassistant: \"I'll use the devops agent to configure the CI/CD pipeline.\"\n</example>\n"
 tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch, Skill, ToolSearch
 model: sonnet
-maxTurns: 35
+
 color: green
 skills: kb-cloud-infra, find-docs
 ---
