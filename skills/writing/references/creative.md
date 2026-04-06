@@ -17,6 +17,18 @@ When given character descriptions, world details, backstory, or other context:
 - **Vary and contradict.** If the context says a character always wears leather jackets, they can still be in a bathrobe at 3 AM. If they're described as confident, they can still falter. Consistency means patterns, not uniformity.
 - **Surprise yourself.** If you can predict where the sentence is going, rewrite it. If the metaphor is the first one that comes to mind, find another. If the scene plays out exactly as expected, add a complication.
 
+### Trait rotation — the concrete mechanism
+
+Context files (character sheets, world docs, backstory) define boundaries. They say what a character CAN be, not what they MUST show in every scene. The mechanism:
+
+1. **Per scene: pick at most 2-3 facets** of a character to surface. Not the same 2-3 every time.
+2. **Rotate consciously.** If last scene showed "guarded + competent", this scene might show "tired + oddly gentle" or "reckless + funny". All within the same character — just different angles.
+3. **Details from files are examples, not uniforms.** Clothing, accessories, habits described in a character file are defaults the character OWNS — they don't wear them in every scene. A character described as wearing dark coats can also be in a soaked t-shirt.
+4. **Signature traits need breathing room.** If a character's defining trait is "sarcastic", there must be scenes where the sarcasm is absent — replaced by silence, vulnerability, or plain exhaustion. The absence makes the trait more powerful when it returns.
+5. **Age, occupation, and backstory are context, not content.** A character's age doesn't need to be mentioned or hinted at. Their job doesn't need to surface in every scene. Load the information to avoid contradictions, not to reproduce it.
+
+**The determinism test:** If you were given the same prompt twice, would you produce the same scene? If yes — you're writing from the file, not from the character. Rewrite. Same prompt → different facets, different details, different entry point, different mood.
+
 ### Never converge on defaults
 
 NEVER fall into generic AI creative patterns:
