@@ -99,7 +99,7 @@ It works without bypass mode too. You'll just get prompted frequently during par
 | `/devline:cve-patcher <CVEs>` | Patch vulnerabilities across repos |
 | `/devline:migrate <package>` | Major version migrations with breaking changes |
 | `/devline:design` | Standalone component or theme design |
-| `/writing` | Write, edit, or translate text without AI patterns |
+| `/writing` | Write, edit, or translate text — anti-AI-pattern rewriting for general text; citation contract enforcement for scientific writing |
 | `/brand` | Brand voice, visual identity, messaging |
 | `/graphic-design` | Logos, icons, banners, slides, corporate identity |
 
@@ -328,7 +328,7 @@ claude-devline/
 |   |   +-- references/      # Implementation protocol, worktree protocol, agent health
 |   |-- setup/               # /devline:setup
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
-|   |-- writing/             # /writing (anti-AI-pattern text)
+|   |-- writing/             # /writing (purpose-aware: anti-AI-pattern rewriting + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
 |   +-- ...                  # More skills and knowledge bases
 |
@@ -530,14 +530,31 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 
 ## Writing and Content
 
-The `/writing` skill produces text that reads like a person wrote it. It runs against a catalog of 60+ AI writing patterns and rewrites to avoid them.
+The `/writing` skill produces text that reads like a person wrote it. It detects the purpose first, then applies purpose-specific rules before writing a single word.
 
-Three modes:
-- **Write** -- new text from scratch (emails, blog posts, READMEs, papers, fiction)
+Four purposes, each with a dedicated reference:
+- **Communication** -- emails, LinkedIn posts, cover letters, announcements
+- **Project content** -- READMEs, website copy, docs, changelogs
+- **Scientific** -- papers, theses, research reports, literature reviews (see below)
+- **Creative** -- books, stories, chapters, narrative fiction
+
+Three modes across all purposes:
+- **Write** -- new text from scratch
 - **Edit** -- humanize existing text
 - **Translate** -- translate between languages with native voice (not "translated from English")
 
-Purpose-specific references for communication, project content, scientific writing, and creative fiction. Language-specific references for German (du/Sie, compound nouns, quotation marks, modal particles).
+Language-specific references layer on top for any purpose: German (du/Sie, compound nouns, quotation marks, modal particles).
+
+### Scientific writing hard gate
+
+Scientific mode has a mandatory citation contract that applies before any output is returned:
+
+- Every factual claim requires an inline citation in the same sentence. No citation means no claim.
+- No fabricated citations. Every `[N]` must resolve to a paper that exists, whose authors and year match, and that actually supports the claim.
+- No secondary citations. Read and cite the original source, not a citation in someone else's paper.
+- A 12-step verification workflow runs before any scientific text is finalized: citation-mark audit, existence check, accuracy check, causation vs. correlation, statistic check, term consistency, contribution scope, overclaim check, reference list integrity, secondary-citation check, self-plagiarism check, paragraph sanity.
+
+IEEE numeric citation style is the default (`[1]`, `[2]`, numbered in order of appearance). The skill also enforces CS paper structure conventions (IMRaD, contribution lists, roadmap paragraph, abstract headline number) and Kopp/IAAS Stuttgart writing patterns for work supervised in that group.
 
 The `/graphic-design` skill covers logo design (55 styles), corporate identity programs (50+ deliverables), icon design, banner design (22 art direction styles), HTML presentations, and social media graphics.
 

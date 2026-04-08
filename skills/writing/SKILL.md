@@ -15,17 +15,9 @@ References:
 - Language-specific: [references/german.md](references/german.md)
 - Purpose-specific: [references/communication.md](references/communication.md), [references/project-content.md](references/project-content.md), [references/scientific.md](references/scientific.md), [references/creative.md](references/creative.md), [references/creative-de.md](references/creative-de.md)
 
-## Determine mode
+## Step 1 — Determine purpose (before anything else)
 
-- **Edit mode:** The user provides existing text (pasted or as a file path) to humanize or improve
-- **Write mode:** The user asks you to produce new text
-- **Translate mode:** The user asks to translate text from one language to another
-
-If unclear, ask.
-
-## Determine purpose
-
-Detect from context which purpose applies, and load its reference file:
+Detect from context which purpose applies. **You must do this first**, because the Scientific purpose has a hard gate before you can write a single word.
 
 | Purpose | Triggers | Reference |
 |---------|----------|-----------|
@@ -37,6 +29,25 @@ Detect from context which purpose applies, and load its reference file:
 All purposes apply to all languages. Purpose-specific references contain language-agnostic craft rules. Language-specific references (german.md, etc.) layer on top for any purpose. Creative writing in German additionally loads `creative-de.md` for German-language examples and craft guidance.
 
 If the purpose is unclear from context, ask. The purpose determines which reference to read and which rules to prioritize.
+
+### HARD GATE — Scientific purpose
+
+If the purpose is **Scientific** (paper, thesis, proposal, academic report, literature review, or any text that cites sources or will undergo peer/supervisor review):
+
+1. **You must read [references/scientific.md](references/scientific.md) end-to-end before producing or editing a single sentence.** This is not optional, not skippable, not negotiable. It is not enough to have loaded it "once before" in this session — read it again now.
+2. **Every factual claim needs an inline citation.** Never attribute anything to prior work, a person, a system, or a study without an inline citation mark in the same sentence or clause. If you cannot cite it, you cannot claim it.
+3. **Never fabricate citations.** Verify every citation exists and actually supports the claim. Fabricated or irrelevant citations are publication misconduct (ACM policy).
+4. **Follow the mandatory verification workflow** at the end of `references/scientific.md` before returning any scientific text to the user.
+
+Only after reading scientific.md should you proceed to Step 2 (determine mode).
+
+## Step 2 — Determine mode
+
+- **Edit mode:** The user provides existing text (pasted or as a file path) to humanize or improve
+- **Write mode:** The user asks you to produce new text
+- **Translate mode:** The user asks to translate text from one language to another
+
+If unclear, ask.
 
 ## Language handling
 
@@ -60,19 +71,7 @@ When working in a non-English language:
 
 ### 2. Identify AI patterns
 
-Read [references/tropes.md](references/tropes.md) for the full catalog, plus the purpose-specific reference and the language-specific reference if applicable. Scan for:
-
-**Word choice:** "delve", "landscape", "tapestry", "serves as", "leveraging", "robust", "streamline", magic adverbs ("quietly", "deeply", "fundamentally") -- and their equivalents in the target language
-
-**Sentence structure:** negative parallelism ("It's not X -- it's Y"), tricolon abuse, anaphora, rhetorical self-questions ("The result? Devastating."), false ranges, superficial -ing analyses
-
-**Tone:** false vulnerability, stakes inflation, patronizing analogies ("Think of it as..."), "Here's the kicker", "Let's break this down", invented concept labels
-
-**Formatting:** em dash addiction, bold-first bullets, emoji decoration, unicode arrows, curly quotes, title case headings
-
-**Composition:** fractal summaries, dead metaphors beaten into the ground, historical analogy stacking, one-point dilution, signposted conclusions ("In conclusion...")
-
-**Filler:** "It's worth noting", "In order to", sycophantic openers ("Great question!"), knowledge-cutoff disclaimers, excessive hedging
+Read [references/tropes.md](references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory.
 
 ### 3. Rewrite
 
@@ -139,7 +138,7 @@ If any of these are unclear from context, ask. Don't guess at audience or tone.
 
 Read these before writing:
 1. [references/tropes.md](references/tropes.md) — patterns to avoid (always)
-2. The purpose-specific reference (communication, project-content, scientific, or fiction) — rules and style for this type of text
+2. The purpose-specific reference (communication, project-content, scientific, or creative) — rules and style for this type of text. **For scientific purpose, the HARD GATE in Step 1 already required reading `scientific.md` end-to-end — confirm it is loaded now and re-read if any doubt.**
 3. The language-specific reference if not English (e.g., [references/german.md](references/german.md))
 
 Internalize the patterns so you avoid them from the start.
