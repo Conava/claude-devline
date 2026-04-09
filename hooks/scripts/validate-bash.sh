@@ -240,6 +240,7 @@ if printf '%s' "$command" | grep -qP 'git\s+commit\s+.*-m\s'; then
     msg=$(printf '%s' "$command" | grep -oP "\-m\s+'\K[^']+" | head -1)
   fi
 
+  # shellcheck disable=SC2016
   if [[ -n "$msg" && "$msg" != '$(cat'* && "$msg" != '$('* ]]; then
     first_line=$(printf '%s' "$msg" | head -1 | sed 's/^[[:space:]]*//')
     if [[ -n "$first_line" ]]; then
@@ -338,10 +339,12 @@ if printf '%s' "$command" | grep -qPi '(curl|wget)\s.*\|\s*(ba|z|fi)?sh'; then
   ask "Piping curl/wget to shell executes arbitrary code from the internet."
 fi
 
+# shellcheck disable=SC2016
 if printf '%s' "$command" | grep -qPi '(echo|printf|cat)\s.*\$(.*_(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE).*)'; then
   deny "Printing environment variables that may contain secrets."
 fi
 
+# shellcheck disable=SC2016
 if printf '%s' "$command" | grep -qPi 'curl\s.*(-d|--data).*\$(.*_(KEY|SECRET|TOKEN|PASSWORD).*)'; then
   deny "Sending secrets to external URL detected."
 fi
@@ -370,6 +373,7 @@ if printf '%s' "$command" | grep -qPi ';\s*rm\s'; then
   deny "Potential command injection pattern detected (;rm)."
 fi
 
+# shellcheck disable=SC2016
 if printf '%s' "$command" | grep -qPi '`.*rm\s+-[a-zA-Z]*r.*`'; then
   deny "Dangerous command in backtick substitution."
 fi

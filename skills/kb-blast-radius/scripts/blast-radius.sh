@@ -91,6 +91,7 @@ SOURCE_EXTENSIONS="ts,tsx,js,jsx,mjs,cjs,py,go,rs,java,kt,rb,php,c,h,cpp,hpp,cs,
 
 collect_source_files() {
   local IFS=','
+  # shellcheck disable=SC2206
   local exts=($SOURCE_EXTENSIONS)
   for ext in "${exts[@]}"; do
     find . -name "*.${ext}" \
