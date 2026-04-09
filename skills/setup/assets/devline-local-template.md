@@ -4,11 +4,25 @@ Settings are presented in 4 batches during setup. For each batch, show all setti
 
 ---
 
+## Pre-check — Environment
+
+Before presenting batches, check for `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. If unset or below 128000, suggest:
+
+```
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000
+```
+
+Explain: The frontend designer and other agents can produce large outputs. The default 32K limit will cause API errors. Recommend adding this to the user's shell profile (`~/.zshrc`, `~/.bashrc`, etc.).
+
+---
+
 ## Batch 1 — Pipeline Flow
 
 ```
 auto_approve_brainstorm: false    — Pause for approval after brainstorming
 auto_approve_plan: false          — Pause for approval after planning
+                                    ⚠ In multi-phase pipelines, this skips ALL phase plan approvals.
+                                    Multiple phases can execute without any human checkpoint until deep review.
 ```
 
 ---

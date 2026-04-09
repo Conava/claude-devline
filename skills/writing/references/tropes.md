@@ -285,6 +285,40 @@ Fix: End with something specific. A next step, a concrete plan, an honest uncert
 
 ---
 
+## Rhythm and variation (statistical tells)
+
+### Uniform sentence length
+
+AI sentences cluster around 15-25 words. Human writing has high "burstiness" — scattered distribution of short and long sentences. Three medium sentences in a row is a tell.
+
+Fix: After writing, map sentence lengths. Force variation: after two medium sentences (18-22 words), add a very short one (5-8 words). Then a longer one (35+ words). This single technique is one of the most effective humanization methods.
+
+### Uniform paragraph length
+
+AI paragraphs are strikingly similar in size — usually 3-4 sentences each. Humans write paragraphs of wildly varying length.
+
+Fix: After a 4-sentence paragraph, write 2 sentences. Then 6. Then 1. Let the content dictate paragraph length, not a template.
+
+### Predictable word choice
+
+AI always selects the statistically probable next word. Human writing has higher "perplexity" — unexpected but apt word choices, creative phrasings, unusual synonyms.
+
+Fix: Replace obvious word choices with less expected alternatives. Instead of "important," use "critical," "essential," or "matters." Instead of "different," use "distinct" or "divergent." The word should still be accurate — just not the first word anyone would guess.
+
+### No contractions
+
+AI avoids contractions ("it is," "do not," "that is") because training favors formal register. Humans use contractions naturally in everything except the most formal writing.
+
+Fix: Add contractions where they sound natural. "It's," "don't," "that's," "won't," "can't." In casual text, most "it is" should be "it's."
+
+### Perfect grammar
+
+Flawless grammar is itself a tell. Humans make minor structural choices that aren't "incorrect" but wouldn't score perfectly on a grammar checker — sentence fragments for emphasis, starting sentences with "And" or "But," dangling modifiers that are perfectly clear in context.
+
+Fix: Don't deliberately introduce errors. But don't polish away every imperfection either. If a fragment sounds right, keep it.
+
+---
+
 ## Filler and hedging
 
 ### Filler phrases
@@ -302,3 +336,10 @@ Over-qualifying statements until they say nothing.
 
 Bad: "It could potentially possibly be argued that the policy might have some effect."
 Fix: "The policy may affect outcomes."
+
+### Affirmation openers
+
+Starting responses or paragraphs with "Absolutely," "Certainly," "Of course," "Yes, definitely." These are chatbot conversation artifacts.
+
+Bad: "Absolutely! This approach has several benefits..."
+Fix: State the benefits directly.

@@ -21,10 +21,13 @@ Launch **implementer** agents to execute tasks using test-driven development.
 
 ## With a Plan (Multiple Tasks)
 If the user provides or references a plan with tasks:
-1. **Validate the plan first:** Read `.devline/plan.md` and check the `**Branch:**` and `**Status:**` headers. If the branch doesn't match the current git branch or the status is `completed`, warn the user and ask whether to proceed — do not silently implement a stale plan.
+
+The plan file may be either `.devline/plan.md` (single-phase) or `.devline/plan-phase-N.md` (multi-phase, where N is the phase number). This skill accepts an optional plan file path parameter — when specified, use that path; when not specified, default to `.devline/plan.md`.
+
+1. **Validate the plan first:** Read the plan file (`.devline/plan.md` or the specified `.devline/plan-phase-N.md`) and check the `**Branch:**` and `**Status:**` headers. If the branch doesn't match the current git branch or the status is `completed`, warn the user and ask whether to proceed — do not silently implement a stale plan.
 2. Parse the tasks and their dependency graph
-3. Launch implementer agents for all tasks that can run in parallel, each with `isolation: "worktree"` to prevent race conditions between parallel agents. **Exception:** if `pwd` contains `.claude/worktrees/`, you are inside a worktree — do NOT nest worktrees. Launch implementers **sequentially without isolation** instead (they commit directly to the current branch, skip merge-back).
-4. When each worktree agent completes: **always use `git merge`** to bring changes back — NEVER `cp`/`rsync`/file copy. Merge the worktree branch (`git merge <branch> --no-edit`), confirm success, THEN clean up (`git worktree remove <path> --force && git branch -d <branch>`). Run merge and cleanup as **separate foreground commands** — never chain them with `&&` and never use `run_in_background`.
+3. **Pre-launch checklist:** Before launching agents, verify you are in the main repo root (not inside a worktree), on the correct branch, with no uncommitted changes. See `references/worktree-protocol.md` for the full checklist. Launch implementer agents for all tasks that can run in parallel, each with `isolation: "worktree"`. **Exception:** if inside a worktree, launch **one at a time without isolation** — wait for each to complete and commit before launching the next. Never run non-isolated agents in parallel.
+4. When each worktree agent completes: squash-merge with `git merge --squash <branch>`, then `git commit -m "task-N: <short description>"`. This keeps a linear history — one commit per task, no merge commits. **If conflicts:** `git merge --abort`, clean up, relaunch without isolation. **If nothing staged:** agent didn't commit in its worktree — clean up, relaunch. **After commit:** clean up (`git worktree remove <path> --force`, then `git branch -D <branch>` as separate commands — force delete needed after squash).
 5. Wait for dependent tasks to complete before launching their dependents
 6. Each implementer follows strict TDD: write tests → implement → verify
 

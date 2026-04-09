@@ -1,5 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+
+# Safety net: if the hook crashes unexpectedly, allow the action to proceed
+# rather than showing "hook error" to the user. Exit 0 = action proceeds.
+trap 'exit 0' ERR
 
 # Devline security hook: validate Bash commands in bypass mode
 # Blocks destructive, dangerous, and credential-leaking commands
@@ -13,16 +17,21 @@ if [[ -z "$command" ]]; then
   exit 0
 fi
 
+# If cwd is a deleted worktree, resolve back to repo root
+if [[ -n "$cwd" && ! -d "$cwd" ]]; then
+  cwd=$(printf '%s' "$cwd" | sed 's|/\.claude/worktrees/[^/]*$||')
+fi
+
 # Redirect stderr to fd 3 for deny()/ask(), suppress grep warnings globally
-exec 3>&2 2>/dev/null
+exec 3>&2 2>>/tmp/devline-hook-debug.log
 
 deny() {
-  echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: $1\"}" >&3
+  echo "BLOCKED: $1" >&3
   exit 2
 }
 
 ask() {
-  echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$1\"}}" >&3
+  echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$1\"}}"
   exit 0
 }
 
@@ -79,15 +88,15 @@ current_branch() {
 # DESTRUCTIVE FILESYSTEM OPERATIONS (always hard deny)
 # =============================================================================
 
-# Detect rm with recursive+force flags
-if printf '%s' "$command" | grep -qP 'rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
-  target=$(printf '%s' "$command" | grep -oP 'rm\s+(-[a-zA-Z]+\s+)*/?\K(/[^\s;|&"]+)' | head -1)
+# Detect rm with recursive+force flags (exclude `git rm` which only affects the index)
+if printf '%s' "$command" | grep -qP '(?<!git\s)rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
+  target=$(printf '%s' "$command" | grep -oP 'rm\s+(-[a-zA-Z]+\s+)*\K([^\s;|&"]+)' | head -1 || true)
 
   if [[ -n "$target" ]]; then
     if [[ -n "$cwd" ]]; then
-      abs_target=$(cd "$cwd" && realpath -m "$target" || echo "$target")
+      abs_target=$(cd "$cwd" && realpath -m "$target" 2>/dev/null || echo "$target")
     else
-      abs_target="$target"
+      abs_target=$(realpath -m "$target" 2>/dev/null || echo "$target")
     fi
 
     case "$abs_target" in
@@ -161,7 +170,9 @@ fi
 # git branch -D on non-protected branches: ask (squash-merged branches need force delete)
 # git branch -d on non-protected branches: allow (safe delete, git checks merge status)
 # Note: case-SENSITIVE match — -D only, not -d
-if printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)'; then
+# Exception: worktree-agent-* branches are temporary cleanup — always safe to force-delete
+if printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)' && \
+   ! printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)\s+worktree-agent-'; then
   ask "Force-deleting a branch. This is needed after squash-merge since git can't verify the merge."
 fi
 

@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check hook scripts are executable
+        run: |
+          failed=0
+          for f in hooks/scripts/*.sh skills/*/scripts/*.sh; do
+            [ -f "$f" ] || continue
+            if [ ! -x "$f" ]; then
+              echo "::error file=$f::Not executable"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Shellcheck
+        run: |
+          sudo apt-get install -y shellcheck
+          find hooks/scripts skills/*/scripts -name '*.sh' -print0 | xargs -0 shellcheck
+
+      - name: Validate JSON
+        run: |
+          for f in hooks/hooks.json .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+            if [ -f "$f" ]; then
+              python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::Invalid JSON"; exit 1; }
+            fi
+          done

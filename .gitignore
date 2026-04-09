@@ -1,2 +1,5 @@
 .claude/*.local.md
+CLAUDE.md
+output.txt
 __pycache__/
+.devline
