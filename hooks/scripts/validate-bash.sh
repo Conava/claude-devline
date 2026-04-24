@@ -340,12 +340,14 @@ if printf '%s' "$command" | grep -qPi '(curl|wget)\s.*\|\s*(ba|z|fi)?sh'; then
 fi
 
 # shellcheck disable=SC2016
-if printf '%s' "$command" | grep -qPi '(echo|printf|cat)\s.*\$(.*_(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE).*)'; then
+# Note: TOKEN(?!S\b) excludes plural TOKENS (e.g. MAX_OUTPUT_TOKENS — an LLM
+# token count, not a credential). Singular TOKEN still matches (GITHUB_TOKEN).
+if printf '%s' "$command" | grep -qPi '(echo|printf|cat)\s.*\$(.*_(KEY|SECRET|TOKEN(?!S\b)|PASSWORD|CREDENTIAL|PRIVATE).*)'; then
   deny "Printing environment variables that may contain secrets."
 fi
 
 # shellcheck disable=SC2016
-if printf '%s' "$command" | grep -qPi 'curl\s.*(-d|--data).*\$(.*_(KEY|SECRET|TOKEN|PASSWORD).*)'; then
+if printf '%s' "$command" | grep -qPi 'curl\s.*(-d|--data).*\$(.*_(KEY|SECRET|TOKEN(?!S\b)|PASSWORD).*)'; then
   deny "Sending secrets to external URL detected."
 fi
 
