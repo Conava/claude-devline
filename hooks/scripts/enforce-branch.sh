@@ -117,5 +117,5 @@ fi
 
 branch_hint="git checkout -b <branch>. Format: $branch_format. Kinds: $branch_kinds."
 
-echo "{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: Cannot edit source code on protected branch '$current_branch'. Create a feature branch first. $branch_hint $commit_hint\"}" >&2
+echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\"},\"systemMessage\":\"BLOCKED: Cannot edit source code on protected branch '$current_branch'. Create a feature branch first. $branch_hint $commit_hint\"}" >&2
 exit 2
