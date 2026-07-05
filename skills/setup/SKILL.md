@@ -13,7 +13,7 @@ Set up the devline pipeline for a project. Two files are created:
 2. **`.claude/devline.local.md`** — pipeline settings (only non-default values)
 
 Assets:
-- **[assets/claude-md-template.md](assets/claude-md-template.md)** — CLAUDE.md template with 6 sections (header, workflow orchestration, core principles, learning & recovery, project context, lessons placeholder)
+- **[assets/claude-md-template.md](assets/claude-md-template.md)** — CLAUDE.md template with 4 sections (header, workflow orchestration, core principles, project context)
 - **[assets/devline-local-template.md](assets/devline-local-template.md)** — All available pipeline settings organized in 4 batches with defaults
 
 ## Process
@@ -65,28 +65,31 @@ After all batches, collect only the non-default settings. If no settings were ch
 
 If there are non-default settings, assemble the file using the output format from the template. Show the preview using **AskUserQuestion** and write only after confirmation. Create `.claude/` directory if needed.
 
-### 3. RTK (optional)
+### 3. Recommended additions (optional)
 
-Check if `rtk` is installed by running `which rtk`.
+Three optional companions make devline leaner and more capable. Offer all three — the user can accept any subset. For each: check if it's already present (note it and skip if so), otherwise briefly explain it and ask whether to install. If a step fails, show the error and point to the tool's repo for manual install.
 
-- **Installed** → inform the user RTK is already installed, skip this step.
-- **Not installed** → explain:
+**RTK (Rust Token Killer)** — a CLI proxy that cuts token use 60-90% on common commands (git, ls, grep, test runners, builds) by filtering noise before it reaches context. devline runs many parallel agents issuing Bash commands, so the savings compound.
+- Check: `which rtk`.
+- If accepted:
+  1. `curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh`
+  2. `rtk init -g` — registers the auto-rewrite hook in `~/.claude/settings.json`
+  3. Verify: `rtk --version`
 
-```
-RTK (Rust Token Killer) is a CLI proxy that reduces token consumption by 60-90% on common commands (git, ls, grep, test runners, build tools). It works by filtering noise, grouping similar output, and truncating redundancy before it reaches your context window.
+**Basic Memory** — local-first, per-project memory stored as plain Markdown you commit to the repo, retrieved on demand so it never bloats context. Gives agents persistent, cross-session recall of project decisions and corrections. Works in any Claude Code session, not just devline.
+- Check: `which basic-memory`.
+- If accepted:
+  1. `uv tool install basic-memory`
+  2. `claude mcp add basic-memory -- uvx basic-memory mcp`
+  3. Optionally add its official Claude Code plugin for session-start recall + the `memory-defrag`/`memory-reflect` consolidation skills.
 
-Since devline runs many agents in parallel — all issuing Bash commands — RTK can significantly reduce costs.
-
-Would you like to install RTK? (It adds an auto-rewrite hook so all Bash commands are transparently optimized.)
-```
-
-If the user declines, skip. If they accept:
-
-1. Run `curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh`
-2. Run `rtk init -g` to register the auto-rewrite hook in `~/.claude/settings.json`
-3. Verify with `rtk --version`
-
-If any step fails, show the error and point the user to https://github.com/rtk-ai/rtk for manual installation.
+**Ponytail** — a separate Claude Code plugin that keeps generated code minimal (YAGNI, stdlib-first, shortest working diff). It composes with devline: devline enforces the process, ponytail keeps the code lean.
+- Check: whether the ponytail plugin is already enabled (look in `~/.claude/plugins` or the user's enabled plugins).
+- If accepted: it's a plugin, so have the **user** run these interactive commands (this skill can't invoke `/plugin` itself):
+  ```
+  /plugin marketplace add DietrichGebert/ponytail
+  /plugin install ponytail@ponytail
+  ```
 
 ### 4. Closing Instructions
 

@@ -24,7 +24,7 @@ Before launching ANY agent with `isolation: "worktree"`, run these checks in ord
 
 ## Launching Agents in Worktrees
 
-All implementer and devops agents use `isolation: "worktree"` for parallel safety. The worktree is automatically created from the current branch HEAD by the Agent tool — there is no manual branch specification needed. **If the pre-launch checklist passes (correct CWD, correct branch, clean state), the worktree will have the correct base.**
+All implementer agents use `isolation: "worktree"` for parallel safety. The worktree is automatically created from the current branch HEAD by the Agent tool — there is no manual branch specification needed. **If the pre-launch checklist passes (correct CWD, correct branch, clean state), the worktree will have the correct base.**
 
 ```
 Agent(subagent_type="devline:implementer", isolation="worktree", run_in_background=true, ...)

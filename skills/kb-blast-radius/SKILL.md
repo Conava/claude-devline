@@ -1,6 +1,6 @@
 ---
 name: kb-blast-radius
-description: Grep-based reverse dependency analysis — injected into planner, reviewer, and deep-review agents. Computes which files are affected by changes to a set of seed files. Not invoked directly.
+description: Grep-based reverse dependency analysis — injected into the planner and reviewer agents. Computes which files are affected by changes to a set of seed files. Not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -13,7 +13,7 @@ Lightweight, zero-dependency reverse dependency analysis using grep-based import
 
 - **Planner:** Before task decomposition — identify coupled files so tasks have correct boundaries and file ownership.
 - **Reviewer:** After implementation — verify the implementer considered all dependents of changed files.
-- **Deep-review:** During cross-task integration sweep — structurally validate that all dependents were covered across the full changeset.
+- **Reviewer (scope: branch):** During the cross-task integration sweep — structurally validate that all dependents were covered across the full changeset.
 
 ## How It Works
 
@@ -39,7 +39,7 @@ bash ${CLAUDE_SKILL_DIR}/scripts/blast-radius.sh \
   --target src/auth/token.ts src/auth/session.ts
 ```
 
-### Post-implementation (reviewer, deep-review)
+### Post-implementation (reviewer)
 
 Analyze actual changes against a base ref:
 
@@ -96,7 +96,7 @@ Use blast radius to verify implementation completeness:
 3. If a direct dependent wasn't touched and isn't in the task's scope, flag it — the implementer may have missed a required update
 4. Verify associated test files were run or updated
 
-## For Deep-Review
+## For Reviewer (scope: branch)
 
 Use blast radius for the cross-task integration sweep:
 

@@ -1,5 +1,59 @@
 # Frontend Planner — Output Templates
 
+Fill these skeletons and write them to the paths shown. Four tables recur across skeletons — they are defined ONCE here as **canonical**; each skeleton names the subset/delta it uses instead of repeating them.
+
+## Canonical Tables
+
+### Semantic Color Palette (16 roles)
+| Role | Light | Dark | Usage |
+|------|-------|------|-------|
+| Primary | #xxx | #xxx | Interactive elements, CTAs, links |
+| On Primary | #xxx | #xxx | Text/icons on primary |
+| Secondary | #xxx | #xxx | Supporting elements |
+| On Secondary | #xxx | #xxx | Text/icons on secondary |
+| Accent | #xxx | #xxx | Highlights, badges, notifications |
+| On Accent | #xxx | #xxx | Text/icons on accent |
+| Background | #xxx | #xxx | Page background |
+| Foreground | #xxx | #xxx | Default text |
+| Card | #xxx | #xxx | Card/panel surfaces |
+| Card Foreground | #xxx | #xxx | Text on cards |
+| Muted | #xxx | #xxx | Disabled, secondary surfaces |
+| Muted Foreground | #xxx | #xxx | Secondary/placeholder text |
+| Border | #xxx | #xxx | Borders, dividers |
+| Destructive | #xxx | #xxx | Error, danger |
+| On Destructive | #xxx | #xxx | Text on destructive |
+| Ring | #xxx | #xxx | Focus rings |
+
+Deltas: **Brand identity** adds two rows — Success and Warning (Light/Dark/Usage). A **color-theme** spec uses a 12-role subset (Primary, On Primary, Secondary, On Secondary, Accent, Background, Foreground, Card, Muted, Border, Destructive, Ring). A **component** spec uses only the component-scoped tokens it needs (see Component Spec). The **design-system** doc lists these roles single-mode as `| Role | Hex | Usage |`.
+
+### States & Variants
+| State | Background | Border | Text | Shadow | Transform |
+|-------|-----------|--------|------|--------|-----------|
+| Default | ... | ... | ... | ... | — |
+| Hover | ... | ... | ... | ... | translateY(-1px) |
+| Active | ... | ... | ... | ... | translateY(0) |
+| Focus | ... | ... | ... | ring | — |
+| Disabled | ... | ... | ... | none | — |
+
+### Motion & Animation
+| Pattern | Duration | Easing | Usage |
+|---------|----------|--------|-------|
+| Hover lift | 200ms | ease-out | Cards, buttons |
+| Press | 150ms | ease-in | Active state |
+| Fade in | 200ms | ease-out | Appearing elements |
+| Slide in | 300ms | ease-out | Panels, drawers |
+| Stagger | 50ms per item | ease-out | Lists, grids |
+
+**Reduced motion:** all animations collapse to opacity-only or instant transitions.
+
+### Contrast Verification
+| Pair | Light Ratio | Dark Ratio | WCAG AA | WCAG AAA |
+|------|------------|------------|---------|----------|
+| Foreground / Background | X:1 | X:1 | PASS/FAIL | PASS/FAIL |
+| On Primary / Primary | X:1 | X:1 | PASS/FAIL | PASS/FAIL |
+
+---
+
 ## Component Spec (`.devline/component-spec.md`)
 
 ```markdown
@@ -9,7 +63,7 @@
 **Generated:** [date]
 
 ## Color Tokens
-[ONLY the tokens this component needs]
+[ONLY the component-scoped tokens this component needs — not the full palette]
 
 | Token | Light | Dark | Usage |
 |-------|-------|------|-------|
@@ -21,35 +75,22 @@
 | --component-focus-ring | #xxx | #xxx | Focus ring |
 
 ## Typography
-[Only if relevant]
-- Font: [name] — [why it fits]
-- Size: [value] | Weight: [value] | Line-height: [value]
+[Only if relevant] Font: [name] — [why] | Size / Weight / Line-height: [values]
 
 ## States & Variants
-| State | Background | Border | Text | Shadow | Transform |
-|-------|-----------|--------|------|--------|-----------|
-| Default | ... | ... | ... | ... | — |
-| Hover | ... | ... | ... | ... | translateY(-1px) |
-| Active | ... | ... | ... | ... | translateY(0) |
-| Focus | ... | ... | ... | ring | — |
-| Disabled | ... | ... | ... | none | — |
+Canonical States & Variants table (above).
 
 ## Animation
-- **Interaction**: [specific animation with timing]
-- **Library**: [CSS only / Motion / etc.]
-- **Reduced motion**: [fallback behavior]
+Canonical Motion & Animation table (above) — list only the patterns this component uses. Library: [CSS only / Motion / etc.]. Reduced motion: [fallback].
 
 ## CSS Implementation
-[Complete CSS with all states, using tokens above]
+[Complete CSS with all states, using the tokens above]
 
 ## Accessibility
-- Touch target: [size]
-- Focus indicator: [description]
-- ARIA: [required attributes]
-- Contrast: [ratio for each text/bg pair]
+- Touch target: [size] | Focus indicator: [description] | ARIA: [attributes] | Contrast: [ratio per text/bg pair]
 
 ## Preview
-Open `.devline/component-preview.html` to see the component in context.
+Open `.devline/component-preview.html`.
 ```
 
 ## Color Theme Spec (alternative component-spec format)
@@ -61,38 +102,21 @@ Open `.devline/component-preview.html` to see the component in context.
 **Generated:** [date]
 
 ## Palette
-
-| Role | Light Mode | Dark Mode | Usage |
-|------|-----------|-----------|-------|
-| Primary | #xxx | #xxx | Interactive elements, CTAs |
-| On Primary | #xxx | #xxx | Text/icons on primary |
-| Secondary | #xxx | #xxx | Supporting elements |
-| On Secondary | #xxx | #xxx | Text/icons on secondary |
-| Accent | #xxx | #xxx | Highlights, badges |
-| Background | #xxx | #xxx | Page background |
-| Foreground | #xxx | #xxx | Default text |
-| Card | #xxx | #xxx | Card surfaces |
-| Muted | #xxx | #xxx | Disabled, secondary surfaces |
-| Border | #xxx | #xxx | Borders, dividers |
-| Destructive | #xxx | #xxx | Error, danger |
-| Ring | #xxx | #xxx | Focus rings |
+Canonical Semantic Color Palette (above), 12-role subset.
 
 ## Contrast Verification
-| Pair | Ratio | WCAG AA | WCAG AAA |
-|------|-------|---------|----------|
-| Foreground on Background | X:1 | PASS/FAIL | PASS/FAIL |
-| On Primary on Primary | X:1 | PASS/FAIL | PASS/FAIL |
+Canonical Contrast Verification table (above).
 
 ## CSS Variables
-```css
+​```css
 :root { /* Light */ }
 .dark { /* Dark */ }
-```
+​```
 
 ## Tailwind Config
-```js
+​```js
 [Tailwind theme extension]
-```
+​```
 ```
 
 ## Harmonized Component Spec (`.devline/component-spec.md`)
@@ -119,13 +143,13 @@ Open `.devline/component-preview.html` to see the component in context.
 [ONLY if the component requires something not in the project's theme — ideally empty]
 
 ### States & Animation
-[Using the project's existing transition timing and patterns]
+Canonical States & Variants + Motion & Animation tables (above), using the project's existing transition timing and patterns.
 
 ### CSS / Component Code
 [Uses existing project tokens exclusively]
 
 ## Preview
-Open `.devline/harmonize-preview.html`
+Open `.devline/harmonize-preview.html`.
 ```
 
 ## Extension Spec (appended to `.devline/design-system.md`)
@@ -141,10 +165,10 @@ Open `.devline/harmonize-preview.html`
 | Token | Value | Usage |
 
 ### Component Spec
-[States, variants, CSS — using existing tokens where possible]
+States/variants and CSS — canonical States & Variants table (above), using existing tokens where possible.
 
 ### Animation
-[New animation if needed, or reference to existing]
+Canonical Motion & Animation table (above) — new pattern if needed, else reference an existing one.
 
 ### Integration Notes
 [How this connects to existing components]
@@ -155,62 +179,37 @@ Open `.devline/harmonize-preview.html`
 ```markdown
 # Brand Identity: [Project Name]
 
-**Created:** [date]
-**Last Updated:** [date]
-**Product Type:** [category]
-**Platform:** [web/mobile/desktop] — [framework]
+**Created:** [date] | **Last Updated:** [date]
+**Product Type:** [category] | **Platform:** [web/mobile/desktop] — [framework]
 
 ## Brand Personality
 [2-3 sentences]
 
 ## Style Direction
-**Primary Style:** [style name] — [rationale]
-**Secondary Style:** [complement/contrast]
+**Primary Style:** [name] — [rationale] | **Secondary Style:** [complement/contrast]
 
 ## Color System
-
 ### Semantic Tokens
-| Role | Light Mode | Dark Mode | Usage |
-|------|-----------|-----------|-------|
-| Primary | #xxx | #xxx | Interactive elements, CTAs, links |
-| On Primary | #xxx | #xxx | Text/icons on primary |
-| Secondary | #xxx | #xxx | Supporting elements |
-| On Secondary | #xxx | #xxx | Text/icons on secondary |
-| Accent | #xxx | #xxx | Highlights, badges, notifications |
-| On Accent | #xxx | #xxx | Text/icons on accent |
-| Background | #xxx | #xxx | Page background |
-| Foreground | #xxx | #xxx | Default text |
-| Card | #xxx | #xxx | Card/panel surfaces |
-| Card Foreground | #xxx | #xxx | Text on cards |
-| Muted | #xxx | #xxx | Disabled, secondary surfaces |
-| Muted Foreground | #xxx | #xxx | Secondary/placeholder text |
-| Border | #xxx | #xxx | Borders, dividers |
-| Destructive | #xxx | #xxx | Error, danger |
-| On Destructive | #xxx | #xxx | Text on destructive |
-| Ring | #xxx | #xxx | Focus rings |
+Canonical Semantic Color Palette (above), all 16 roles, PLUS two brand rows:
 | Success | #xxx | #xxx | Success states |
 | Warning | #xxx | #xxx | Warning states |
 
 ### Contrast Verification
-| Pair | Light Ratio | Dark Ratio | WCAG AA |
-|------|------------|------------|---------|
-| Foreground / Background | X:1 | X:1 | PASS |
+Canonical Contrast Verification table (above).
 
 ### CSS Variables
-```css
+​```css
 :root { --primary: [hsl]; /* ... */ }
 .dark { --primary: [hsl]; /* ... */ }
-```
+​```
 
 ### Tailwind Config
-```js
+​```js
 colors: { primary: 'hsl(var(--primary))', /* ... */ }
-```
+​```
 
 ## Typography
-**Heading Font:** [name] — [mood, weight range]
-**Body Font:** [name] — [mood, weight range]
-**Mono Font:** [name] — [for code/data]
+**Heading / Body / Mono Font:** [name] — [mood, weight range] each
 
 ### Type Scale
 | Level | Size | Weight | Line Height | Letter Spacing | Usage |
@@ -225,9 +224,9 @@ colors: { primary: 'hsl(var(--primary))', /* ... */ }
 | Tiny | 0.75rem | 500 | 1.4 | 0.02em | Badges, overlines |
 
 ### Google Fonts Import
-```css
+​```css
 @import url('[url]');
-```
+​```
 
 ## Spacing System
 | Token | Value | Usage |
@@ -257,27 +256,14 @@ colors: { primary: 'hsl(var(--primary))', /* ... */ }
 | --shadow-lg | [value] | Modals, floating elements |
 
 ## Motion & Animation
-**Library:** [CSS only / Motion / GSAP]
-**Base timing:** [e.g., 200ms ease-out]
-
-| Pattern | Duration | Easing | Usage |
-|---------|----------|--------|-------|
-| Hover lift | 200ms | ease-out | Cards, buttons |
-| Press | 150ms | ease-in | Active state |
-| Fade in | 200ms | ease-out | Appearing elements |
-| Slide in | 300ms | ease-out | Panels, drawers |
-| Stagger | 50ms per item | ease-out | Lists, grids |
-
-**Reduced motion:** All animations collapse to opacity-only or instant transitions.
+**Library:** [CSS only / Motion / GSAP] | **Base timing:** [e.g., 200ms ease-out]
+Canonical Motion & Animation table (above).
 
 ## Anti-Patterns
 [Product-specific anti-patterns from reasoning rules]
 
 ## Component Index
-- [Button](components/button.md)
-- [Card](components/card.md)
-- [Input](components/input.md)
-- [Badge](components/badge.md)
+- [Button](components/button.md) · [Card](components/card.md) · [Input](components/input.md) · [Badge](components/badge.md)
 ```
 
 ## Brand Component Spec (`design-system/components/[name].md`)
@@ -292,10 +278,7 @@ colors: { primary: 'hsl(var(--primary))', /* ... */ }
 [List all variants with token mappings]
 
 ## States
-| State | Background | Border | Text | Shadow | Transform |
-|-------|-----------|--------|------|--------|-----------|
-| Default | var(--primary) | — | var(--on-primary) | var(--shadow-sm) | — |
-| Hover | [derived] | — | var(--on-primary) | var(--shadow-md) | translateY(-1px) |
+Canonical States & Variants table (above), with cells referencing BRAND.md tokens (e.g. Default bg = var(--primary), text = var(--on-primary), shadow = var(--shadow-sm)).
 
 ## Sizes
 | Size | Padding | Font Size | Min Height | Icon Size |
@@ -316,29 +299,18 @@ colors: { primary: 'hsl(var(--primary))', /* ... */ }
 ```markdown
 # Design System — [Feature Name]
 
-**Product Type:** [matched category]
-**Platform:** [web/mobile/desktop] — [framework]
+**Product Type:** [matched category] | **Platform:** [web/mobile/desktop] — [framework]
 **Generated:** [date]
 
 ## Style Direction
-**Primary Style:** [style name] — [why it fits]
-**Secondary Style:** [style name] — [complement/contrast]
-**Layout Pattern:** [recommended pattern]
+**Primary Style:** [name] — [why] | **Secondary Style:** [complement] | **Layout Pattern:** [recommended]
 
 ## Color Palette
-| Role | Hex | Usage |
-|------|-----|-------|
-| Primary | #XXXXXX | [usage] |
-| On Primary | #XXXXXX | Text/icons on primary |
-| [... full 16-role palette ...] |
-
-**Color Mood:** [from reasoning rules]
-**Notes:** [contrast, WCAG compliance]
+Canonical Semantic Color Palette (above), 16 roles, single-mode: `| Role | Hex | Usage |`.
+**Color Mood:** [from reasoning rules] | **Notes:** [contrast, WCAG compliance]
 
 ## Typography
-**Heading Font:** [name] — **Body Font:** [name]
-**Google Fonts Import:** `@import url('[url]');`
-**Tailwind Config:** [font config]
+**Heading / Body Font:** [names] | **Google Fonts Import:** `@import url('[url]');` | **Tailwind Config:** [font config]
 
 ## Key Effects
 [Animation and transition recommendations]

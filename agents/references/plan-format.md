@@ -33,7 +33,7 @@ Rules enforced by the orchestrator:
 ## Tasks
 
 ### Task 1: [Name]
-**Agent:** [implementer / devops / debugger]
+**Agent:** [implementer / debugger]
 **Model:** [sonnet (default) / opus — use opus for tasks requiring complex architectural reasoning, large refactors, or tricky logic]
 **UI:** [yes / no]
 **Files owned:** [exact list of files this task creates/modifies]
@@ -70,7 +70,7 @@ For UI tasks, additionally specify:
 
 ## Feature E2E Task
 
-The final wave MUST include a dedicated E2E test task. This task writes no implementation code — only end-to-end tests that verify the feature works as a whole, including interactions with pre-existing code.
+The final wave SHOULD include a dedicated E2E task ONLY for features with a genuine multi-step cross-boundary journey; skip it for single-component changes, pure-logic changes, and bugfixes (per-task integration tests already cover that surface). When included, this task writes no implementation code — only end-to-end tests that verify the feature works as a whole, including interactions with pre-existing code.
 
 ### Task N: Feature E2E Tests
 **Agent:** implementer
