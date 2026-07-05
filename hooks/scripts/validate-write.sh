@@ -2,8 +2,10 @@
 set -eo pipefail
 trap 'exit 0' ERR
 
-# Devline security hook: validate Write/Edit operations in bypass mode
-# Blocks writing credentials, secrets, and sensitive content to files
+# Devline security hook: scan Write/Edit content for hardcoded secrets.
+# Path-based blocks (system files, shell profiles, ssh config, .env writes)
+# were removed on the scrub branch — those blocked legitimate dotfile/.env
+# edits. This scans file CONTENT for credentials only.
 
 input=$(cat)
 file_path=$(printf '%s\n' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
@@ -19,26 +21,7 @@ if printf '%s\n' "$file_path" | grep -qEi '(/test/|/tests/|/__tests__/|\.test\.|
   is_test_file=true
 fi
 
-# --- Block writing to sensitive system files ---
-
-if printf '%s\n' "$file_path" | grep -qEi '^/(etc|sys|proc|boot|usr/sbin)/'; then
-  echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"},"systemMessage":"BLOCKED: Writing to system paths is not allowed in bypass mode."}' >&2
-  exit 2
-fi
-
-# Block overwriting shell profiles
-if printf '%s\n' "$file_path" | grep -qEi '(\.bashrc|\.zshrc|\.profile|\.bash_profile|\.zprofile)$'; then
-  echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"},"systemMessage":"BLOCKED: Modifying shell profiles is not allowed in bypass mode."}' >&2
-  exit 2
-fi
-
-# Block writing to SSH config
-if printf '%s\n' "$file_path" | grep -qEi '\.ssh/(config|authorized_keys|known_hosts|id_)'; then
-  echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"},"systemMessage":"BLOCKED: Modifying SSH configuration is not allowed in bypass mode."}' >&2
-  exit 2
-fi
-
-# --- Block writing hardcoded secrets ---
+# --- Block writing hardcoded secrets into source ---
 
 if [[ -n "$content" && "$is_test_file" != "true" ]]; then
   # Detect AWS access keys (AKIA pattern)
@@ -77,15 +60,6 @@ if [[ -n "$content" && "$is_test_file" != "true" ]]; then
   # Detect JWT tokens
   if printf '%s\n' "$content" | grep -qE 'eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+'; then
     echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"},"systemMessage":"BLOCKED: JWT token detected in file content. Do not hardcode tokens."}' >&2
-    exit 2
-  fi
-fi
-
-# --- Block writing to .env files (should use .env.example instead) ---
-
-if printf '%s\n' "$file_path" | grep -qE '\.env$' && ! printf '%s\n' "$file_path" | grep -qE '\.env\.(example|template|sample)$'; then
-  if [[ -n "$content" ]] && printf '%s\n' "$content" | grep -qEi '(KEY|SECRET|TOKEN|PASSWORD)\s*=\s*[^\s$]'; then
-    echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"},"systemMessage":"BLOCKED: Writing secrets to .env file. Use .env.example with placeholder values instead."}' >&2
     exit 2
   fi
 fi
