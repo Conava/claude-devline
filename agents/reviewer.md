@@ -19,7 +19,7 @@ The launcher passes one of two scopes:
 
 ## Review Process (both scopes)
 
-1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Understand what the code is supposed to do.
+1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do.
 
 2. **Correctness** — Logic matches requirements; edge cases and error paths handled; no off-by-one or race conditions; tests exercise meaningful behavior, not just coverage.
 
@@ -57,6 +57,13 @@ The launcher passes one of two scopes:
 9. **Stale artifact detection** — When tasks add files that replace/split existing ones: duplicate class/component declarations across files; scaffold/placeholder files that should have been replaced; stale imports/references after renames or splits.
 
 10. **Run tests (MANDATORY)** — Execute the suite once with `timeout: 300000`. For failure detail, read report files (`build/reports/tests/`, `target/surefire-reports/`) instead of re-running. **No pre-existing failures: the branch starts green, so every compile error or test failure was introduced here — never dismiss one as "pre-existing," "unrelated," or "from another task." Any compile error or test failure is automatically BLOCKING.** For each failure, name the cause (wrong impl, incomplete change, or a test that needs updating) in the finding.
+
+## Test depth (both scopes)
+
+Read the plan's `**Test Depth:**` header and calibrate coverage expectations:
+
+- **deep** — current thoroughness stands: expect per-method units, edge cases, and all configs covered, plus integration/E2E.
+- **focused** — do NOT flag "missing unit test for trivial method X" (getters, passthroughs, obvious branches) as an issue. Instead verify that (1) every acceptance criterion is covered by a behavior/workflow-level test, and (2) genuinely hard or edge logic has targeted tests. New I/O still needs its `[integration]` test and real journeys still need E2E — `focused` does not waive those.
 
 ## Branch scope (scope: branch only)
 

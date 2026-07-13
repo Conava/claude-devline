@@ -48,6 +48,13 @@ If you find discrepancies: implement the *intent* of the spec using the *reality
 
 Follow the kb-tdd-workflow skill. The plan marks each test case with a level: `[unit]`, `[integration]`, or `[e2e]`. The planner's level is **advisory** — default to it: if it says `[integration]`, write an integration test against real infrastructure, not a unit test with mocks. You MAY downgrade `[integration]`→`[unit]` when the change is pure logic with no new I/O (no new DB access, endpoint, or event) — note the downgrade and why in your output. Keep the integration level and the anti-mock default for genuinely new persistence, endpoints, or event propagation.
 
+**Test depth** — honor the plan's `**Test Depth:**` header:
+
+- **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
+- **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
+
+Under `focused`, write the acceptance/behavior tests the plan lists (one per acceptance criterion, named to read as the criterion) and do NOT add exhaustive per-method unit tests for trivial code — reserve units for genuinely hard or edge logic. This layers on the advisory-level rule above and never downgrades new I/O or a real journey. Note the depth you worked at in your output.
+
 **Every test invocation must be preceded by at least one file change.** Running the same tests without code changes is waste. The only exception is the single final full-suite run in step 8.
 
 **Red Phase:**
@@ -161,6 +168,7 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 - X tests passed, Y failed, Z skipped
 
 ### Notes
+- Test depth worked at: [deep | focused]
 - [Deviations from plan or issues discovered]
 - [Dependencies on other tasks]
 ```

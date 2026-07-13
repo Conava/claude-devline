@@ -47,6 +47,7 @@ test_framework: auto-detect       — Override: "vitest", "jest", "pytest", etc.
 frontend_framework: auto-detect   — Override: "react", "vue", "svelte", etc.
 doc_format: auto-detect           — Override: "markdown", "asciidoc", etc.
 cloud_provider: auto-detect       — Override: "aws", "gcp", "azure", etc.
+test_depth: auto                  — auto = infer & ask if unclear | deep = exhaustive (every method/config) | focused = big workflow/class tests + hard logic, skip trivial-method units
 ```
 
 ---

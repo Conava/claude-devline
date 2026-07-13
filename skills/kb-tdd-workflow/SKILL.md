@@ -44,6 +44,21 @@ Choose the test level based on **what the code does**, not on convention or habi
 
 E2E tests are defined at the **feature level** by the planner (see Feature-Goal Tests in the plan), not per-task. Include a dedicated final-wave E2E task ONLY for features with a genuine multi-step cross-boundary journey; skip it for single-component changes, pure-logic changes, and bugfixes (per-task integration tests already cover that surface). When present, it runs after all implementation is merged.
 
+## Test Depth
+
+A per-feature dial (from `.claude/devline.local.md` `test_depth`, or inferred during brainstorm). Two levels:
+
+- **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
+- **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
+
+### Acceptance criteria as tests
+
+The brainstorm defines behavioral **acceptance criteria**. Each criterion becomes ONE behavior/workflow-level test, named to read as the criterion — the test name IS the spec sentence. There are no durable spec docs; the committed tests ARE the living spec.
+
+Under `focused`, these acceptance tests are the **primary suite**: do NOT write a unit test per method for trivial code — only for genuinely hard or edge logic. Under `deep`, the acceptance tests sit on top of the exhaustive per-method units.
+
+`focused` changes nothing about level selection: per-test `[unit]`/`[integration]`/`[e2e]` tagging stays, NEW I/O (persistence, endpoints, events) is still `[integration]` by default, the E2E task stays **SHOULD** (only for genuine cross-boundary journeys), and the integration size-gate — a targeted unit test suffices when modifying existing integration-tested code without changing its schema/contract — still applies. `focused` only drops the redundant per-method units for trivial code; it never downgrades a real journey or a new I/O surface.
+
 ## What NOT to Test
 
 These produce noise without catching bugs. Delete them if they exist; don't write new ones.

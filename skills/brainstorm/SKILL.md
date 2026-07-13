@@ -61,7 +61,21 @@ Before writing the document, evaluate whether the feature warrants splitting int
 - Omit the `## Phases` section entirely — the brainstorm.md format is identical to today's output
 - This is the backward-compatible path; most features will take this path
 
-### 4. Write Brainstorm Document
+### 4. Establish Test Depth
+
+Decide how thorough the feature's tests should be — `deep` or `focused` — in this order:
+
+1. **Config wins silently.** If `.claude/devline.local.md` sets `test_depth` to `deep` or `focused`, use it and say nothing.
+2. **Infer from signals.** Otherwise read the repo's existing test style AND the user's prompt:
+   - Repo: dense per-method unit tests on trivial code → lean `deep`; sparse, or integration/behavior-heavy → lean `focused`.
+   - Prompt: "production-grade", "thorough", "exhaustive" → `deep`; "quick", "prototype", "just wire it up" → `focused`.
+3. **Ask only if still ambiguous.** One AskUserQuestion:
+   - question: "How thorough should tests be for this?"
+   - options: `Deep — every method & config` / `Focused — big workflow/class tests + hard logic, skip trivial-method tests`
+
+Record the chosen depth in the brainstorm output.
+
+### 5. Write Brainstorm Document
 
 After receiving answers (or immediately if the idea is clear enough), write `.devline/brainstorm.md`:
 
@@ -92,6 +106,12 @@ After receiving answers (or immediately if the idea is clear enough), write `.de
 ### Out of Scope
 [Explicitly excluded items someone might assume are included]
 
+## Acceptance Criteria
+[Short list of behavioral, testable statements — "user can X", "invalid Y is rejected with Z". These are the spec: downstream, each one becomes a behavior test named to read as the criterion.]
+
+## Test Depth
+[deep | focused — the value chosen in step 4, plus a one-line reason (config / inferred signal / user answer).]
+
 ## Key Decisions
 [Decisions made during brainstorming, including user choices and stated assumptions]
 
@@ -108,7 +128,7 @@ After receiving answers (or immediately if the idea is clear enough), write `.de
 [Architectural or design questions too deep for brainstorm. Leave empty if none.]
 ```
 
-### 5. Confirm
+### 6. Confirm
 
 Use AskUserQuestion:
 ```json

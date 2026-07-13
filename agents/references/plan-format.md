@@ -7,6 +7,7 @@
 **Created:** [ISO 8601 date]
 **Status:** active
 **Phase:** [N of M — or "single" for non-phased plans]
+**Test Depth:** [deep | focused — carried from the brainstorm]
 
 ## Architecture Overview
 [High-level design: components, data flow, key abstractions. Component diagram if helpful.]
@@ -15,6 +16,19 @@
 | Decision | Choice | Rationale | Alternatives Considered |
 |----------|--------|-----------|------------------------|
 | ... | ... | ... | ... |
+
+## Test Depth
+
+Carried from the brainstorm; drives how test cases are generated per task. Two levels:
+
+- **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
+- **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
+
+Generate each task's Test Cases per depth:
+- **deep** — per-method units + edge cases + integration + E2E.
+- **focused** — one test per acceptance criterion (workflow/class level) + units only for genuinely hard logic.
+
+The acceptance criteria from `.devline/brainstorm.md` map **1:1** to the feature/acceptance tests: each criterion becomes exactly one behavior/workflow-level test, named to read as the criterion. The final wave SHOULD still include an E2E task for real journeys (see Feature E2E Task); per-test `[unit]`/`[integration]`/`[e2e]` tagging and the integration size-gate are unchanged under either depth.
 
 ## Dependency Graph
 
