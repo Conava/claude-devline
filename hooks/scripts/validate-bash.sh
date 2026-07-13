@@ -83,12 +83,22 @@ if printf '%s' "$command" | grep -qPi '(mkfs|fdisk|dd\s+.*of=/dev)'; then
 fi
 
 # =============================================================================
-# GIT — IRREVERSIBLE REMOTE HISTORY
+# GIT — IRREVERSIBLE HISTORY / WORKING-COPY LOSS
 # =============================================================================
 
 # Force push (--force, -f, --force-with-lease)
 if printf '%s' "$command" | grep -qPi 'git\s+push\s+.*(--force|--force-with-lease|\s-f(\s|$))'; then
   deny "Force push not allowed. Use normal push."
+fi
+
+# Hard reset — discards uncommitted work irreversibly
+if printf '%s' "$command" | grep -qPi 'git\s+reset\s+.*--hard'; then
+  deny "git reset --hard discards uncommitted work. Stash or commit first, or run it manually."
+fi
+
+# git clean with a force flag — deletes untracked files irreversibly
+if printf '%s' "$command" | grep -qPi 'git\s+clean\s+.*(--force|-\w*f)'; then
+  deny "git clean -f permanently deletes untracked files. Review with 'git clean -n' first, or run it manually."
 fi
 
 # =============================================================================
