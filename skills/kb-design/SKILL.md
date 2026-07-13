@@ -216,6 +216,21 @@ cd "${CLAUDE_SKILL_DIR}/scripts" && python3 search.py "<query>" --domain <domain
 cd "${CLAUDE_SKILL_DIR}/scripts" && python3 design_system.py "<context>" --format markdown
 ```
 
+### Live Design System Persistence (`docs/design-system/`)
+
+One corrections-aware design system per repo, rooted at `docs/design-system/`:
+`MASTER.md` (global source of truth) + `pages/<page>.md` (per-page overrides that take precedence over MASTER).
+
+```bash
+# Write / regenerate the live system (preserves the Corrections & Decisions log):
+cd "${CLAUDE_SKILL_DIR}/scripts" && python3 search.py "<context>" --design-system --persist --output-dir docs [--page <page>]
+```
+
+Flow:
+- **Read-first:** always read `docs/design-system/MASTER.md` (and `pages/<page>.md` when working a page) before designing, and stay within it — including its `## Corrections & Decisions` log.
+- **Persist on generate:** run the command above when establishing or changing the shared system.
+- **Persist on correction:** when a design is corrected or a choice fails, append a dated bullet to `## Corrections & Decisions` (MASTER for global, `pages/<page>.md` for page-specific) and update the affected spec. The log is append-only and survives regeneration.
+
 ### Data Files (BM25-searchable via scripts/)
 
 - **`data/styles.csv`** — 67 UI styles with keywords, colors, effects, accessibility ratings

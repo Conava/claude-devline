@@ -5,9 +5,11 @@ set -eo pipefail
 # rather than showing "hook error" to the user. Exit 0 = action proceeds.
 trap 'exit 0' ERR
 
-# Devline security hook: validate Bash commands in bypass mode
-# Blocks destructive, dangerous, and credential-leaking commands
-# Reads configuration from .claude/devline.local.md if present
+# Devline security hook: validate Bash commands in bypass mode.
+# Guards against IRREVERSIBLE / destructive damage and credential exposure.
+# Workflow-policy checks (commit-message format, protected-branch pushes,
+# tags/releases, squash-merge, reset/clean/stash-drop) were removed on the
+# scrub branch — this stops catastrophe, not process.
 
 input=$(cat)
 command=$(printf '%s\n' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
@@ -33,55 +35,6 @@ deny() {
 ask() {
   echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$1\"}}"
   exit 0
-}
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-# Defaults
-PROTECTED_BRANCHES='(main|master|develop|release|production|staging)'
-MERGE_STYLE="squash"
-
-# Read overrides from devline.local.md
-if [[ -n "$cwd" ]]; then
-  git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>&3 || echo "$cwd")
-  LOCAL_MD="$git_root/.claude/devline.local.md"
-  if [[ -f "$LOCAL_MD" ]]; then
-    FRONTMATTER=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD")
-
-    # Read protected_branches as pipe-separated regex group: (main|master|custom)
-    custom_protected=$(echo "$FRONTMATTER" | grep '^protected_branches:' | sed 's/protected_branches: *//' | sed 's/^"\(.*\)"$/\1/' || true)
-    if [[ -n "$custom_protected" ]]; then
-      PROTECTED_BRANCHES="$custom_protected"
-    fi
-
-    # Read merge_style: squash (default), merge, rebase
-    custom_merge=$(echo "$FRONTMATTER" | grep '^merge_style:' | sed 's/merge_style: *//' | sed 's/^"\(.*\)"$/\1/' || true)
-    if [[ -n "$custom_merge" ]]; then
-      MERGE_STYLE="$custom_merge"
-    fi
-  fi
-fi
-
-# Helper: check if current branch is protected
-on_protected_branch() {
-  if [[ -z "$cwd" ]]; then
-    return 1
-  fi
-  local current
-  current=$(git -C "$cwd" symbolic-ref --short HEAD 2>&3 || echo "")
-  if [[ -z "$current" ]]; then
-    return 1
-  fi
-  printf '%s' "$current" | grep -qPi "^$PROTECTED_BRANCHES$"
-}
-
-# Helper: get current branch name
-current_branch() {
-  if [[ -n "$cwd" ]]; then
-    git -C "$cwd" symbolic-ref --short HEAD 2>&3 || echo ""
-  fi
 }
 
 # =============================================================================
@@ -130,7 +83,7 @@ if printf '%s' "$command" | grep -qPi '(mkfs|fdisk|dd\s+.*of=/dev)'; then
 fi
 
 # =============================================================================
-# GIT — ALWAYS BLOCKED (destructive regardless of branch)
+# GIT — IRREVERSIBLE HISTORY / WORKING-COPY LOSS
 # =============================================================================
 
 # Force push (--force, -f, --force-with-lease)
@@ -138,133 +91,14 @@ if printf '%s' "$command" | grep -qPi 'git\s+push\s+.*(--force|--force-with-leas
   deny "Force push not allowed. Use normal push."
 fi
 
-# git reset --hard
-if printf '%s' "$command" | grep -qPi 'git\s+reset\s+--hard'; then
-  deny "git reset --hard is destructive. Use git stash or git checkout instead."
+# Hard reset — discards uncommitted work irreversibly
+if printf '%s' "$command" | grep -qPi 'git\s+reset\s+.*--hard'; then
+  deny "git reset --hard discards uncommitted work. Stash or commit first, or run it manually."
 fi
 
-# git clean -f
-if printf '%s' "$command" | grep -qPi 'git\s+clean\s+(-[a-zA-Z]*f|--force)'; then
-  deny "git clean -f deletes untracked files permanently. Not allowed."
-fi
-
-# git checkout --force
-if printf '%s' "$command" | grep -qPi 'git\s+checkout\s+--force'; then
-  deny "git checkout --force discards local changes. Not allowed."
-fi
-
-# git stash drop/clear
-if printf '%s' "$command" | grep -qPi 'git\s+stash\s+(drop|clear)'; then
-  deny "git stash drop/clear is destructive. Not allowed."
-fi
-
-# =============================================================================
-# GIT — PROTECTED BRANCH OPERATIONS
-# =============================================================================
-
-# Block deleting protected branches (hard deny, both -d and -D)
-if printf '%s' "$command" | grep -qP "git\s+branch\s+(-[a-zA-Z]*[dD])\s+$PROTECTED_BRANCHES(\s|$)"; then
-  deny "Deleting protected branch not allowed."
-fi
-
-# git branch -D on non-protected branches: ask (squash-merged branches need force delete)
-# git branch -d on non-protected branches: allow (safe delete, git checks merge status)
-# Note: case-SENSITIVE match — -D only, not -d
-# Exception: worktree-agent-* branches are temporary cleanup — always safe to force-delete
-if printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)' && \
-   ! printf '%s' "$command" | grep -qP 'git\s+branch\s+(-[a-zA-Z]*D)\s+worktree-agent-'; then
-  ask "Force-deleting a branch. This is needed after squash-merge since git can't verify the merge."
-fi
-
-# Block push to protected branches
-if printf '%s' "$command" | grep -qPi "git\s+push\s+(\S+\s+)?$PROTECTED_BRANCHES(\s|$|:)"; then
-  deny "Pushing to protected branch not allowed. Create a PR instead."
-fi
-
-# Block force-creating/resetting protected branches
-if printf '%s' "$command" | grep -qPi "git\s+checkout\s+-B\s+$PROTECTED_BRANCHES(\s|$)"; then
-  deny "Force-creating/resetting protected branch not allowed."
-fi
-
-# Block rebase on protected branches
-if printf '%s' "$command" | grep -qPi 'git\s+rebase' && on_protected_branch; then
-  deny "Rebasing on protected branch '$(current_branch)' not allowed."
-fi
-
-# --- Merge into protected branches ---
-if printf '%s' "$command" | grep -qPi "git\s+merge\s+" && on_protected_branch; then
-  branch=$(current_branch)
-  case "$MERGE_STYLE" in
-    squash)
-      if printf '%s' "$command" | grep -qPi 'git\s+merge\s+--squash\s'; then
-        ask "Squash-merging into protected branch '$branch'."
-      else
-        deny "Only squash merges allowed on protected branch '$branch'. Use: git merge --squash <branch>"
-      fi
-      ;;
-    merge)
-      if printf '%s' "$command" | grep -qPi 'git\s+merge\s+--no-ff\s'; then
-        ask "Merging into protected branch '$branch' with merge commit."
-      else
-        deny "Only --no-ff merges allowed on protected branch '$branch'. Use: git merge --no-ff <branch>"
-      fi
-      ;;
-    rebase)
-      deny "Merge not allowed on protected branch '$branch' with rebase merge style. Rebase the feature branch then fast-forward."
-      ;;
-    *)
-      ask "Merging into protected branch '$branch'."
-      ;;
-  esac
-fi
-
-# =============================================================================
-# PIPELINE ARTIFACT PROTECTION
-# =============================================================================
-
-if printf '%s' "$command" | grep -qPi 'git\s+(add|stage)\s'; then
-  if printf '%s' "$command" | grep -qPi '(\.devline/|\.devline\s)'; then
-    deny "Pipeline artifacts (.devline/ directory) must never be staged or committed."
-  fi
-fi
-
-# =============================================================================
-# COMMIT MESSAGE FORMAT
-# =============================================================================
-
-if printf '%s' "$command" | grep -qP 'git\s+commit\s+.*-m\s'; then
-  msg=""
-  if printf '%s' "$command" | grep -qP '\-m\s+"'; then
-    msg=$(printf '%s' "$command" | grep -oP '\-m\s+"\K[^"]+' | head -1)
-  elif printf '%s' "$command" | grep -qP "\-m\s+'"; then
-    msg=$(printf '%s' "$command" | grep -oP "\-m\s+'\K[^']+" | head -1)
-  fi
-
-  # shellcheck disable=SC2016
-  if [[ -n "$msg" && "$msg" != '$(cat'* && "$msg" != '$('* ]]; then
-    first_line=$(printf '%s' "$msg" | head -1 | sed 's/^[[:space:]]*//')
-    if [[ -n "$first_line" ]]; then
-      custom_regex=""
-      if [[ -n "$cwd" ]]; then
-        git_root=$(git -C "$cwd" rev-parse --show-toplevel 2>&3 || echo "$cwd")
-        LOCAL_MD="$git_root/.claude/devline.local.md"
-        if [[ -f "$LOCAL_MD" ]]; then
-          custom_regex=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format_regex:' | sed 's/commit_format_regex: *//' | sed 's/^"\(.*\)"$/\1/' || true)
-        fi
-      fi
-
-      if [[ -n "$custom_regex" ]]; then
-        if ! printf '%s' "$first_line" | grep -qP "$custom_regex"; then
-          custom_desc=$(sed -n '/^---$/,/^---$/{ /^---$/d; p; }' "$LOCAL_MD" | grep '^commit_format:' | sed 's/commit_format: *//' | sed 's/^"\(.*\)"$/\1/' || true)
-          deny "Commit message does not match project convention: ${custom_desc:-$custom_regex}"
-        fi
-      else
-        if ! printf '%s' "$first_line" | grep -qP '^(feat|fix|refactor|docs|chore|test|ci|style|perf|build|revert)(\([a-zA-Z0-9._-]+\))?: .+'; then
-          deny "Commit message must follow conventional format: kind(scope): details. Valid kinds: feat, fix, refactor, docs, chore, test, ci, style, perf, build, revert."
-        fi
-      fi
-    fi
-  fi
+# git clean with a force flag — deletes untracked files irreversibly
+if printf '%s' "$command" | grep -qPi 'git\s+clean\s+.*(--force|-\w*f)'; then
+  deny "git clean -f permanently deletes untracked files. Review with 'git clean -n' first, or run it manually."
 fi
 
 # =============================================================================
@@ -281,16 +115,8 @@ if printf '%s' "$command" | grep -qPi '(docker\s+push|podman\s+push|buildah\s+pu
   deny "Container image push not allowed autonomously. Run this manually."
 fi
 
-# Git tags and releases
-if printf '%s' "$command" | grep -qPi 'git\s+tag\s'; then
-  deny "Creating git tags not allowed autonomously. Run this manually."
-fi
-if printf '%s' "$command" | grep -qPi 'gh\s+release\s+create'; then
-  deny "Creating GitHub releases not allowed autonomously. Run this manually."
-fi
-
 # =============================================================================
-# GITHUB MUTATIONS (affects shared state)
+# GITHUB SHARED-STATE MUTATIONS (affects state outside your working copy)
 # =============================================================================
 
 # PR merge/close/reopen

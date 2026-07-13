@@ -42,7 +42,22 @@ Choose the test level based on **what the code does**, not on convention or habi
 - **Cross-boundary flows** — requests that traverse multiple services or modules.
 - **Critical business paths** — the paths where a bug means revenue loss, compliance violation, or data corruption.
 
-E2E tests are defined at the **feature level** by the planner (see Feature-Goal Tests in the plan), not per-task. They run in a dedicated final-wave task after all implementation is merged.
+E2E tests are defined at the **feature level** by the planner (see Feature-Goal Tests in the plan), not per-task. Include a dedicated final-wave E2E task ONLY for features with a genuine multi-step cross-boundary journey; skip it for single-component changes, pure-logic changes, and bugfixes (per-task integration tests already cover that surface). When present, it runs after all implementation is merged.
+
+## Test Depth
+
+A per-feature dial (from `.claude/devline.local.md` `test_depth`, or inferred during brainstorm). Two levels:
+
+- **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
+- **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
+
+### Acceptance criteria as tests
+
+The brainstorm defines behavioral **acceptance criteria**. Each criterion becomes ONE behavior/workflow-level test, named to read as the criterion — the test name IS the spec sentence. There are no durable spec docs; the committed tests ARE the living spec.
+
+Under `focused`, these acceptance tests are the **primary suite**: do NOT write a unit test per method for trivial code — only for genuinely hard or edge logic. Under `deep`, the acceptance tests sit on top of the exhaustive per-method units.
+
+`focused` changes nothing about level selection: per-test `[unit]`/`[integration]`/`[e2e]` tagging stays, NEW I/O (persistence, endpoints, events) is still `[integration]` by default, the E2E task stays **SHOULD** (only for genuine cross-boundary journeys), and the integration size-gate — a targeted unit test suffices when modifying existing integration-tested code without changing its schema/contract — still applies. `focused` only drops the redundant per-method units for trivial code; it never downgrades a real journey or a new I/O surface.
 
 ## What NOT to Test
 
@@ -69,7 +84,7 @@ If every controller has 5-10 tests like "returns 403 for VIEWER role", you have 
 
 Never skip steps. Never write implementation before a failing test exists.
 
-**For planners:** Define test cases in the plan with their level: `[unit]`, `[integration]`, `[e2e]`. Use the selection heuristics above — don't default to `[unit]`. Repository methods, controller endpoints, event listeners, and schedulers should be `[integration]` by default.
+**For planners:** Define test cases in the plan with their level: `[unit]`, `[integration]`, `[e2e]` (per-test-case tagging is cheap — keep it). Use the selection heuristics above — don't default to `[unit]`. NEW repository methods, controller endpoints, event listeners, and schedulers should be `[integration]` by default. But when modifying existing, already-integration-tested persistence/endpoint code **without changing its schema or contract**, a targeted unit test of the changed logic is sufficient — rely on the existing integration suite.
 
 **For implementers:** Implement tests one at a time through the cycle. Each test drives the next increment of design.
 

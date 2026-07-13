@@ -45,27 +45,7 @@ This file is the single source of non-obvious project context — things that ca
 
 ---
 
-## Section 4 — Learning & Recovery
-
-```
-## Learning & Recovery
-
-This project uses a self-correcting pipeline. Agents (implementer, reviewer, deep-review) continuously challenge themselves: "Is this a one-off issue or a broader pattern?" When they identify a non-obvious codebase pattern, they report it as a lesson and the orchestrator appends it to the Lessons and Memory section below.
-
-**For the pipeline (automatic):** Agents extract lessons during normal work. No approval needed — the agent already analyzed the issue. Lessons are shown in the pipeline completion summary.
-
-**For direct conversations (manual):** When the user corrects you or you discover a non-obvious pattern outside the pipeline:
-1. Identify the root cause — not just the symptom.
-2. Assess scope — one-off or pattern?
-3. If it's a pattern, formulate as: pattern (what triggers it), reason (why it happens), solution (how to prevent it).
-4. Append it to the Lessons and Memory section below.
-
-**Always:** Review existing lessons before starting work. If a lesson covers the situation, follow it. Update stale lessons rather than adding duplicates.
-```
-
----
-
-## Section 5 — Project Context (user fills in)
+## Section 4 — Project Context (user fills in)
 
 ```
 ## Project Context
@@ -76,15 +56,4 @@ This project uses a self-correcting pipeline. Agents (implementer, reviewer, dee
 <!-- - Architectural decisions that differ from common patterns -->
 <!-- - Required environment variables or local services -->
 <!-- - Common gotchas specific to this codebase -->
-```
-
----
-
-## Section 6 — Lessons and Memory (empty placeholder)
-
-```
-## Lessons and Memory
-
-<!-- Lessons are added here automatically via the Learning & Recovery process above. -->
-<!-- Format: **Pattern**: ... | **Reason**: ... | **Solution**: ... -->
 ```

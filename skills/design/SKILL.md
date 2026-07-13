@@ -16,31 +16,39 @@ Parse the user's request, detect the right mode, and launch the frontend-planner
 
 ## Mode Detection
 
-Analyze the user's request and route to the correct mode:
+The frontend-planner has three modes. Route the request to one — and for `design-one`, also pick the token source:
 
 | Mode | Trigger | Example |
 |------|---------|---------|
-| **Brand** | Create/extend persistent brand identity | "create a brand identity", "set up a design system", "add a table to the brand" |
-| **Harmonize** | Fit within project's existing theme | "make this match our site", "design a card for our current theme", "fit within our colors" |
-| **Component** | Single design piece, standalone | "design a button", "create a dark color theme", "warm earth tone palette" |
-| **Showcase** | Multiple variations requested | "show me 8 button styles", "create 6 different card designs" |
-| **Extend** | `.devline/design-system.md` exists + new element | "add a table to the design system", "design a modal that fits our system" |
-| **Full System** | Full design system for pipeline | "create a design system for a fintech app" |
+| **brand-init** | First-time persistent brand identity (no `design-system/BRAND.md` yet) | "create a brand identity", "set up our brand" |
+| **generate** | Multiple directions at once — a full design system, or N showcase variations | "create a design system for a fintech app", "show me 8 button styles" |
+| **design-one** | A single element from one token source (see below) | "design a button", "add a modal to the brand", "match our site" |
+
+**design-one — pick the token source:**
+
+| Token source | Trigger |
+|--------------|---------|
+| **brand** | `design-system/BRAND.md` exists + adding an element ("add a table to the brand") |
+| **project-theme** | Fit the project's existing theme ("match our site", "our current colors") |
+| **design-system** | `.devline/design-system.md` exists + new element ("add a modal that fits our system") |
+| **scratch** | Standalone piece, no existing system ("design a dark button", "warm earth palette") |
 
 **Priority order when ambiguous:**
-1. If `design-system/BRAND.md` exists and request is for a new component → **Brand** (extend)
-2. If request mentions "match", "fit", "our site", "current theme" → **Harmonize**
-3. If request mentions "brand", "identity", "persistent" → **Brand** (create)
-4. If request has a number ("8 buttons", "6 cards") → **Showcase**
-5. If `.devline/design-system.md` exists → **Extend**
-6. Default → **Component**
+1. `design-system/BRAND.md` exists and the request adds a component → **design-one** (brand)
+2. "match", "fit", "our site", "current theme" → **design-one** (project-theme)
+3. "brand", "identity", "persistent" and no `BRAND.md` → **brand-init**
+4. A count ("8 buttons", "6 cards") → **generate** (showcase)
+5. "design system for [product]" → **generate** (pipeline)
+6. `.devline/design-system.md` exists → **design-one** (design-system)
+7. Default → **design-one** (scratch)
 
 ## Execution
 
-### For Brand mode (create):
-Launch the **frontend-planner** agent with:
+Launch the **frontend-planner** agent with the mode — and for design-one, the token source.
+
+### brand-init:
 ```
-Mode: Brand
+Mode: brand-init
 
 Brand request: [user's request]
 Product context: [any product/mood/industry context]
@@ -49,85 +57,48 @@ Platform: [if mentioned]
 Create the brand identity system at design-system/BRAND.md with initial component specs.
 ```
 
-### For Brand mode (extend):
-First verify `design-system/BRAND.md` exists. Then launch the **frontend-planner** agent with:
+### generate (pipeline — full design system):
 ```
-Mode: Brand (extend)
+Mode: generate
+Variant: pipeline
 
-Existing brand: design-system/BRAND.md
-New element: [what to add]
-Context: [any constraints]
+Product context: [user's description]
+Platform: [if mentioned, otherwise ask]
 
-Read the existing brand first, then add the new component spec.
-```
-
-### For Harmonize mode:
-Launch the **frontend-planner** agent with:
-```
-Mode: Harmonize
-
-Design request: [what to design]
-Project: [current working directory]
-
-Read the project's actual theme files (tailwind config, CSS variables, theme.ts, etc.) and design [component] to fit within the existing visual identity. Output to .devline/component-spec.md.
+No brainstorm file exists — use this description directly as the product context. Write the full design system to .devline/design-system.md.
 ```
 
-### For Component mode:
-Launch the **frontend-planner** agent with:
+### generate (showcase — N variations):
 ```
-Mode: Component
-
-Design request: [user's request]
-Context: [any product/mood/constraint context from the user]
-
-Output the component spec to .devline/component-spec.md and preview to .devline/component-preview.html.
-```
-
-### For Showcase mode:
-Launch the **frontend-planner** agent with:
-```
-Mode: Showcase
+Mode: generate
+Variant: showcase
 
 Component: [what to showcase]
-Count: [N from user's request, default 8]
+Count: [N from request, default 8]
 Constraints: [any constraints mentioned]
 
 Output showcases to .devline/showcases/
 ```
 
-### For Extend mode:
-First verify `.devline/design-system.md` exists. Then launch the **frontend-planner** agent with:
+### design-one:
+If the token source is `brand` or `design-system`, first verify `design-system/BRAND.md` / `.devline/design-system.md` exists. Then launch:
 ```
-Mode: Extend
+Mode: design-one
+Token source: [scratch | project-theme | design-system | brand]
 
-Existing design system: .devline/design-system.md
-New element: [what to add]
-Context: [any constraints]
+Design request: [user's request]
+Context: [product/mood/constraints — or the existing brand/system/theme to read tokens from]
 
-Read the existing design system first, then output the extension.
-```
-
-### For Full System mode:
-Launch the **frontend-planner** agent with:
-```
-Mode: Pipeline
-
-Product context: [user's description]
-Platform: [if mentioned, otherwise ask]
-
-Note: No brainstorm file exists. Use the user's description directly as the product context for design intelligence searches. Skip brainstorm.md reading — use the prompt as your input. Write the full design system to .devline/design-system.md.
+Read the token source first (if any), then output the spec to .devline/component-spec.md and preview to .devline/component-preview.html. For the brand source, add the component under design-system/ and update BRAND.md.
 ```
 
 ## After Agent Completes
 
 Report the result to the user:
-- For **Brand (create)**: "Brand identity at `design-system/BRAND.md` with N component specs. To add more: `/design add [component] to the brand`"
-- For **Brand (extend)**: "Added `design-system/components/[name].md`, BRAND.md index updated"
-- For **Harmonize**: "Component spec at `.devline/component-spec.md`, designed to fit your project's existing theme"
-- For **Component**: "Component spec at `.devline/component-spec.md`, preview at `.devline/component-preview.html`"
-- For **Showcase**: "N showcases at `.devline/showcases/`, open `index.html` for the gallery"
-- For **Extend**: "Extension added to `.devline/design-system.md`, preview at `.devline/extend-preview.html`"
-- For **Full System**: "Design system at `.devline/design-system.md`"
+- **brand-init**: "Brand identity at `design-system/BRAND.md` with N component specs. Add more: `/design add [component] to the brand`"
+- **generate (pipeline)**: "Design system at `.devline/design-system.md`"
+- **generate (showcase)**: "N showcases at `.devline/showcases/`, open `index.html` for the gallery"
+- **design-one**: "Component spec at `.devline/component-spec.md`, preview at `.devline/component-preview.html`" (brand source: component added under `design-system/`, BRAND.md updated)
 
 ## Rules
 
@@ -135,5 +106,12 @@ Report the result to the user:
 - Do NOT ask unnecessary questions — if the user says "design a dark button", just design it
 - Do launch the frontend-planner agent — do not design anything yourself
 - If the user's request is ambiguous about mode, follow the priority order above
-- Brand mode outputs are PERSISTENT (in `design-system/`) — they survive pipeline cleanup
+- `brand-init` and `design-one` (brand source) outputs are PERSISTENT (in `design-system/`) — they survive pipeline cleanup
 - All other mode outputs are in `.devline/` and are temporary
+
+## Live Design System (`docs/design-system/`)
+
+Beyond the mode outputs above, the frontend-planner maintains one durable, corrections-aware design system per repo at `docs/design-system/` (`MASTER.md` + `pages/<page>.md`). It survives across sessions. The agent:
+- **Reads it first** — before designing, it checks `docs/design-system/MASTER.md` (and `pages/<page>.md` for the current page, which overrides MASTER) and works within it, including the `## Corrections & Decisions` log, so past mistakes aren't repeated.
+- **Persists on generate** — establishing or changing the shared system writes/regenerates `docs/design-system/` (via `search.py --design-system --persist --output-dir docs`).
+- **Persists on correction** — when you correct a design or a choice fails, it appends a dated bullet to `## Corrections & Decisions` (MASTER for global, the page file for page-specific) and updates the affected spec. Nothing is lost between sessions.

@@ -89,16 +89,17 @@ if __name__ == "__main__":
         
         # Print persistence confirmation
         if args.persist:
-            project_slug = args.project_name.lower().replace(' ', '-') if args.project_name else "default"
+            base = f"{args.output_dir.rstrip('/')}/" if args.output_dir else ""
             print("\n" + "=" * 60)
-            print(f"✅ Design system persisted to design-system/{project_slug}/")
-            print(f"   📄 design-system/{project_slug}/MASTER.md (Global Source of Truth)")
+            print(f"✅ Design system persisted to {base}design-system/")
+            print(f"   📄 {base}design-system/MASTER.md (Global Source of Truth)")
             if args.page:
                 page_filename = args.page.lower().replace(' ', '-')
-                print(f"   📄 design-system/{project_slug}/pages/{page_filename}.md (Page Overrides)")
+                print(f"   📄 {base}design-system/pages/{page_filename}.md (Page Overrides)")
             print("")
-            print(f"📖 Usage: When building a page, check design-system/{project_slug}/pages/[page].md first.")
+            print(f"📖 Usage: When building a page, check {base}design-system/pages/[page].md first.")
             print(f"   If exists, its rules override MASTER.md. Otherwise, use MASTER.md.")
+            print(f"   On a design correction, append a dated bullet to the Corrections & Decisions log.")
             print("=" * 60)
     # Mood-based color search
     elif args.mood:

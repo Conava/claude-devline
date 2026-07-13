@@ -15,7 +15,7 @@ jobs:
       - name: Check hook scripts are executable
         run: |
           failed=0
-          for f in hooks/scripts/*.sh skills/*/scripts/*.sh; do
+          for f in hooks/scripts/*.sh skills/*/scripts/*.sh install.sh; do
             [ -f "$f" ] || continue
             if [ ! -x "$f" ]; then
               echo "::error file=$f::Not executable"
@@ -28,6 +28,7 @@ jobs:
         run: |
           sudo apt-get install -y shellcheck
           find hooks/scripts skills/*/scripts -name '*.sh' -print0 | xargs -0 shellcheck
+          shellcheck install.sh
 
       - name: Validate JSON
         run: |

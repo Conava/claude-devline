@@ -25,8 +25,7 @@ Execution proceeds in **waves** as defined in the `## Dependency Graph` section 
 
 ## Agent and Model Selection
 
-- **implementer** for feature/application tasks
-- **devops** for build, CI/CD, Docker, infrastructure, tooling tasks
+- **implementer** for feature/application tasks, including build, CI/CD, Docker, infrastructure, and tooling
 - **debugger** for fixing failing tests or unexpected behavior
 - The plan's **Agent** and **Model** fields indicate which to use. Pass the model to the Agent tool's `model` parameter.
 

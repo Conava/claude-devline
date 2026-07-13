@@ -545,24 +545,24 @@ def generate_design_system(query: str, project_name: str = None, output_format: 
 # ============ PERSISTENCE FUNCTIONS ============
 def persist_design_system(design_system: dict, page: str = None, output_dir: str = None, page_query: str = None) -> dict:
     """
-    Persist design system to design-system/<project>/ folder using Master + Overrides pattern.
-    
+    Persist design system to design-system/ folder using Master + Overrides pattern.
+
+    One design system per repo — with `--output-dir docs` this yields
+    `docs/design-system/MASTER.md` + `docs/design-system/pages/<page>.md` (no project subfolder).
+
     Args:
         design_system: The generated design system dictionary
         page: Optional page name for page-specific override file
         output_dir: Optional output directory (defaults to current working directory)
         page_query: Optional query string for intelligent page override generation
-    
+
     Returns:
         dict with created file paths and status
     """
     base_dir = Path(output_dir) if output_dir else Path.cwd()
-    
-    # Use project name for project-specific folder
-    project_name = design_system.get("project_name", "default")
-    project_slug = project_name.lower().replace(' ', '-')
-    
-    design_system_dir = base_dir / "design-system" / project_slug
+
+    # One design system per repo — no per-project subfolder.
+    design_system_dir = base_dir / "design-system"
     pages_dir = design_system_dir / "pages"
     
     created_files = []
@@ -572,17 +572,17 @@ def persist_design_system(design_system: dict, page: str = None, output_dir: str
     pages_dir.mkdir(parents=True, exist_ok=True)
     
     master_file = design_system_dir / "MASTER.md"
-    
-    # Generate and write MASTER.md
-    master_content = format_master_md(design_system)
+
+    # Generate and write MASTER.md (carry forward any existing Corrections log)
+    master_content = _preserve_corrections(master_file, format_master_md(design_system))
     with open(master_file, 'w', encoding='utf-8') as f:
         f.write(master_content)
     created_files.append(str(master_file))
-    
+
     # If page is specified, create page override file with intelligent content
     if page:
         page_file = pages_dir / f"{page.lower().replace(' ', '-')}.md"
-        page_content = format_page_override_md(design_system, page, page_query)
+        page_content = _preserve_corrections(page_file, format_page_override_md(design_system, page, page_query))
         with open(page_file, 'w', encoding='utf-8') as f:
             f.write(page_content)
         created_files.append(str(page_file))
@@ -592,6 +592,30 @@ def persist_design_system(design_system: dict, page: str = None, output_dir: str
         "design_system_dir": str(design_system_dir),
         "created_files": created_files
     }
+
+
+# Corrections log is append-only and hand-edited between sessions; regeneration must never wipe it.
+CORRECTIONS_HEADING = "## Corrections"
+
+
+def _preserve_corrections(existing_file, new_content: str) -> str:
+    """Carry an existing append-only Corrections log across regeneration so it's never lost.
+
+    The Corrections section is always the last section of the file, so we take everything
+    from its heading to EOF in the old file and splice it into the freshly generated content.
+    """
+    existing_file = Path(existing_file)
+    if not existing_file.exists():
+        return new_content
+    old = existing_file.read_text(encoding='utf-8')
+    idx_old = old.find(CORRECTIONS_HEADING)
+    if idx_old == -1:
+        return new_content
+    old_log = old[idx_old:].rstrip() + "\n"
+    idx_new = new_content.find(CORRECTIONS_HEADING)
+    if idx_new != -1:
+        return new_content[:idx_new] + old_log
+    return new_content.rstrip() + "\n\n" + old_log
 
 
 def format_master_md(design_system: dict) -> str:
@@ -611,7 +635,7 @@ def format_master_md(design_system: dict) -> str:
     # Logic header
     lines.append("# Design System Master File")
     lines.append("")
-    lines.append("> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.")
+    lines.append("> **LOGIC:** When building a specific page, first check `pages/[page-name].md` (next to this file).")
     lines.append("> If that file exists, its rules **override** this Master file.")
     lines.append("> If not, strictly follow the rules below.")
     lines.append("")
@@ -853,7 +877,20 @@ def format_master_md(design_system: dict) -> str:
     lines.append("- [ ] No content hidden behind fixed navbars")
     lines.append("- [ ] No horizontal scroll on mobile")
     lines.append("")
-    
+
+    # Corrections & Decisions — MUST stay the last section (preserved across regeneration)
+    lines.append("---")
+    lines.append("")
+    lines.append("## Corrections & Decisions")
+    lines.append("")
+    lines.append("> **LIVE, append-only log.** When a design choice is corrected by the user, or is")
+    lines.append("> found not to work, add a dated bullet here (global decisions) or in the relevant")
+    lines.append("> `pages/<page>.md` (page-specific), AND update the affected spec above. Never delete")
+    lines.append("> entries — this is how the design stops repeating past mistakes across sessions.")
+    lines.append("")
+    lines.append("- _(none yet)_")
+    lines.append("")
+
     return "\n".join(lines)
 
 
@@ -874,7 +911,7 @@ def format_page_override_md(design_system: dict, page_name: str, page_query: str
     lines.append(f"> **Generated:** {timestamp}")
     lines.append(f"> **Page Type:** {page_overrides.get('page_type', 'General')}")
     lines.append("")
-    lines.append("> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`design-system/MASTER.md`).")
+    lines.append("> ⚠️ **IMPORTANT:** Rules in this file **override** the Master file (`../MASTER.md`).")
     lines.append("> Only deviations from the Master are documented here. For all other rules, refer to the Master.")
     lines.append("")
     lines.append("---")
@@ -962,7 +999,17 @@ def format_page_override_md(design_system: dict, page_name: str, page_query: str
         for rec in recommendations:
             lines.append(f"- {rec}")
     lines.append("")
-    
+
+    # Corrections — MUST stay the last section (preserved across regeneration)
+    lines.append("---")
+    lines.append("")
+    lines.append("## Corrections & Decisions (this page)")
+    lines.append("")
+    lines.append("> Append-only. Add a dated bullet when a choice for this page is corrected or fails.")
+    lines.append("")
+    lines.append("- _(none yet)_")
+    lines.append("")
+
     return "\n".join(lines)
 
 

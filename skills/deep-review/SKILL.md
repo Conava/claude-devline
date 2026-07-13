@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 # PR — Final Merge-Readiness Review
 
-Launch the **deep-review** agent for a comprehensive final review.
+Launch the **reviewer** agent with `scope: branch` (model **opus**) for a comprehensive final review.
 
 ## Determine Scope
 1. If a branch is specified, compare it against the base branch (main/master)
@@ -16,7 +16,7 @@ Launch the **deep-review** agent for a comprehensive final review.
 3. Use `git diff main...HEAD` (or equivalent) to identify all changes
 
 ## Review Checklist
-The deep-review will perform:
+The reviewer (scope: branch) will perform:
 1. **Security Audit** — Vulnerability scan, OWASP Top 10 checks
 2. **Credential Scan** — Hardcoded keys, tokens, passwords, private keys
 3. **Code Quality** — Technical debt, duplication, error handling, resource leaks
@@ -27,4 +27,4 @@ The deep-review will perform:
 
 ## Verdict
 - **APPROVED** — Code is merge-ready
-- **CHANGES REQUIRED** — Issues must be fixed first (with specific fix suggestions)
+- **HAS_FINDINGS** — Issues must be fixed first (with specific fix suggestions)

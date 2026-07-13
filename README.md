@@ -50,16 +50,25 @@ Every finding from every review gets fixed. There's no "pass with warnings." If 
 
 ## Install
 
+### Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash
+```
+
+Installs Claude Code (if missing), the devline plugin, and the recommended companions (RTK, Ponytail, Basic Memory). Works on **Linux** (apt/pacman/dnf/zypper/apk), **macOS** (Homebrew), and **Windows via WSL or Git Bash** — it prompts before installing any missing underlying tool. Review the script first if you like. Flags: `--minimal` (devline only), `--skip-rtk`/`--skip-ponytail`/`--skip-memory`, `--yes` (non-interactive). Example: `curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash -s -- --minimal`.
+
 ### From the marketplace
 
 ```bash
-claude plugin add devline
+claude plugin marketplace add Conava/claude-devline
+claude plugin install devline@devline
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/devline-io/claude-devline.git
+git clone https://github.com/Conava/claude-devline.git
 claude --plugin-dir ./claude-devline
 ```
 
@@ -75,13 +84,35 @@ Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project con
 
 Devline is built for `--dangerously-skip-permissions` mode. Agents need to read files, write code, and run builds without prompting on every tool call.
 
-Safety comes from hooks, not permission dialogs. The plugin ships 85+ security rules that block destructive operations before they execute. Force pushes, `rm -rf` outside the working dir, credential exposure, publishing commands, database destructive operations -- all blocked. See [Security Hooks](#security-hooks).
+Safety comes from hooks, not permission dialogs. The plugin ships ~19 focused security rules that block irreversible or destructive operations before they execute. Force pushes, `rm -rf` outside the working dir, credential exposure, publishing commands, database destructive operations -- all blocked. See [Security Hooks](#security-hooks).
 
 ```bash
 claude --dangerously-skip-permissions
 ```
 
 It works without bypass mode too. You'll just get prompted frequently during parallel implementation.
+
+---
+
+## Recommended companions
+
+Optional, but they make devline leaner and more capable — `/devline:setup` offers to install all three. The [quick installer](#quick-install) sets up all three automatically, and wires Basic Memory through a per-session MCP wrapper so parallel Claude sessions each bind to their own repo's `memory/` project (multi-session-safe).
+
+- **[RTK](https://github.com/rtk-ai/rtk)** — a CLI proxy that filters command-output noise for 60-90% token savings. devline runs many parallel agents issuing Bash commands, so it compounds.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+  rtk init -g
+  ```
+- **[Basic Memory](https://github.com/basicmachines-co/basic-memory)** — local-first, per-project memory stored as plain Markdown you commit to the repo, retrieved on demand so it never bloats context. Persistent cross-session recall in any Claude Code session, not just devline.
+  ```bash
+  uv tool install basic-memory
+  claude mcp add basic-memory -- uvx basic-memory mcp
+  ```
+- **[Ponytail](https://github.com/DietrichGebert/ponytail)** — a separate Claude Code plugin that keeps generated code minimal (YAGNI, stdlib-first, shortest working diff). It composes with devline: devline enforces the process, ponytail keeps the code it produces lean.
+  ```
+  /plugin marketplace add DietrichGebert/ponytail
+  /plugin install ponytail@ponytail
+  ```
 
 ---
 
@@ -93,11 +124,11 @@ It works without bypass mode too. You'll just get prompted frequently during par
 | `/devline:brainstorm <idea>` | Refine an idea into a feature spec |
 | `/devline:plan <spec>` | Create a TDD implementation plan |
 | `/devline:implement` | Implement tasks from an existing plan |
+| `/devline:quick <task>` | Fast lane -- implement, review, and commit a small change |
 | `/devline:review` | Code review of recent changes |
 | `/devline:debug <error>` | Systematic root cause analysis |
-| `/devline:deep-review` | Final merge-readiness audit |
-| `/devline:cve-patcher <CVEs>` | Patch vulnerabilities across repos |
-| `/devline:migrate <package>` | Major version migrations with breaking changes |
+| `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
+| `/devline:deps [--migrate] <CVEs \| package>` | Patch CVEs, or migrate a major version with `--migrate` |
 | `/devline:design` | Standalone component or theme design |
 | `/writing` | Write, edit, or translate text — anti-AI-pattern rewriting for general text; citation contract enforcement for scientific writing |
 | `/brand` | Brand voice, visual identity, messaging |
@@ -241,7 +272,7 @@ Cross-cutting review that catches what per-task reviewers can't see:
 
 The deep review can't defer findings. Every issue must be fixed. The escalation ladder: implementer fixes -> debugger investigates root cause -> planner redesigns approach -> ask user for guidance.
 
-Only a structured APPROVED verdict from the deep-review agent moves the pipeline forward. Partial output, timeouts, or ambiguous responses trigger a relaunch.
+Only a structured APPROVED verdict from the reviewer (`scope: branch`, running on Opus) moves the pipeline forward. Partial output, timeouts, or ambiguous responses trigger a relaunch.
 
 </details>
 
@@ -249,32 +280,29 @@ Only a structured APPROVED verdict from the deep-review agent moves the pipeline
 
 ## Agents
 
-Ten specialized agents, each with a defined role and model assignment.
+Seven specialized agents, each with a defined role and model assignment.
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
     subgraph opus["Opus — complex reasoning"]
         planner["Planner\nArchitecture, TDD task design"]
-        deepreview["Deep Review\nFinal gate, cross-task audit"]
         debugger["Debugger\nScientific root cause analysis"]
-        migrator["Dep. Migrator\nBreaking change migrations"]
     end
 
     subgraph sonnet["Sonnet — fast execution"]
-        implementer["Implementer\nTDD implementation"]
-        reviewer["Reviewer\nCorrectness, security, perf"]
+        implementer["Implementer\nTDD impl, build/CI/Docker/IaC"]
+        reviewer["Reviewer\nPer-task + scope:branch deep review"]
         frontend["Frontend Planner\nDesign system, HTML previews"]
-        devops["DevOps\nCI/CD, Docker, infra"]
         docskeeper["Docs Keeper\nREADME, docs/ sweep"]
-        patcher["Dep. Patcher\nCVE patches, version bumps"]
+        dependency["Dependency\nCVE patches + migrations"]
     end
 
     classDef opusNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef sonnetNode fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
 
-    class planner,deepreview,debugger,migrator opusNode
-    class implementer,reviewer,frontend,devops,docskeeper,patcher sonnetNode
+    class planner,debugger opusNode
+    class implementer,reviewer,frontend,docskeeper,dependency sonnetNode
 ```
 
 <details>
@@ -283,15 +311,12 @@ flowchart TB
 | Agent | Model | What it does |
 |-------|-------|-------------|
 | **Planner** | Opus | Traces execution paths, maps blast radius, designs dependency-ordered tasks with test cases and acceptance criteria. Returns NEEDS_INPUT for ambiguous decisions instead of guessing. |
-| **Implementer** | Sonnet | One task, one agent, strict TDD. Runs in a git worktree. Validates spec against actual codebase before writing code. Commits only specific files -- never `git add .` |
-| **Reviewer** | Sonnet | 10-layer review: correctness, spec compliance, integration contracts, security (OWASP + multi-tenant), performance (N+1, blocking ops), code quality, plan compliance, test assertion quality, stale artifacts, mandatory test run. |
-| **Deep Review** | Opus | Builds and tests first (any failure = HAS_FINDINGS). Then: security audit, architecture review, regression check, feature-goal trace, cross-task integration sweep, stale artifact detection, test quality, plan compliance, operational readiness. |
+| **Implementer** | Sonnet | One task, one agent, strict TDD. Runs in a git worktree. Also handles build systems, CI/CD, Docker, and infrastructure-as-code tasks. Validates spec against actual codebase before writing code. Commits only specific files -- never `git add .` |
+| **Reviewer** | Sonnet (Opus for `scope: branch`) | Per-task review (`scope: task`): correctness, spec compliance, integration contracts, security (OWASP + multi-tenant), performance, code quality, plan compliance, test assertion quality, stale artifacts, mandatory test run. As the final gate (`scope: branch`, Opus) it builds and tests first (any failure = HAS_FINDINGS), then runs the cross-task integration sweep, feature-goal trace, regression check, and branch-level architecture review. |
 | **Debugger** | Opus | Six-phase scientific method: check known patterns, reproduce, gather evidence, hypothesize (2-3 ranked), test hypotheses, verify and prevent. Can operate standalone or as a pipeline planner for failed review loops. |
 | **Frontend Planner** | Sonnet | Six modes: pipeline (brainstorm-to-design-system), showcase (N HTML variations), component (single piece), extend (add to system), harmonize (match project theme), brand (persistent identity). Searches curated CSV database with BM25, not LLM generation. |
-| **DevOps** | Sonnet | Build systems, CI/CD pipelines, Docker, infrastructure as code, dev environment. TDD approach where applicable -- writes validation scripts before infra changes. |
 | **Docs Keeper** | Sonnet | Proactive documentation sweep. Reads `git diff` and plan, scans ALL docs for staleness, completeness, and formatting issues. Checks internal links, code examples, and renamed references. |
-| **Dep. Patcher** | Sonnet | Simple version bumps for CVE patches. Detects ecosystem (npm, Maven, Gradle, pip, cargo, etc.), checks if package is affected, updates, verifies build/tests, commits. |
-| **Dep. Migrator** | Opus | Complex migrations with breaking changes. Researches migration guides, runs ecosystem tools (OpenRewrite, Rector, codemods), refactors code, verifies everything compiles and passes. |
+| **Dependency** | Sonnet (Opus for migrations) | Both CVE/version patches and major-version migrations. Detects ecosystem (npm, Maven, Gradle, pip, cargo, etc.), checks if the package is affected, updates, verifies build/tests, commits. For migrations (opus, migration block on) it researches guides, runs ecosystem tools (OpenRewrite, Rector, codemods), and refactors breaking changes. |
 
 </details>
 
@@ -309,15 +334,12 @@ claude-devline/
 |
 |-- agents/                  # Agent definitions (one .md per agent)
 |   |-- planner.md
-|   |-- implementer.md
-|   |-- reviewer.md
-|   |-- deep-review.md
+|   |-- implementer.md       # also handles build/CI/Docker/IaC tasks
+|   |-- reviewer.md          # per-task review + scope:branch deep review
 |   |-- debugger.md
 |   |-- frontend-planner.md
-|   |-- devops.md
 |   |-- docs-keeper.md
-|   |-- dependency-patcher.md
-|   |-- dependency-migrator.md
+|   |-- dependency.md        # CVE patches + major-version migrations
 |   +-- references/          # Shared agent templates
 |       |-- plan-format.md
 |       +-- frontend-output-templates.md
@@ -335,9 +357,8 @@ claude-devline/
 +-- hooks/                   # Security rules (PreToolUse, PreCompact, SubagentStop)
     |-- hooks.json
     +-- scripts/
-        |-- validate-bash.sh       # 85+ bash command security rules
+        |-- validate-bash.sh       # ~19 bash command security rules
         |-- validate-write.sh      # Credential and secret detection
-        |-- enforce-branch.sh      # Protected branch enforcement
         |-- pre-compact.sh         # Pipeline state preservation
         +-- subagent-stop.sh       # Agent completion logging
 ```
@@ -349,17 +370,11 @@ Agents don't start from scratch. Knowledge bases (the `kb-*` skills) get injecte
 
 | Knowledge Base | Injected Into | What It Provides |
 |----------------|---------------|-----------------|
-| `kb-tdd-workflow` | Implementer, DevOps, Debugger | Test level selection (unit vs integration vs E2E), Red-Green-Refactor cycle, framework detection, what NOT to test |
-| `kb-blast-radius` | Planner, Reviewer, Deep Review | Reverse dependency tracing -- "if I change file X, what breaks?" Grep-based import analysis across 12 languages |
+| `kb-tdd-workflow` | Implementer, Debugger | Test level selection (unit vs integration vs E2E), Red-Green-Refactor cycle, framework detection, what NOT to test |
+| `kb-blast-radius` | Planner, Reviewer | Reverse dependency tracing -- "if I change file X, what breaks?" Grep-based import analysis across 12 languages |
 | `kb-design` | Frontend Planner | 67 styles, 161 palettes, 57 fonts, 160 animations, 161 industry rules, token architecture, accessibility priorities |
-| `kb-debugging` | Debugger | Bug pattern recognition, language-specific debugging tools, common error catalogs |
-| `kb-cloud-infra` | DevOps | Provider detection, container best practices, IaC principles, CI/CD pipeline patterns |
-| `kb-documentation` | Docs Keeper | README standards, API doc structure, architecture doc templates, Diataxis framework |
-| `kb-dependency-management` | Dep. Patcher | Ecosystem detection for 10+ package managers, version update mechanics, verification commands |
-| `kb-dependency-migration` | Dep. Migrator | Three-phase migration process: research, execute (with tooling), verify |
+| `kb-dependency-management` | Dependency | Ecosystem detection for 10+ package managers, version update mechanics, verification commands |
 | `find-docs` | All agents | Context7 integration for live library documentation lookup |
-
-Agents also read `CLAUDE.md` in your project root for lessons learned from previous pipeline runs. The pipeline gets smarter over time.
 
 </details>
 
@@ -447,47 +462,33 @@ When the orchestrator loses context (compaction, new conversation, crash), it re
 
 ---
 
-## Lessons System
-
-Agents discover non-obvious codebase patterns during implementation, review, and debugging. These get appended to `CLAUDE.md` in your project root:
-
-```
-**Pattern**: [what triggers it] | **Reason**: [why] | **Solution**: [how to prevent it]
-```
-
-The planner reads lessons before designing the plan. The reviewer and debugger read them at task start. Past mistakes inform future runs -- the pipeline learns from itself.
-
----
-
 ## Security Hooks
 
 The plugin ships PreToolUse hooks that validate every Bash command, file write, and branch operation before execution.
 
 <details>
-<summary><strong>What's blocked (85+ rules)</strong></summary>
+<summary><strong>What's blocked (~19 rules)</strong></summary>
+
+The hooks stop irreversible or destructive actions and credential exposure -- not workflow policy. (Protected-branch pushes, commit-message format, tags/releases, and squash-merge enforcement were removed on the scrub branch.)
 
 | Category | Examples |
 |----------|---------|
-| **Destructive filesystem** | `rm -rf /`, paths outside working dir, non-git directories, wildcards |
-| **Git destructive** | Force push, hard reset, force clean, stash drop/clear |
-| **Protected branches** | Push, rebase, delete, force create on main/master/develop/release/production/staging |
-| **Publishing** | `npm publish`, `cargo publish`, `docker push`, `git tag`, `gh release create`, `twine upload` |
+| **Destructive filesystem** | `rm -rf` on system paths, outside the working dir, in non-git directories, or with wildcards; `mkfs`/`fdisk`/`dd` to devices |
+| **Git history** | Force push (`--force`, `-f`, `--force-with-lease`) |
+| **Publishing & releases** | `npm publish`, `cargo publish`, `mvn deploy`, `gradle publish`, `twine upload`, `gem push`, `dotnet nuget push`; `docker`/`podman`/`buildah push` |
 | **GitHub mutations** | `gh pr merge/close/reopen`, `gh issue close/delete/comment` |
-| **Database** | `DROP TABLE/DATABASE/SCHEMA`, `TRUNCATE`, bulk `DELETE FROM` |
-| **Credentials** | AWS keys (AKIA pattern), private keys, JWTs, GitHub/GitLab tokens, hardcoded passwords, `.env` secrets |
-| **External mutations** | HTTP POST/PUT/DELETE to non-localhost, SSH/SCP to remote hosts, service control |
-| **System files** | Writing to /etc, /sys, /proc, shell profiles, SSH config |
-| **Commit format** | Conventional commits validation (customizable regex) |
-| **Pipeline artifacts** | Blocks `git add .devline/` to prevent committing pipeline state |
+| **Database** | `DROP TABLE/DATABASE/SCHEMA/INDEX/VIEW`, `TRUNCATE`, bulk `DELETE FROM` |
+| **Credentials** | AWS keys (AKIA), private keys, JWTs, GitHub/GitLab tokens, hardcoded passwords/API keys in file content; printing secret env vars; sending secrets to external URLs |
+| **External mutations** | HTTP POST/PUT/DELETE/PATCH to non-localhost (asks first), remote SSH/SCP (asks first), `systemctl`/`service` start/stop/restart |
+| **Process & system** | `kill -9 1`, `chmod 777`, modifying SSH `authorized_keys`, piping `curl`/`wget` into a shell (asks first), `;rm`/backtick-rm injection |
 
 </details>
 
 <details>
 <summary><strong>Smart exemptions</strong></summary>
 
-- **Test files** skip credential detection. Test code legitimately contains fake API keys and tokens. Detected by path patterns: `/test/`, `/__tests__/`, `.test.`, `.spec.`, `/fixtures/`, `/testdata/`.
-- **Documentation and config** can be edited directly on protected branches. Markdown, JSON, YAML, Dockerfiles, Makefiles -- these don't need a feature branch for a typo fix.
-- **Merge style** is configurable. The hook enforces whatever merge strategy you've configured (squash, merge, or rebase) when merging into protected branches.
+- **Test files** skip credential detection. Test code legitimately contains fake API keys and tokens. Detected by path patterns: `/test/`, `/tests/`, `/__tests__/`, `.test.`, `.spec.`, `/fixtures/`, `/testdata/`.
+- **Common placeholder passwords** (`test`, `example`, `placeholder`, `changeme`, `dummy`, ...) are allowed, so examples and docs don't trip the secret scanner.
 
 </details>
 
@@ -574,51 +575,39 @@ auto_approve_plan: true
 ---
 ```
 
-**Jira ticket conventions:**
+**Jira branch naming:**
 ```yaml
 ---
 branch_format: "PROJ-{ticket}/{title}"
 branch_kinds: "PROJ"
-commit_format: "PROJ-123: description"
-commit_format_regex: "^[A-Z]+-[0-9]+: .+"
 ---
 ```
 
-**Emoji commits:**
+**Always take the fast lane for small changes:**
 ```yaml
 ---
-commit_format: "emoji description"
-commit_format_regex: "^(✨|🐛|♻️|📝|🔧|✅|🔨|🚀|⬆️|⏪) .+"
+fast_lane: always
 ---
 ```
 
 <details>
 <summary><strong>All settings</strong></summary>
 
-#### Approval gates
+#### Pipeline gates
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `auto_approve_brainstorm` | `false` | Skip approval after brainstorming |
 | `auto_approve_plan` | `false` | Skip approval after planning |
+| `fast_lane` | `auto` | Fast-lane small changes to implement -> review -> commit. `auto` = detect, `always` = force, `off` = always run the full pipeline |
 
 #### Branching strategy
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `enforce_feature_branches` | `false` | Block source edits on protected branches |
 | `branch_format` | `"{kind}/{title}"` | Branch naming (`{kind}`, `{title}` placeholders) |
 | `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds |
-| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Protected branches regex |
-| `merge_style` | `"squash"` | How to merge into protected: `squash`, `merge`, `rebase` |
-
-#### Commit conventions
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `commit_format` | `"kind(scope): details"` | Human-readable format shown in errors |
-| `commit_format_regex` | conventional commits | Regex for validation |
-| `direct_edit_extensions` | `"(md\|txt\|json\|yaml\|...)"` | Extensions editable directly on protected branches |
+| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of |
 
 #### Framework overrides
 
@@ -639,7 +628,7 @@ commit_format_regex: "^(✨|🐛|♻️|📝|🔧|✅|🔨|🚀|⬆️|⏪) .+"
 | `dep_verify_build` | `true` | Run build check |
 | `dep_verify_tests` | `true` | Run test suite |
 
-CVE patcher uses `cve_` prefix, migration uses `migrate_` prefix (same keys, independent overrides).
+The `deps` skill (patch mode) also honors `cve_`-prefixed overrides (e.g. `cve_verify_build`), which take priority over the generic `dep_` keys. Migrate mode always runs build and test verification (not configurable).
 
 </details>
 
@@ -673,10 +662,10 @@ The debugger reproduces the issue, gathers evidence (logs, stack traces, git bla
 <summary><strong>Patch CVEs across repos</strong></summary>
 
 ```
-/devline:cve-patcher CVE-2024-38816 CVE-2024-38819 --repos api-service web-frontend
+/devline:deps CVE-2024-38816 CVE-2024-38819 --repos api-service web-frontend
 ```
 
-Researches each CVE (affected package, versions, fix version, severity), then launches parallel patcher agents per repository. Each agent detects the ecosystem, checks if the dependency is present and affected, bumps the version, verifies build and tests pass, and commits.
+Researches each CVE (affected package, versions, fix version, severity), then launches parallel dependency agents per repository. Each agent detects the ecosystem, checks if the dependency is present and affected, bumps the version, verifies build and tests pass, and commits.
 
 </details>
 
@@ -684,7 +673,7 @@ Researches each CVE (affected package, versions, fix version, severity), then la
 <summary><strong>Migrate a major version</strong></summary>
 
 ```
-/devline:migrate spring-boot from 2.7 to 3.2
+/devline:deps --migrate spring-boot from 2.7 to 3.2
 ```
 
 Researches the official migration guide, finds available tooling (OpenRewrite recipes for Spring Boot), compiles a breaking-changes checklist (javax to jakarta namespace, security config changes), runs the migration tool, handles remaining manual changes, and verifies everything compiles and tests pass.
@@ -722,12 +711,7 @@ Scans the text against 60+ known AI writing patterns (negative parallelism, tric
 - **`/compact` at ~70% context.** The PreCompact hook preserves pipeline state automatically. Pass focus instructions: `/compact Focus on the API changes`.
 - **Use `/devline:implement` for well-defined tasks.** Skip brainstorming when you already know exactly what to build.
 - **Use `/devline:debug` instead of manual debugging.** The scientific method catches root causes faster than reading code and guessing.
-- **Install [RTK](https://github.com/rtk-ai/rtk) for 60-90% token savings.** A CLI proxy that filters noise from command output. Run `/devline:setup` to install, or:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-rtk init -g
-```
+- **Install the [recommended companions](#recommended-companions).** RTK, Basic Memory, and Ponytail — `/devline:setup` offers all three.
 
 ---
 

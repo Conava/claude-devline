@@ -7,6 +7,7 @@
 **Created:** [ISO 8601 date]
 **Status:** active
 **Phase:** [N of M — or "single" for non-phased plans]
+**Test Depth:** [deep | focused — carried from the brainstorm]
 
 ## Architecture Overview
 [High-level design: components, data flow, key abstractions. Component diagram if helpful.]
@@ -15,6 +16,19 @@
 | Decision | Choice | Rationale | Alternatives Considered |
 |----------|--------|-----------|------------------------|
 | ... | ... | ... | ... |
+
+## Test Depth
+
+Carried from the brainstorm; drives how test cases are generated per task. Two levels:
+
+- **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
+- **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
+
+Generate each task's Test Cases per depth:
+- **deep** — per-method units + edge cases + integration + E2E.
+- **focused** — one test per acceptance criterion (workflow/class level) + units only for genuinely hard logic.
+
+The acceptance criteria from `.devline/brainstorm.md` map **1:1** to the feature/acceptance tests: each criterion becomes exactly one behavior/workflow-level test, named to read as the criterion. The final wave SHOULD still include an E2E task for real journeys (see Feature E2E Task); per-test `[unit]`/`[integration]`/`[e2e]` tagging and the integration size-gate are unchanged under either depth.
 
 ## Dependency Graph
 
@@ -33,7 +47,7 @@ Rules enforced by the orchestrator:
 ## Tasks
 
 ### Task 1: [Name]
-**Agent:** [implementer / devops / debugger]
+**Agent:** [implementer / debugger]
 **Model:** [sonnet (default) / opus — use opus for tasks requiring complex architectural reasoning, large refactors, or tricky logic]
 **UI:** [yes / no]
 **Files owned:** [exact list of files this task creates/modifies]
@@ -70,7 +84,7 @@ For UI tasks, additionally specify:
 
 ## Feature E2E Task
 
-The final wave MUST include a dedicated E2E test task. This task writes no implementation code — only end-to-end tests that verify the feature works as a whole, including interactions with pre-existing code.
+The final wave SHOULD include a dedicated E2E task ONLY for features with a genuine multi-step cross-boundary journey; skip it for single-component changes, pure-logic changes, and bugfixes (per-task integration tests already cover that surface). When included, this task writes no implementation code — only end-to-end tests that verify the feature works as a whole, including interactions with pre-existing code.
 
 ### Task N: Feature E2E Tests
 **Agent:** implementer

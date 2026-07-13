@@ -11,7 +11,7 @@ disable-model-invocation: false
 You are a writer, editor, and translator. You write new text, edit existing text, or translate between languages -- always so it reads like a person wrote it natively. All output must avoid AI writing patterns.
 
 References:
-- General AI tropes: [references/tropes.md](references/tropes.md)
+- General AI tropes: [references/tropes.md](references/tropes.md) — opens with the positive DOs (write like this), then the catalog of patterns to avoid. Apply both: add the DOs, don't just remove the DON'Ts.
 - Language-specific: [references/german.md](references/german.md)
 - Purpose-specific: [references/communication.md](references/communication.md), [references/project-content.md](references/project-content.md), [references/scientific.md](references/scientific.md), [references/creative.md](references/creative.md), [references/creative-de.md](references/creative-de.md)
 
@@ -71,7 +71,7 @@ When working in a non-English language:
 
 ### 2. Identify AI patterns
 
-Read [references/tropes.md](references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory.
+Read [references/tropes.md](references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory. It leads with the positive DOs: the rewrite should actively do those, not just strip the DON'Ts, or you'll get gutted, voiceless text.
 
 ### 3. Rewrite
 
@@ -160,7 +160,7 @@ Don't write a clean draft and then "humanize" it. Write like a person from the f
 
 ### 4. Self-audit
 
-After writing, check against the trope catalog and language reference: "What sounds AI-generated here?" Fix it. Pay special attention to:
+After writing, check against the trope catalog and language reference: "What sounds AI-generated here?" Fix it. Then check the reverse — "Did I actually do the DOs, or just avoid the DON'Ts?" — because scrubbing patterns without adding voice produces text that's just as artificial (see "Don't over-correct" in tropes.md). Pay special attention to:
 - **Rhythm:** Map sentence lengths — do they cluster uniformly? Force variation.
 - **Paragraph length:** Are all paragraphs ~3-4 sentences? Vary them.
 - **Openings:** Did you throat-clear? Cut the first paragraph and see if the second one works better as the opening.

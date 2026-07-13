@@ -1,13 +1,13 @@
 ---
 name: kb-dependency-management
-description: Domain logic for dependency management — injected into the dependency-patcher agent. Provides ecosystem detection, version update mechanics, build/test verification, and commit/push workflows across all major package managers. Not invoked directly.
+description: Domain logic for dependency management — injected into the dependency agent. Provides ecosystem detection, version update mechanics, build/test verification, and commit/push workflows across all major package managers. Not invoked directly.
 user-invocable: false
 disable-model-invocation: true
 ---
 
 # Dependency Management
 
-Shared methodology for updating dependencies across all supported package ecosystems. This skill is injected into the dependency-patcher agent and provides the mechanics of detecting, updating, verifying, and committing dependency changes — regardless of whether the trigger is a CVE, a routine version bump, or part of a larger migration.
+Shared methodology for updating dependencies across all supported package ecosystems. This skill is injected into the dependency agent and provides the mechanics of detecting, updating, verifying, and committing dependency changes — regardless of whether the trigger is a CVE, a routine version bump, or part of a larger migration.
 
 ## Ecosystem Detection
 
@@ -126,7 +126,7 @@ Read `.claude/devline.local.md` YAML frontmatter in each repo for these settings
 | `dep_verify_build` | `true` | Run build verification before committing. |
 | `dep_verify_tests` | `true` | Run test suite before committing. |
 
-The launcher skill (cve-patcher, migrate, etc.) may map its own setting names to these — e.g., `cve_branch_strategy` maps to `dep_branch_strategy`. Check for both the prefixed and generic versions, with the prefixed version taking priority.
+The launcher skill (deps) may map its own setting names to these — e.g., `cve_verify_build` maps to `dep_verify_build`. Check for both the prefixed and generic versions, with the prefixed version taking priority.
 
 When `dep_auto_commit` is `false`, `dep_auto_push` is implicitly `false` too.
 
