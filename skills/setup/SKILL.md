@@ -78,10 +78,30 @@ Three optional companions make devline leaner and more capable. Offer all three 
 
 **Basic Memory** — local-first, per-project memory stored as plain Markdown you commit to the repo, retrieved on demand so it never bloats context. Gives agents persistent, cross-session recall of project decisions and corrections. Works in any Claude Code session, not just devline.
 - Check: `which basic-memory`.
-- If accepted:
+- If accepted (multi-session-safe setup — each Claude session binds to its own repo's `memory/` project via a per-session MCP wrapper, so parallel sessions never clobber a shared "active project"):
   1. `uv tool install basic-memory`
-  2. `claude mcp add basic-memory -- uvx basic-memory mcp`
-  3. Optionally add its official Claude Code plugin for session-start recall + the `memory-defrag`/`memory-reflect` consolidation skills.
+  2. Write the per-session MCP wrapper to `~/.claude/mcp/basic-memory-cwd.sh` (create `~/.claude/mcp/` if needed) and `chmod +x` it, with exactly this content:
+     ```bash
+     #!/usr/bin/env bash
+     # Per-session Basic Memory MCP server, bound to the current repo's project.
+     # One stdio server per Claude session (in that session's cwd) → each session
+     # pins to its own repo via --project, so parallel sessions never clobber a
+     # shared "active project".
+     export PATH="$HOME/.local/bin:$PATH"
+     repo=$(git rev-parse --show-toplevel 2>/dev/null)
+     if [ -n "$repo" ]; then
+       name=$(basename "$repo")
+       if ! basic-memory project list 2>/dev/null | grep -qw "$name"; then
+         mkdir -p "$repo/memory"
+         basic-memory project add "$name" "$repo/memory" >/dev/null 2>&1 || true
+       fi
+       exec basic-memory mcp --project "$name"
+     fi
+     exec basic-memory mcp
+     ```
+  3. `claude mcp add --scope user basic-memory -- bash ~/.claude/mcp/basic-memory-cwd.sh`
+  4. Optionally add its official Claude Code plugin (`basic-memory@basicmachines-co`) for session-start recall + the `memory-defrag`/`memory-reflect` consolidation skills.
+- For a full machine setup, the repo's `install.sh` does all of this plus devline + the other companions.
 
 **Ponytail** — a separate Claude Code plugin that keeps generated code minimal (YAGNI, stdlib-first, shortest working diff). It composes with devline: devline enforces the process, ponytail keeps the code lean.
 - Check: whether the ponytail plugin is already enabled (look in `~/.claude/plugins` or the user's enabled plugins).

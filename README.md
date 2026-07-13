@@ -50,6 +50,14 @@ Every finding from every review gets fixed. There's no "pass with warnings." If 
 
 ## Install
 
+### Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash
+```
+
+Installs Claude Code (if missing), the devline plugin, and the recommended companions (RTK, Ponytail, Basic Memory). Works on **Linux** (apt/pacman/dnf/zypper/apk), **macOS** (Homebrew), and **Windows via WSL or Git Bash** — it prompts before installing any missing underlying tool. Review the script first if you like. Flags: `--minimal` (devline only), `--skip-rtk`/`--skip-ponytail`/`--skip-memory`, `--yes` (non-interactive). Example: `curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash -s -- --minimal`.
+
 ### From the marketplace
 
 ```bash
@@ -87,7 +95,7 @@ It works without bypass mode too. You'll just get prompted frequently during par
 
 ## Recommended companions
 
-Optional, but they make devline leaner and more capable — `/devline:setup` offers to install all three.
+Optional, but they make devline leaner and more capable — `/devline:setup` offers to install all three. The [quick installer](#quick-install) sets up all three automatically, and wires Basic Memory through a per-session MCP wrapper so parallel Claude sessions each bind to their own repo's `memory/` project (multi-session-safe).
 
 - **[RTK](https://github.com/rtk-ai/rtk)** — a CLI proxy that filters command-output noise for 60-90% token savings. devline runs many parallel agents issuing Bash commands, so it compounds.
   ```bash
