@@ -282,6 +282,22 @@ Never info-dump. Never stop the story to explain how the world works. Instead:
 - **Texture through quirks, not function.** A magic system that just works, a creature that fulfills its role, an artifact that does its job, an institution that runs smoothly — all read as default-shape, which reads as machine-generated. Reach for idiosyncrasies: an effect with a sound it shouldn't make, a creature with a physical tic, an artifact that misbehaves with its environment, a body of magic-users that fails its own rules in mundane ways. Glossy is the tell. The frictions are where the world becomes real, and they double as character-revealing moments because someone has to react to them.
 - **Inspiration, not direct port.** Most fiction draws on existing fiction for tone or systems. The principles transfer; the labels do not. Characteristic names, institutions, and signature objects from a reference work belong in design notes, not in the manuscript. Eigennames should feel native to the world being built. A reader who recognizes a direct lift stops reading the world and starts reading the comparison, and the project pays the cost forever.
 
+### Naming — avoid the AI name pool
+
+AI draws every name from the same small pool, and readers who have seen other AI fiction recognize it on sight. This is one of the strongest fiction tells. The families to avoid (the principle holds across languages, even when the specific names differ):
+
+- **Stock fantasy first names** — Elara (the worst offender), Lyra, Aria, Kael, Cassian, Lucian, Seraphina, Isolde, Elowen, Thorne, Nyx. Soft, vowel-heavy, two or three syllables, vaguely Latinate.
+- **Evocative compound places** — the Whispering Woods, Shadowfell, Silvermoon, Ashfall, Everwood, the Sundering. Adjective-plus-nature-noun, or Noun-plus-"-fell/-wood/-moon".
+- **Portentous institutions** — the Order of the [Noun], the [Adjective] Council, the High [Anything].
+- **The full-name reflex** — handing every minor character a first name plus an evocative surname (Elara Voss, Kael Thorne) whether the story needs it or not.
+
+Instead:
+
+- **Name from the world's real cultural and linguistic stock.** A name should locate a person — language, region, class, era. A Bavarian farmer is not called Kael. Pull from the traditions your world actually draws on, then bend them, rather than inventing from phonetic mush.
+- **Vary the sound across the cast.** If three names share the same soft two-syllable shape, the characters blur. Mix syllable counts, hard and soft consonants, lengths. Read the cast list aloud — if the names rhyme or run together, rework them.
+- **Let some names be plain.** Not everyone needs a mythic name. A "Tom", a "Rana", a "Greta" among the invented ones grounds the world and makes the rare evocative name land.
+- **Weight comes from use, not from sound.** A name earns meaning from what the character does under it — not from ancient-sounding syllables.
+
 ### Humor mechanics
 
 Not all creative writing needs humor. But when it does:
@@ -335,5 +351,6 @@ This gap is where character lives. AI writes characters whose inner state matche
 - **Safe outcomes:** AI avoids genuine conflict, moral ambiguity, and uncomfortable truths.
 - **Missing body:** Characters float as disembodied voices. No physical presence, no sensory grounding.
 - **Mechanical transitions:** "Meanwhile..." "Later that day..." "The next morning..."
+- **Cookie-cutter names:** Elara, Kael, Lyra, the Whispering Woods — the same name pool every AI story draws from (see Naming).
 - **Convergent aesthetics:** Every story starts to sound the same — same sentence patterns, same metaphor families, same emotional arcs.
 - **Resolution addiction:** Every scene resolves. Every conflict wraps up. Every emotion finds peace. Real stories are messier.
