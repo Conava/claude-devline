@@ -83,17 +83,19 @@ Three optional companions make devline leaner and more capable. Offer all three 
   2. Write the per-session MCP wrapper to `~/.claude/mcp/basic-memory-cwd.sh` (create `~/.claude/mcp/` if needed) and `chmod +x` it, with exactly this content:
      ```bash
      #!/usr/bin/env bash
-     # Per-session Basic Memory MCP server, bound to the current repo's project.
-     # One stdio server per Claude session (in that session's cwd) → each session
-     # pins to its own repo via --project, so parallel sessions never clobber a
-     # shared "active project".
+     # Per-session Basic Memory MCP server, bound to the current repo's project —
+     # or, when not inside a git repo, to the current directory. One stdio server
+     # per Claude session (in that session's cwd) pins to its own project via
+     # --project, so parallel sessions never clobber a shared "active project",
+     # and a non-git root (e.g. a container of nested repos) still gets its own
+     # isolated project instead of dumping into the shared default.
      export PATH="$HOME/.local/bin:$PATH"
-     repo=$(git rev-parse --show-toplevel 2>/dev/null)
-     if [ -n "$repo" ]; then
-       name=$(basename "$repo")
+     root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+     if [ -n "$root" ]; then
+       name=$(basename "$root")
        if ! basic-memory project list 2>/dev/null | grep -qw "$name"; then
-         mkdir -p "$repo/memory"
-         basic-memory project add "$name" "$repo/memory" >/dev/null 2>&1 || true
+         mkdir -p "$root/memory"
+         basic-memory project add "$name" "$root/memory" >/dev/null 2>&1 || true
        fi
        exec basic-memory mcp --project "$name"
      fi
