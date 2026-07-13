@@ -61,13 +61,14 @@ Installs Claude Code (if missing), the devline plugin, and the recommended compa
 ### From the marketplace
 
 ```bash
-claude plugin add devline
+claude plugin marketplace add Conava/claude-devline
+claude plugin install devline@devline
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/devline-io/claude-devline.git
+git clone https://github.com/Conava/claude-devline.git
 claude --plugin-dir ./claude-devline
 ```
 

@@ -1,8 +1,17 @@
 name: Release
 
+# Manual, no script. Cut a release by running this workflow with a version:
+#   • GitHub UI: Actions → Release → "Run workflow" → enter version (e.g. 0.4.0)
+#   • CLI:       gh workflow run release.yml -f version=0.4.0
+# It bumps the version in both manifests on main, commits, tags
+# devline--v<version> (matching `claude plugin tag`), and creates the GitHub Release.
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.4.0"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,25 +22,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
-      - name: Generate changelog
-        id: changelog
+      - name: Bump, tag, and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
         run: |
-          PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
-          if [ -n "$PREV_TAG" ]; then
-            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          else
-            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          echo "$VERSION" | grep -qP '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' \
+            || { echo "::error::'$VERSION' is not semver (e.g. 0.4.0)"; exit 1; }
+          tag="devline--v$VERSION"
+          if git rev-parse "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::$tag already exists"; exit 1
           fi
-          {
-            echo "body<<EOF"
-            echo "$LOG"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          body: ${{ steps.changelog.outputs.body }}
-          generate_release_notes: false
+          # Bump the version in both manifests (keeping them in agreement).
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+            jq --arg v "$VERSION" '
+              (if .version then .version = $v else . end)
+              | (if .plugins then .plugins |= map(if .version then .version = $v else . end) else . end)
+            ' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          done
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
+          git commit -m "chore: release v$VERSION"
+          git push origin HEAD:main
+
+          # Changelog since the previous release tag.
+          prev=$(git tag --list 'devline--v*' --sort=-version:refname | head -1)
+          if [ -n "$prev" ]; then
+            notes=$(git log "$prev..HEAD" --pretty=format:'- %s (%h)' --no-merges)
+          else
+            notes=$(git log --pretty=format:'- %s (%h)' --no-merges)
+          fi
+
+          git tag "$tag"
+          git push origin "$tag"
+          printf '%s\n' "$notes" | gh release create "$tag" --title "$tag" --notes-file -

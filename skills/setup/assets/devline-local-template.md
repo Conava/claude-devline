@@ -78,7 +78,7 @@ Only non-default settings are written. If nothing was changed, no file is create
 ```markdown
 ---
 # Devline Local Settings — only non-default values.
-# Full reference: https://github.com/marlonlom/claude-devline#settings-reference
+# Full reference: https://github.com/Conava/claude-devline#settings-reference
 <non-default settings here>
 ---
 ```
