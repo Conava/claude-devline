@@ -5,46 +5,32 @@ A Claude Code plugin that turns a rough idea into merge-ready code. It brainstor
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 flowchart TD
-    input["Your idea"] --> brainstorm
+    idea["Your idea"] --> spec{"You approve\nthe spec"}
+    spec --> plan{"You approve\nthe plan"}
+    plan --> impl
 
-    subgraph interactive["Interactive — you decide"]
-        brainstorm["Brainstorm\nClarifying questions, feature spec"]
-        design["Design System\n67 styles, 161 palettes, 57 fonts"]
-        plan["Plan\nTDD architecture, parallel tasks"]
-        brainstorm --> design
-        design -. "only if UI" .-> plan
-        brainstorm --> plan
-    end
-
-    plan --> approve{You approve}
-
-    approve --> impl
-
-    subgraph impl["Parallel Implementation"]
+    subgraph impl["Autonomous — parallel worktrees"]
         direction LR
-        a1["Agent 1\nWorktree A"] --> r1["Review"]
-        a2["Agent 2\nWorktree B"] --> r2["Review"]
-        a3["Agent 3\nWorktree C"] --> r3["Review"]
+        a1["Agent 1"] --> r1["Review"]
+        a2["Agent 2"] --> r2["Review"]
+        a3["Agent 3"] --> r3["Review"]
     end
 
-    impl --> docs["Documentation\nREADME, API docs"]
-    docs --> deep["Deep Review\nSecurity audit, regression check, e2e trace"]
-    deep --> done["Done\nCommit, merge, or iterate"]
+    impl --> post["Docs + deep review"]
+    post --> gate{"Merge\nor iterate?"}
+    gate -->|iterate| plan
+    gate -->|merge| done["Merge-ready code"]
 
-    classDef interactive_node fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
-    classDef approve_node fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef impl_node fill:#d1fae5,stroke:#059669,color:#064e3b
-    classDef review_node fill:#fce7f3,stroke:#db2777,color:#831843
-    classDef final_node fill:#f3f4f6,stroke:#6b7280,color:#1f2937
+    classDef you fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef work fill:#d1fae5,stroke:#059669,color:#064e3b
+    classDef io fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef neutral fill:#f3f4f6,stroke:#6b7280,color:#1f2937
 
-    class brainstorm,design,plan interactive_node
-    class approve approve_node
-    class a1,a2,a3 impl_node
-    class r1,r2,r3 review_node
-    class docs,deep,done final_node
+    class spec,plan,gate you
+    class a1,a2,a3,r1,r2,r3 work
+    class idea,done io
+    class post neutral
 ```
-
-Every finding from every review gets fixed. There's no "pass with warnings." If an implementer can't fix it after two attempts, the planner rewrites the approach.
 
 ---
 
@@ -82,15 +68,11 @@ Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project con
 
 ### Permissions
 
-Devline is built for `--dangerously-skip-permissions` mode. Agents need to read files, write code, and run builds without prompting on every tool call.
+Run devline in Claude Code's **auto-accept mode** (toggle with Shift+Tab). The pipeline runs many parallel agents reading files, writing code, and running builds — auto-accept keeps it from stalling on a prompt per tool call, while still surfacing anything the security hooks flag.
 
-Safety comes from hooks, not permission dialogs. The plugin ships ~19 focused security rules that block irreversible or destructive operations before they execute. Force pushes, `rm -rf` outside the working dir, credential exposure, publishing commands, database destructive operations -- all blocked. See [Security Hooks](#security-hooks).
+Safety comes from hooks, not permission dialogs. The plugin ships ~19 focused security rules that block irreversible or destructive operations before they execute -- force pushes, `rm -rf` outside the working dir, credential exposure, publishing commands, destructive database operations. See [Security Hooks](#security-hooks).
 
-```bash
-claude --dangerously-skip-permissions
-```
-
-It works without bypass mode too. You'll just get prompted frequently during parallel implementation.
+For zero prompts on long unattended runs you can also add `--dangerously-skip-permissions`; the security hooks still apply.
 
 ---
 
@@ -130,7 +112,7 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
 | `/devline:deps [--migrate] <CVEs \| package>` | Patch CVEs, or migrate a major version with `--migrate` |
 | `/devline:design` | Standalone component or theme design |
-| `/writing` | Write, edit, or translate text — anti-AI-pattern rewriting for general text; citation contract enforcement for scientific writing |
+| `/writing` | Clean AI slop and catch mistakes in your writing (write yourself, polish here); strict citation enforcement for scientific text |
 | `/brand` | Brand voice, visual identity, messaging |
 | `/graphic-design` | Logos, icons, banners, slides, corporate identity |
 
@@ -138,29 +120,40 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 
 ## How the Pipeline Works
 
-Seven stages. Two require your input (brainstorm, plan). The rest run autonomously.
+Stage 0 through Stage 5, plus a final gate. You approve twice — after brainstorm and after plan — then make the final merge-or-iterate call; the rest runs autonomously. Small changes take the fast lane straight to implement → review → commit.
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
-    s0["Stage 0\nBranch Setup"] --> s1["Stage 1\nBrainstorm"]
-    s1 --> s15["Stage 1.5\nDesign System"]
-    s15 -. "UI only" .-> s2["Stage 2\nPlan"]
+    start(["/devline"]) --> triage{"Classify\nchange"}
+    triage -->|small| fast["Fast lane\nimplement · review · commit"]
+    fast --> done(["Done"])
+
+    triage -->|feature| s0["Stage 0\nBranch setup"]
+    s0 --> s1["Stage 1\nBrainstorm"]
+    s1 -. "UI only" .-> s15["Stage 1.5\nDesign system"]
+    s15 --> s2["Stage 2\nPlan every phase"]
     s1 --> s2
+    s2 -->|multi-phase| s2
     s2 --> s3["Stage 3\nImplement + Review"]
-    s3 --> s4["Stage 4\nDocumentation"]
-    s4 --> s5["Stage 5\nDeep Review"]
-    s5 --> done["Done"]
+    s3 --> s35["Stage 3.5\nBatch-fix deferred"]
+    s35 -->|next phase| s3
+    s35 --> s4["Stage 4\nDocumentation"]
+    s4 --> s5["Stage 5\nDeep review"]
+    s5 --> gate{"Final gate\nmerge or iterate"}
+    gate -->|iterate| s2
+    gate -->|merge| done
 
     classDef auto fill:#f3f4f6,stroke:#6b7280,color:#1f2937
     classDef interactive fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
     classDef impl fill:#d1fae5,stroke:#059669,color:#064e3b
-    classDef final fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
 
     class s0,s4 auto
     class s1,s15,s2 interactive
-    class s3 impl
-    class s5,done final
+    class s3,s35,fast impl
+    class triage,gate decision
+    class start,done auto
 ```
 
 <details>
@@ -350,7 +343,7 @@ claude-devline/
 |   |   +-- references/      # Implementation protocol, worktree protocol, agent health
 |   |-- setup/               # /devline:setup
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
-|   |-- writing/             # /writing (purpose-aware: anti-AI-pattern rewriting + scientific citation enforcement)
+|   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
 |   +-- ...                  # More skills and knowledge bases
 |
@@ -531,7 +524,7 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 
 ## Writing and Content
 
-The `/writing` skill produces text that reads like a person wrote it. It detects the purpose first, then applies purpose-specific rules before writing a single word.
+The `/writing` skill takes a draft and strips the AI slop out of it — negative parallelism, tricolon abuse, uniform sentence length, sycophantic filler — while catching mistakes, so the text reads like a person wrote it. It can write from scratch too, but its best use is on writing you've already drafted: **write it yourself, then run `/writing` to clean it up and find mistakes.** It detects the purpose first and applies purpose-specific rules; for scientific writing it enforces a strict citation contract before returning anything (see below).
 
 Four purposes, each with a dedicated reference:
 - **Communication** -- emails, LinkedIn posts, cover letters, announcements
@@ -540,8 +533,8 @@ Four purposes, each with a dedicated reference:
 - **Creative** -- books, stories, chapters, narrative fiction
 
 Three modes across all purposes:
-- **Write** -- new text from scratch
-- **Edit** -- humanize existing text
+- **Edit** (recommended) -- clean AI slop out of your draft and flag mistakes
+- **Write** -- new text from scratch when you need it
 - **Translate** -- translate between languages with native voice (not "translated from English")
 
 Language-specific references layer on top for any purpose: German (du/Sie, compound nouns, quotation marks, modal particles).
@@ -692,13 +685,13 @@ Searches the curated database for dark color palettes suited to data-heavy inter
 </details>
 
 <details>
-<summary><strong>Write without AI patterns</strong></summary>
+<summary><strong>Clean up a draft</strong></summary>
 
 ```
-/writing humanize this blog post about our new API
+/writing clean up this blog post I drafted about our new API
 ```
 
-Scans the text against 60+ known AI writing patterns (negative parallelism, tricolon abuse, magic adverbs, uniform sentence length, bold-first bullets, sycophantic tone), rewrites to remove them, adds sentence length variation, and returns text that reads like a developer wrote it.
+Scans your text against 60+ known AI writing patterns (negative parallelism, tricolon abuse, magic adverbs, uniform sentence length, bold-first bullets, sycophantic tone), rewrites to remove them, adds sentence length variation, flags mistakes, and returns text that reads like a developer wrote it. Best run on your own draft -- it cleans up and catches errors better than it invents.
 
 </details>
 
