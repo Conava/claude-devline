@@ -17,9 +17,9 @@ flowchart TD
     end
 
     impl --> post["Docs + deep review"]
-    post --> gate{"Merge\nor iterate?"}
-    gate -->|iterate| plan
+    post --> gate{"You decide:\nmerge or iterate"}
     gate -->|merge| done["Merge-ready code"]
+    gate -->|iterate| again["Back to the plan"]
 
     classDef you fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef work fill:#d1fae5,stroke:#059669,color:#064e3b
@@ -29,7 +29,7 @@ flowchart TD
     class spec,plan,gate you
     class a1,a2,a3,r1,r2,r3 work
     class idea,done io
-    class post neutral
+    class post,again neutral
 ```
 
 ---
