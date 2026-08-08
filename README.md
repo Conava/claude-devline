@@ -460,7 +460,7 @@ When the orchestrator loses context (compaction, new conversation, crash), it re
 The plugin ships PreToolUse hooks that validate every Bash command, file write, and branch operation before execution.
 
 <details>
-<summary><strong>What's blocked (~19 rules)</strong></summary>
+<summary><strong>What's blocked (~28 rules)</strong></summary>
 
 The hooks stop irreversible or destructive actions and credential exposure -- not workflow policy. (Protected-branch pushes, commit-message format, tags/releases, and squash-merge enforcement were removed on the scrub branch.)
 
@@ -472,6 +472,10 @@ The hooks stop irreversible or destructive actions and credential exposure -- no
 | **GitHub mutations** | `gh pr merge/close/reopen`, `gh issue close/delete/comment` |
 | **Database** | `DROP TABLE/DATABASE/SCHEMA/INDEX/VIEW`, `TRUNCATE`, bulk `DELETE FROM` |
 | **Credentials** | AWS keys (AKIA), private keys, JWTs, GitHub/GitLab tokens, hardcoded passwords/API keys in file content; printing secret env vars; sending secrets to external URLs |
+| **Credential stores** | Reading `~/.ssh` private keys, `~/.gnupg`, `~/.aws/credentials`, `~/.netrc`, `~/.kube/config`, `~/.docker/config.json`, `gh` hosts -- via Bash or the Read tool |
+| **`.env` contents** | Any read of `.env*` (Bash or Read/Edit). Creating and appending stays allowed |
+| **Container escalation** | `--privileged`, `--cap-add`, `--device`, host `pid`/`ipc`/`userns`, unconfined `security-opt`; bind mounts of `/`, `docker.sock`, `/proc`, `/sys`, `/dev`, credential dirs; writable mounts of `/etc`, `/usr`, `/var`, `$HOME` |
+| **Dangerous file execution** | Running a shell script or compose stack whose *contents* contain any of the above -- writing the file is allowed, auto-running it is not |
 | **External mutations** | HTTP POST/PUT/DELETE/PATCH to non-localhost (asks first), remote SSH/SCP (asks first), `systemctl`/`service` start/stop/restart |
 | **Process & system** | `kill -9 1`, `chmod 777`, modifying SSH `authorized_keys`, piping `curl`/`wget` into a shell (asks first), `;rm`/backtick-rm injection |
 
@@ -482,6 +486,11 @@ The hooks stop irreversible or destructive actions and credential exposure -- no
 
 - **Test files** skip credential detection. Test code legitimately contains fake API keys and tokens. Detected by path patterns: `/test/`, `/tests/`, `/__tests__/`, `.test.`, `.spec.`, `/fixtures/`, `/testdata/`.
 - **Common placeholder passwords** (`test`, `example`, `placeholder`, `changeme`, `dummy`, ...) are allowed, so examples and docs don't trip the secret scanner.
+- **SSH keys** stay usable without being readable: `ls`/`stat`/`chmod` on `~/.ssh`, `ssh-keygen`, `ssh -i`, `git -c user.signingKey=...`, and `*.pub`/`config`/`known_hosts` reads all pass.
+- **`.env` templates** (`.env.example`, `.sample`, `.template`, `.dist`) are readable; `cp .env.example .env` and `echo X >> .env` work.
+- **Everyday Docker** is untouched: `build`, `run`, `exec`, `compose up`, `-p` publishing, named volumes, project-local mounts, and `:ro` mounts of things like `/etc/localtime`.
+
+`bash hooks/scripts/test-hooks.sh` runs the 53-case check table behind these rules.
 
 </details>
 
