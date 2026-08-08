@@ -37,6 +37,7 @@ ask() {
   exit 0
 }
 
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=./patterns.sh
 source "$(dirname "${BASH_SOURCE[0]}")/patterns.sh"
 

@@ -56,6 +56,7 @@ bash_case allow 'cp .env.example .env'
 bash_case allow 'cat .env.example'
 bash_case allow 'docker ps -a'
 bash_case allow 'docker build -t app .'
+# shellcheck disable=SC2016  # $(pwd) is test input, it must stay unexpanded
 bash_case allow 'docker run --rm -v $(pwd):/app -p 8080:80 node:20 npm test'
 bash_case allow 'docker run --rm -v /etc/localtime:/etc/localtime:ro alpine date'
 bash_case allow 'docker run --rm -v pgdata:/var/lib/postgresql/data postgres:16'

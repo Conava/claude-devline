@@ -27,7 +27,8 @@ jobs:
       - name: Shellcheck
         run: |
           sudo apt-get install -y shellcheck
-          find hooks/scripts skills/*/scripts -name '*.sh' -print0 | xargs -0 shellcheck
+          # -x follows sourced files (hooks/scripts/patterns.sh)
+          find hooks/scripts skills/*/scripts -name '*.sh' -print0 | xargs -0 shellcheck -x
           shellcheck install.sh
 
       - name: Validate JSON

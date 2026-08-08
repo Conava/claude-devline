@@ -17,6 +17,7 @@ if [[ -z "$file_path" ]]; then
   exit 0
 fi
 
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=./patterns.sh
 source "$(dirname "${BASH_SOURCE[0]}")/patterns.sh"
 
