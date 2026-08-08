@@ -106,12 +106,20 @@ if printf '%s' "$command" | grep -qP '(?<!git\s)rm\s+(-[a-zA-Z]*[rf]){1,}\s'; th
         deny "rm -rf targeting path outside the working directory ($abs_target). Not allowed."
       fi
     fi
+
+    # git-protection is a property of the target, not of where you stand: a
+    # scoped folder inside a work tree is recoverable even when cwd is a plain
+    # parent directory holding several repos. Probe the nearest existing
+    # ancestor so a path that is partly absent still gets the right answer.
+    probe="$abs_target"
+    while [[ ! -d "$probe" && "$probe" != "/" ]]; do
+      probe=$(dirname -- "$probe")
+    done
+    if ! git -C "$probe" rev-parse --is-inside-work-tree 2>&3 1>/dev/null; then
+      deny "rm -rf outside any git work tree ($abs_target). Only allowed inside git-protected repositories."
+    fi
   done
   set +f
-
-  if [[ -n "$targets" && -n "$cwd" ]] && ! git -C "$cwd" rev-parse --is-inside-work-tree 2>&3 1>/dev/null; then
-    deny "rm -rf in a non-git directory. Only allowed in git-protected repositories."
-  fi
 
   if printf '%s' "$command" | grep -qP 'rm\s+(-[a-zA-Z]*[rf]){1,}\s+(\.\.|[*]|/[*])'; then
     deny "Recursive force-delete with wildcard. Too dangerous."

@@ -5,8 +5,11 @@ set -uo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 sandbox=$(mktemp -d)
-trap 'rm -rf "$sandbox"' EXIT
+nongit=$(mktemp -d)          # a plain parent dir holding repos, like ~/source
+trap 'rm -rf "$sandbox" "$nongit"' EXIT
 git -C "$sandbox" init -q
+git -C "$nongit" init -q nested
+mkdir -p "$nongit/nested/.devline" "$nongit/nested/build" "$nongit/plain"
 printf 'docker run --privileged alpine sh\n' >"$sandbox/danger.sh"
 printf 'npm ci && npm test\n' >"$sandbox/safe.sh"
 printf 'services:\n  app:\n    image: nginx\n    privileged: true\n' >"$sandbox/compose.yaml"
@@ -35,6 +38,11 @@ check() { # check <expect> <script> <json>
 
 bash_case() { # bash_case <expect> <command>
   check "$1" validate-bash.sh "$(jq -nc --arg c "$2" --arg d "$sandbox" \
+    '{tool_name:"Bash",cwd:$d,tool_input:{command:$c}}')"
+}
+
+bash_case_in() { # bash_case_in <expect> <cwd> <command>
+  check "$1" validate-bash.sh "$(jq -nc --arg c "$3" --arg d "$2" \
     '{tool_name:"Bash",cwd:$d,tool_input:{command:$c}}')"
 }
 
@@ -93,6 +101,16 @@ bash_case deny 'rm --no-preserve-root -rf /'
 bash_case deny 'rm -rf /home'
 bash_case deny 'rm -rf ~/.ssh'
 bash_case deny 'rm -rf /etc/nginx'
+
+# --- git protection follows the target, not the cwd ---
+bash_case allow 'rm -rf .devline'
+bash_case allow 'rm -rf .devline/previews'                          # ancestor probe: .devline absent
+bash_case_in allow "$nongit" "rm -rf $nongit/nested/.devline"       # cwd not a repo, target is
+bash_case_in allow "$nongit" "rm -rf $nongit/nested/build"
+bash_case_in deny "$nongit" "rm -rf $nongit/plain"                  # no work tree anywhere above it
+bash_case_in deny "$nongit" "rm -rf $nongit"                        # the cwd itself
+bash_case_in deny "$nongit" "rm -rf $nongit/nested/.devline /etc/nginx"
+bash_case deny 'rm -rf ~/Documents/*'                               # unexpanded glob, no repo above it
 
 # --- content of what is about to run ---
 bash_case deny 'bash ./danger.sh'

@@ -466,7 +466,7 @@ The hooks stop irreversible or destructive actions and credential exposure -- no
 
 | Category | Examples |
 |----------|---------|
-| **Destructive filesystem** | `rm -rf` on system paths, outside the working dir, in non-git directories, or with wildcards; `mkfs`/`fdisk`/`dd` to devices |
+| **Destructive filesystem** | `rm -rf` on system paths, outside the working dir, outside any git work tree (checked on the *target*, so a scoped folder in a repo stays deletable from a plain parent dir), or with wildcards; `mkfs`/`fdisk`/`dd` to devices |
 | **Git history** | Force push (`--force`, `-f`, `--force-with-lease`) |
 | **Publishing & releases** | `npm publish`, `cargo publish`, `mvn deploy`, `gradle publish`, `twine upload`, `gem push`, `dotnet nuget push`; `docker`/`podman`/`buildah push` |
 | **GitHub mutations** | `gh pr merge/close/reopen`, `gh issue close/delete/comment` |
