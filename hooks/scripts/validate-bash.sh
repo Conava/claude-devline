@@ -14,8 +14,17 @@ trap 'exit 0' ERR
 input=$(cat)
 command=$(printf '%s\n' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 cwd=$(printf '%s\n' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)
+permission_mode=$(printf '%s\n' "$input" | jq -r '.permission_mode // "default"' 2>/dev/null || echo "default")
 
 if [[ -z "$command" ]]; then
+  exit 0
+fi
+
+# These rules backstop unattended runs (auto-accept/bypass mode), where
+# Claude Code's own per-tool prompt is off. In plain "default" mode that
+# prompt already gates every Bash call, so enforcing here too is pure
+# redundant friction.
+if [[ "$permission_mode" == "default" ]]; then
   exit 0
 fi
 
