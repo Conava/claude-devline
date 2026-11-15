@@ -160,7 +160,7 @@ flowchart LR
 <details>
 <summary><strong>Stage 0: Branch Setup</strong> (automatic)</summary>
 
-Reads branching config from `.claude/devline.local.md`. If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and adds it to `.gitignore`.
+Reads branching config from `.claude/devline.local.md`. If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and, if git does not already ignore it, adds it to `.git/info/exclude` so no tracked file changes.
 
 If a previous pipeline left artifacts behind, it detects them and asks whether to resume or start fresh.
 
