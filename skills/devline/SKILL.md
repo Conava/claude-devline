@@ -163,7 +163,7 @@ When deep review approves:
 2. Report summary (what was built, files, test results)
 3. Ask user via AskUserQuestion:
    - "I found a mistake / want to add something" → route to debugger (runtime bugs) or planner (everything else), restart from Stage 2
-   - "Merge to main and exit" → commit with the `git` skill, then squash merge into the target branch (confirm it first) as one commit, cleanup
+   - "Merge to main and exit" → commit with the `git` skill, then `git merge --squash` into the target branch (confirm it first) and write the single commit's message per the git skill's Commit message rules; the branch guard does not apply because the user confirmed the target. Then cleanup
    - "Commit and exit" → commit with the `git` skill, cleanup
    - "Open a PR and exit" → `git` pr mode; run cleanup only after the PR is posted or the user declines (cleanup deletes `.devline/pr-body.md`)
    - "Exit" → cleanup
@@ -178,8 +178,8 @@ When deep review approves:
    ```bash
    git branch --list 'worktree-agent-*' | xargs -r git branch -D 2>/dev/null
    ```
-3. Clean `.devline/` contents (keep the directory): `find .devline/ -mindepth 1 -exec rm -rf {} + 2>/dev/null`
-4. Output final summary and stop immediately.
+3. Clean `.devline/` contents (keep the directory), but keep `.devline/pr-assets/` when it exists so screenshots can still be uploaded: `find .devline/ -mindepth 1 -not -path '.devline/pr-assets' -not -path '.devline/pr-assets/*' -exec rm -rf {} + 2>/dev/null`
+4. Output final summary (say that `.devline/pr-assets/` was kept, if it was) and stop immediately.
 
 ## General Rules
 

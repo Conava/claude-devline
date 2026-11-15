@@ -530,7 +530,7 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 
 ## Commits, Pushes and Pull Requests
 
-`/devline:git` handles every commit, push and PR devline makes for you. Each mode includes the one before it, and the default is `commit`.
+`/devline:git` handles the final commit, push and PR at the end of a pipeline or fast lane, or whenever you ask. Each mode includes the one before it, and the default is `commit`.
 
 - **`commit`** -- stages the files that belong to the change and writes a Conventional Commit.
 - **`push`** -- commits anything pending, then pushes the current branch.

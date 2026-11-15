@@ -8,14 +8,14 @@ disable-model-invocation: false
 
 # Git — Commit, Push, Pull Request
 
-You make the commits, pushes and pull requests devline produces on the user's behalf. The goal is a commit message and a PR body the user would post without editing.
+You handle the final commit, push and pull request at the end of a devline pipeline or fast lane, or whenever the user asks. The goal is a commit message and a PR body the user would post without editing.
 
 ## Defaults
 
-A later config layer may override these; until then they apply as written. The rest of this skill refers to them instead of repeating values.
+`.claude/devline.local.md` overrides any value here; a later config layer may replace this section. The rest of this skill refers to these values instead of repeating them.
 
 - **Protected branches** (`protected_branches`): main, master, develop, release, production, staging.
-- **Branch names**: `branch_format` `{kind}/{title}`; `branch_kinds` feat, fix, refactor, docs, chore, test, ci. Values in `.claude/devline.local.md` win.
+- **Branch names**: `branch_format` `{kind}/{title}`; `branch_kinds` feat, fix, refactor, docs, chore, test, ci.
 - **Granularity**: one commit per logical change.
 - **Subject**: at most 72 characters. Body wrapped at 72.
 - **PR body file**: `.devline/pr-body.md`; screenshots in `.devline/pr-assets/`.
@@ -30,20 +30,21 @@ A later config layer may override these; until then they apply as written. The r
   pr     : commit + push -> PR body file -> user edits -> gh pr create
 ```
 
-Each mode includes the one before it. Free text maps to the nearest mode ("commit and push" is `push`, "open a PR" is `pr`). `push` and `pr` skip the commit step when the tree is clean. Notes after the mode, and any context paths a caller passes, feed the *why*. If `.devline/brainstorm.md` or `.devline/plan.md` exist and their `**Branch:**` matches the current branch, read them for the reason behind the change.
+Each mode includes the one before it. Free text maps to the nearest mode ("commit and push" is `push`, "open a PR" is `pr`). `push` and `pr` skip the commit step when the tree is clean. A request only for a message or description is draft-only: print the commit message, or write the PR body file, and do not commit, push or post unless the user asked to. Notes after the mode, and any context paths a caller passes, feed the *why*. If `.devline/plan.md` exists and its `**Branch:**` matches the current branch, read it, and `.devline/brainstorm.md` too (it has no branch header), for the reason behind the change.
 
 ## Branch guard (all modes)
 
 Read `protected_branches`, `branch_format` and `branch_kinds` from `.claude/devline.local.md`, falling back to the Defaults. If the current branch is protected:
 
 - `commit`: ask whether to branch off first. Offer a name built from `branch_format`, with `{kind}` taken from the commit type when it is one of `branch_kinds` (otherwise `chore`) and `{title}` a short kebab-case summary.
-- `push` / `pr`: offer to branch off as above. In a non-interactive run, stop and report instead of pushing.
+- `push` / `pr`: offer to branch off as above. If the user declines, push only after an explicit yes to pushing to that branch.
+- Non-interactive run: stop and report; do not commit on the protected branch.
 
 ## Staging
 
 1. Read `git status` and `git diff` (plus `git diff --staged`) before touching anything.
 2. Stage the files that belong to the change by name. Never `git add -A` or `git add .`.
-3. Never stage secrets (`.env`, keys, tokens, credentials) or junk (build output, caches, editor files, logs). Mention anything suspicious you left out.
+3. Never stage secrets (`.env`, keys, tokens, credentials), junk (build output, caches, editor files, logs) or `.devline/`. If `.devline/` is not ignored, add it to `.git/info/exclude` first (local, no tracked-file change). Mention anything suspicious you left out.
 4. If the tree holds unrelated changes, propose separate commits, one per logical change, and say which files go where. Do not fold them into one mixed commit.
 
 ## Commit message
@@ -86,21 +87,21 @@ Pass the message with a heredoc (`git commit -F - <<'EOF'`) or a `-F` file so li
 
 1. **Base:** the repo default (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`) unless the user named one. State the base you use.
 2. **Title:** the same Conventional Commits form as a subject; squash merges use it as the commit subject.
-3. **Template:** if `.github/pull_request_template.md` or `.github/PULL_REQUEST_TEMPLATE/` exists, its structure wins and the content below fills it.
+3. **Template:** if `pull_request_template.md` (any case) exists in the repo root, `docs/` or `.github/`, or `.github/PULL_REQUEST_TEMPLATE/` exists, its structure wins and the content below fills it.
 4. **Body sections**, in this order, omitting any that would be empty:
    - **Background**: the problem or need, in a few sentences.
    - **What it does**: the change in the abstract, a few sentences.
    - **Details**: only what a reviewer needs to judge the change. Add a small diff sketch, call tree or file tree only if it makes a point clearer than prose.
    - **Screenshots**: UI changes only. Capture headlessly with what the project already has (Playwright, an existing screenshot script), save to the Defaults assets directory, and put one placeholder line per image in the body. `gh` cannot upload images, so tell the user to drag them into the PR on GitHub. If nothing can capture, say so and leave the placeholder. Never install a tool for this.
    - **How to verify**: exact commands or steps, and what the reviewer should see.
-5. **Write** the body to the Defaults PR body file. Create `.devline/` and add it to `.gitignore` first if either is missing. Print the proposed title and the absolute path of the file, then stop and wait for the user.
-6. **Post** only when the user says so: `gh pr create --base <base> --title "<title>" --body-file .devline/pr-body.md`, then report the PR URL. Never run `gh pr merge`; merging is the user's call.
+5. **Write** the body to the Defaults PR body file. Create `.devline/` first if missing, and exclude it per Staging. Print the proposed title and the absolute path of the file, then stop and wait for the user.
+6. **Post** only when the user says so. If `gh pr view` shows an open PR for the branch, offer `gh pr edit --body-file .devline/pr-body.md` instead. Otherwise `gh pr create --base <base> --title "<title>" --body-file .devline/pr-body.md`, then report the PR URL. Never run `gh pr merge`; merging is the user's call.
 
 No `gh`, not authenticated, or no remote: say so and stop after writing the file.
 
 ## Hooks
 
-devline's hooks ask before a bare force push and before `gh pr merge`. `--force-with-lease` and `gh pr create` pass. When a hook asks, put the question to the user; never rephrase or split a command to get around it.
+When devline's hooks are active (they skip in default permission mode), they ask before a bare force push and before `gh pr merge`; `--force-with-lease` and `gh pr create` pass. The rules in this skill apply either way. When a hook asks, put the question to the user; never rephrase or split a command to get around it.
 
 ## Credits
 
