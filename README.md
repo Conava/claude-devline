@@ -70,7 +70,7 @@ Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project con
 
 Run devline in Claude Code's **auto-accept mode** (toggle with Shift+Tab). The pipeline runs many parallel agents reading files, writing code, and running builds — auto-accept keeps it from stalling on a prompt per tool call, while still surfacing anything the security hooks flag.
 
-Safety comes from hooks, not permission dialogs. The plugin ships ~19 focused security rules that block irreversible or destructive operations before they execute -- force pushes, `rm -rf` outside the working dir, credential exposure, publishing commands, destructive database operations. See [Security Hooks](#security-hooks).
+Safety comes from hooks, not permission dialogs. The plugin ships ~19 focused security rules that block irreversible or destructive operations before they execute -- force pushes, deleting system paths, the home directory or keys, reading or changing secrets, publishing commands, destructive database operations. See [Security Hooks](#security-hooks).
 
 For zero prompts on long unattended runs you can also add `--dangerously-skip-permissions`; the security hooks still apply.
 
@@ -347,12 +347,13 @@ claude-devline/
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
 |   +-- ...                  # More skills and knowledge bases
 |
-+-- hooks/                   # Security rules (PreToolUse, PreCompact, SubagentStop)
++-- hooks/                   # Security rules, compaction, agent logging
     |-- hooks.json
     +-- scripts/
         |-- validate-bash.sh       # ~19 bash command security rules
         |-- validate-write.sh      # Credential and secret detection
-        |-- pre-compact.sh         # Pipeline state preservation
+        |-- pre-compact.sh         # Steers the compaction summary
+        |-- restore-state.sh       # Re-injects pipeline state after compaction
         +-- subagent-stop.sh       # Agent completion logging
 ```
 
@@ -433,7 +434,7 @@ Long pipelines survive context compaction. All mutable state lives on disk.
 | `.devline/brainstorm.md` | Approved feature spec |
 | `.devline/design-system.md` | Design tokens, palette, typography (if UI) |
 
-A **PreCompact hook** automatically re-injects pipeline state into context after compaction. The orchestrator picks up where it left off. Absolute timestamps in `state.md` let health monitoring compute correct elapsed times after recovery.
+A **PreCompact hook** turns every compaction summary into a handoff, in any session: the goal and next step, every file, log location, URL and screenshot the user pointed to and why, the user's decisions and corrections, failed attempts and why they failed, and the working state. While a pipeline is active, a **SessionStart hook** (matcher `compact`) then re-injects `state.md`. The orchestrator picks up where it left off. Absolute timestamps in `state.md` let health monitoring compute correct elapsed times after recovery.
 
 `.devline/` artifacts are cleaned up when the pipeline finishes. They're never committed -- a hook blocks staging anything under `.devline/`.
 
@@ -462,22 +463,16 @@ The plugin ships PreToolUse hooks that validate every Bash command, file write, 
 <details>
 <summary><strong>What's blocked (~28 rules)</strong></summary>
 
-The hooks stop irreversible or destructive actions and credential exposure -- not workflow policy. (Protected-branch pushes, commit-message format, tags/releases, and squash-merge enforcement were removed on the scrub branch.)
+The hooks stop catastrophic actions and secret exposure, and ask before risky or outward-facing ones -- not workflow policy. (Protected-branch pushes, commit-message format, tags/releases, and squash-merge enforcement were removed on the scrub branch.)
 
-| Category | Examples |
-|----------|---------|
-| **Destructive filesystem** | `rm -rf` on system paths, outside the working dir, outside any git work tree (checked on the *target*, so a scoped folder in a repo stays deletable from a plain parent dir), or with wildcards; `mkfs`/`fdisk`/`dd` to devices |
-| **Git history** | Force push (`--force`, `-f`, `--force-with-lease`) |
-| **Publishing & releases** | `npm publish`, `cargo publish`, `mvn deploy`, `gradle publish`, `twine upload`, `gem push`, `dotnet nuget push`; `docker`/`podman`/`buildah push` |
-| **GitHub mutations** | `gh pr merge/close/reopen`, `gh issue close/delete/comment` |
-| **Database** | `DROP TABLE/DATABASE/SCHEMA/INDEX/VIEW`, `TRUNCATE`, bulk `DELETE FROM` |
-| **Credentials** | AWS keys (AKIA), private keys, JWTs, GitHub/GitLab tokens, hardcoded passwords/API keys in file content; printing secret env vars; sending secrets to external URLs |
-| **Credential stores** | Reading `~/.ssh` private keys, `~/.gnupg`, `~/.aws/credentials`, `~/.netrc`, `~/.kube/config`, `~/.docker/config.json`, `gh` hosts -- via Bash or the Read tool |
-| **`.env` contents** | Any read of `.env*` (Bash or Read/Edit). Creating and appending stays allowed |
-| **Container escalation** | `--privileged`, `--cap-add`, `--device`, host `pid`/`ipc`/`userns`, unconfined `security-opt`; bind mounts of `/`, `docker.sock`, `/proc`, `/sys`, `/dev`, credential dirs; writable mounts of `/etc`, `/usr`, `/var`, `$HOME` |
-| **Dangerous file execution** | Running a shell script or compose stack whose *contents* contain any of the above -- writing the file is allowed, auto-running it is not |
-| **External mutations** | HTTP POST/PUT/DELETE/PATCH to non-localhost (asks first), remote SSH/SCP (asks first), `systemctl`/`service` start/stop/restart |
-| **Process & system** | `kill -9 1`, `chmod 777`, modifying SSH `authorized_keys`, piping `curl`/`wget` into a shell (asks first), `;rm`/backtick-rm injection |
+Three tiers. **Deny** is for what is catastrophic or exposes secrets. **Ask** is for what may be fine but may not be, or acts in your name; you confirm it even in bypass mode. Everything else is **allowed**. An ask never masks a deny later in the same command.
+
+| Tier | What |
+|------|------|
+| **Deny: system and home** | `rm` of `/`, `/home`, `~`, `/etc`, `/usr`, `/var`, `/boot`, `/bin`, `/lib`… or a glob that empties one of them; `--no-preserve-root`; `mkfs`/`fdisk`/`dd` to devices; `kill -9 1` |
+| **Deny: secrets** | Reading, moving, overwriting or deleting private keys, `~/.gnupg`, cloud/kube/git/postgres credentials, `/etc/shadow`, `~/.password-store`, keyrings (Bash or Read/Edit); reading `.env*` (creating and appending is fine); tools that print stored secrets (`gh auth token`, `pass show`, `secret-tool lookup`, `kubectl get secret -o yaml`, cloud token printers); dumping the environment or printing secret variables; sending secrets to external URLs; changing user passwords; mounting credential dirs into a container; hardcoded keys, tokens and passwords in written files |
+| **Ask** | Deletes inside system dirs, of `~/.config`/`~/.local`, of a whole top-level home folder or a whole git repository; bare force push (`--force-with-lease` passes); `git reset --hard`, `git clean -f`; package publishing and image push; `gh pr merge/close/reopen`, `gh issue close/delete/comment`; `DROP`/`TRUNCATE`/bulk `DELETE`; deleting container volumes; privileged containers and host mounts; system `systemctl`/`service` control (`--user` passes); recursive `chmod 777`; writing `authorized_keys`; `crontab -r`; external HTTP POST/PUT/DELETE/PATCH; piping `curl`/`wget` into a shell; running a script or compose stack whose contents contain any of the above |
+| **Allowed** | Everything else, including deletes of temp files, documents, caches, project folders and anything outside git, ssh/scp to other machines (remote commands get the same rules, except service control) |
 
 </details>
 

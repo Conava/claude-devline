@@ -41,14 +41,23 @@ deny() {
   exit 2
 }
 
+# Asks are collected, not emitted at once, so a deny later in the same command
+# (`rm -rf /etc/x; cat ~/.ssh/id_rsa`) still wins.
+ask_reasons=()
 ask() {
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"$1\"}}"
-  exit 0
+  ask_reasons+=("$1")
 }
 
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=./patterns.sh
 source "$(dirname "${BASH_SOURCE[0]}")/patterns.sh"
+
+# Commands run over ssh act on another machine: the local-service rule doesn't
+# apply there; catastrophe and credential rules still do.
+remote=0
+if printf '%s' "$command" | grep -qP "${CMD}ssh\s"; then
+  remote=1
+fi
 
 # Absolute path for a command-line argument: expands ~ and $HOME (the hook sees
 # the raw string, unexpanded), strips quotes, resolves against the tool's cwd.
@@ -76,7 +85,8 @@ scan_file() {
   for pat in "${CONTENT_PATTERNS[@]}"; do
     hit=$(head -c 200000 -- "$f" | grep -nPi -m1 -- "$pat" 2>&3 || true)
     if [[ -n "$hit" ]]; then
-      deny "$label ($f) contains a dangerous operation and will not be run automatically: ${hit//$'\n'/ } — run it manually if that is intended."
+      ask "$label ($f) contains a dangerous operation: ${hit//$'\n'/ }"
+      return 0
     fi
   done
 }
@@ -89,9 +99,12 @@ if printf '%s' "$command" | grep -qPi -- '--no-preserve-root'; then
   deny "rm --no-preserve-root exists only to delete the root filesystem. Not allowed."
 fi
 
-# Detect rm with recursive+force flags (exclude `git rm` which only affects the index)
-if printf '%s' "$command" | grep -qP '(?<!git\s)rm\s+(-[a-zA-Z]*[rf]){1,}\s'; then
-  # Every target, not just the first — `rm -rf ./build /` must not pass on ./build
+# Deletes are allowed anywhere except where they wreck the system, the whole
+# home directory, or credentials. Every rm counts, not only -rf: deleting one
+# private key is as unrecoverable as deleting the directory. `git rm` only
+# touches the index.
+if printf '%s' "$command" | grep -qP '(?<!git\s)(?<![\w-])rm\s'; then
+  # Every target, not just the first: `rm -rf ./build /` must not pass on ./build
   targets=$(printf '%s' "$command" | grep -oP '(?<!git\s)(?<![\w-])rm\s+\K[^;|&\n]+' || true)
 
   set -f
@@ -100,39 +113,32 @@ if printf '%s' "$command" | grep -qP '(?<!git\s)rm\s+(-[a-zA-Z]*[rf]){1,}\s'; th
       continue
     fi
     abs_target=$(resolve "$target")
-
-    case "$abs_target" in
-      /|/home|/etc|/usr|/var|/sys|/boot|/proc|/dev|/opt|/lib|/lib64|/bin|/sbin|/root|/srv|/mnt|/media|/nix|/run|"$HOME"|"$HOME"/.ssh|"$HOME"/.gnupg|"$HOME"/.aws|"$HOME"/.config|"$HOME"/.local)
-        deny "Destructive rm command targeting system path ($abs_target). Not allowed."
-        ;;
-    esac
-
-    if [[ -n "$cwd" ]]; then
-      norm_cwd="${cwd%/}"
-      if [[ "$abs_target" == "$norm_cwd" ]]; then
-        deny "Cannot rm -rf the entire working directory."
-      elif [[ "$abs_target" != "$norm_cwd/"* ]]; then
-        deny "rm -rf targeting path outside the working directory ($abs_target). Not allowed."
-      fi
+    # A glob empties its directory, so judge the directory: `rm -rf ~/*` is ~.
+    if [[ "$abs_target" == *[*?[]* ]]; then
+      abs_target=$(dirname -- "${abs_target%%[*?[]*}x")
     fi
 
-    # git-protection is a property of the target, not of where you stand: a
-    # scoped folder inside a work tree is recoverable even when cwd is a plain
-    # parent directory holding several repos. Probe the nearest existing
-    # ancestor so a path that is partly absent still gets the right answer.
-    probe="$abs_target"
-    while [[ ! -d "$probe" && "$probe" != "/" ]]; do
-      probe=$(dirname -- "$probe")
-    done
-    if ! git -C "$probe" rev-parse --is-inside-work-tree 2>&3 1>/dev/null; then
-      deny "rm -rf outside any git work tree ($abs_target). Only allowed inside git-protected repositories."
+    case "$abs_target" in
+      /|/home|"$HOME"|/etc|/usr|/var|/root|/boot|/bin|/sbin|/lib|/lib64|/proc|/sys|/dev)
+        deny "rm targeting $abs_target would wreck the system or the home directory. Not allowed."
+        ;;
+      /opt|/srv|/mnt|/media|/nix|/run|/tmp|"$HOME"/.config|"$HOME"/.local|"$HOME"/.local/share|/etc/*|/usr/*|/boot/*|/bin/*|/sbin/*|/lib/*|/lib64/*|/root/*|/var/lib/*)
+        ask "rm of $abs_target may break the system or every app's config."
+        ;;
+      "$HOME"/.aws|"$HOME"/.kube)
+        deny "rm of a credential store ($abs_target). Not allowed."
+        ;;
+    esac
+    if printf '%s' "$abs_target" | grep -qP "$CRED_PATHS"; then
+      deny "rm of private keys or credentials ($abs_target). Not allowed."
+    fi
+    if [[ -d "$abs_target" && "$abs_target" == "$HOME"/[!.]* && "$abs_target" != "$HOME"/*/* ]]; then
+      ask "rm of the whole $abs_target folder."
+    elif [[ -d "$abs_target/.git" ]]; then
+      ask "rm of a whole git repository ($abs_target): unpushed work and untracked files are lost."
     fi
   done
   set +f
-
-  if printf '%s' "$command" | grep -qP 'rm\s+(-[a-zA-Z]*[rf]){1,}\s+(\.\.|[*]|/[*])'; then
-    deny "Recursive force-delete with wildcard. Too dangerous."
-  fi
 fi
 
 # Block mkfs, fdisk, dd on devices
@@ -144,19 +150,20 @@ fi
 # GIT — IRREVERSIBLE HISTORY / WORKING-COPY LOSS
 # =============================================================================
 
-# Force push (--force, -f, --force-with-lease)
-if printf '%s' "$command" | grep -qPi 'git\s+push\s+.*(--force|--force-with-lease|\s-f(\s|$))'; then
-  deny "Force push not allowed. Use normal push."
+# Bare force push overwrites whatever is on the remote. --force-with-lease is
+# the normal way to update a rebased branch: it refuses if someone else pushed.
+if printf '%s' "$command" | grep -qPi 'git\s+push\b(?![^;|&]*--force-with-lease)[^;|&]*(--force(?![-\w])|\s-f(\s|$)|\s\+[\w/.-]+)'; then
+  ask "Bare force push overwrites the remote branch; --force-with-lease is safer."
 fi
 
 # Hard reset — discards uncommitted work irreversibly
 if printf '%s' "$command" | grep -qPi 'git\s+reset\s+.*--hard'; then
-  deny "git reset --hard discards uncommitted work. Stash or commit first, or run it manually."
+  ask "git reset --hard discards uncommitted work."
 fi
 
 # git clean with a force flag — deletes untracked files irreversibly
 if printf '%s' "$command" | grep -qPi 'git\s+clean\s+.*(--force|-\w*f)'; then
-  deny "git clean -f permanently deletes untracked files. Review with 'git clean -n' first, or run it manually."
+  ask "git clean -f permanently deletes untracked files (check with git clean -n)."
 fi
 
 # =============================================================================
@@ -165,12 +172,12 @@ fi
 
 # Package publishing
 if printf '%s' "$command" | grep -qPi '(npm\s+publish|cargo\s+publish|twine\s+upload|pip\s+upload|gem\s+push|dotnet\s+nuget\s+push|mvn\s+deploy|gradle\s+publish)'; then
-  deny "Package publishing not allowed autonomously. Run this manually."
+  ask "Publishing a package is public and can't be undone."
 fi
 
 # Container image push
 if printf '%s' "$command" | grep -qPi '(docker\s+push|podman\s+push|buildah\s+push)'; then
-  deny "Container image push not allowed autonomously. Run this manually."
+  ask "Pushing a container image publishes it."
 fi
 
 # =============================================================================
@@ -179,12 +186,12 @@ fi
 
 # PR merge/close/reopen
 if printf '%s' "$command" | grep -qPi 'gh\s+pr\s+(merge|close|reopen)'; then
-  deny "Merging/closing/reopening PRs not allowed autonomously. Run this manually."
+  ask "Merging/closing/reopening a PR acts in your name on GitHub."
 fi
 
 # Issue close/comment/delete
 if printf '%s' "$command" | grep -qPi 'gh\s+issue\s+(close|delete|comment)'; then
-  deny "Modifying GitHub issues not allowed autonomously. Run this manually."
+  ask "Commenting on/closing/deleting an issue acts in your name on GitHub."
 fi
 
 # =============================================================================
@@ -193,7 +200,7 @@ fi
 
 # SQL destructive statements (case insensitive, across common CLI tools)
 if printf '%s' "$command" | grep -qPi '(DROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)|TRUNCATE\s+TABLE|DELETE\s+FROM\s+\S+\s*($|;|\s*--|\s+WHERE\s+1)|DELETE\s+FROM\s+\S+\s*;)'; then
-  deny "Destructive database operation (DROP/TRUNCATE/bulk DELETE) not allowed autonomously."
+  ask "Destructive database operation (DROP/TRUNCATE/bulk DELETE)."
 fi
 
 # =============================================================================
@@ -205,7 +212,11 @@ fi
 
 if printf '%s' "$command" | grep -qPi "${CMD}(docker|podman|nerdctl)\b"; then
   if printf '%s' "$command" | grep -qPi -- "$DOCKER_ESCALATION"; then
-    deny "Container escalation flag (--privileged / --cap-add / --device / host namespace / unconfined security-opt) grants host root. Run it manually."
+    ask "Container escalation flag (--privileged / --cap-add / --device / host namespace / unconfined security-opt) grants host root."
+  fi
+
+  if printf '%s' "$command" | grep -qPi '(volume\s+(rm|prune)|system\s+prune\b[^;|&]*--volumes)'; then
+    ask "Deleting container volumes deletes the data in them (databases, uploads)."
   fi
 
   mounts=$(printf '%s' "$command" | grep -oPi '(-v|--volume)[= ]\s*\K[^\s;|&]+' || true)
@@ -224,8 +235,11 @@ if printf '%s' "$command" | grep -qPi "${CMD}(docker|podman|nerdctl)\b"; then
 
     # Host root, kernel interfaces and credential stores — blocked even :ro
     case "$abs_mount" in
-      /|/proc|/sys|/dev|/boot|/run/docker.sock|/var/run/docker.sock|"$HOME"/.ssh|"$HOME"/.gnupg|"$HOME"/.aws|"$HOME"/.kube)
-        deny "Bind-mounting $abs_mount into a container is host root access. Not allowed."
+      "$HOME"/.ssh|"$HOME"/.gnupg|"$HOME"/.aws|"$HOME"/.kube|"$HOME"/.password-store)
+        deny "Mounting $abs_mount into a container exposes credentials. Not allowed."
+        ;;
+      /|/proc|/sys|/dev|/boot|/run/docker.sock|/var/run/docker.sock)
+        ask "Bind-mounting $abs_mount into a container gives it host root access."
         ;;
     esac
 
@@ -233,7 +247,7 @@ if printf '%s' "$command" | grep -qPi "${CMD}(docker|podman|nerdctl)\b"; then
     if [[ ",$mount_opts," != *",ro,"* ]]; then
       case "$abs_mount" in
         /etc|/usr|/var|/lib|/lib64|/bin|/sbin|/root|/home|"$HOME")
-          deny "Writable bind mount of $abs_mount into a container. Mount it :ro, or use a project-local path."
+          ask "Writable bind mount of $abs_mount into a container (mount it :ro if it only reads)."
           ;;
       esac
     fi
@@ -250,15 +264,10 @@ if printf '%s' "$command" | grep -qPi 'curl\s+.*-X\s*(POST|PUT|DELETE|PATCH)' &&
   ask "HTTP mutation (POST/PUT/DELETE/PATCH) to external URL detected."
 fi
 
-# SSH/SCP to remote hosts. Lookbehind keeps it to command position — otherwise
-# 'git -c gpg.format=ssh' (SSH commit signing) and '~/.ssh/...' paths match.
-if printf '%s' "$command" | grep -qPi '(?<![\w=./-])(ssh|scp)\s+' && ! printf '%s' "$command" | grep -qPi '(?<![\w=./-])(ssh|scp)\s+.*localhost'; then
-  ask "Remote SSH/SCP connection detected."
-fi
-
-# Systemctl/service commands
-if printf '%s' "$command" | grep -qPi '(systemctl|service)\s+(start|stop|restart|enable|disable)'; then
-  deny "System service control not allowed autonomously."
+# System services on this machine (display manager, network) can take the
+# session down. User services (--user) are the user's own.
+if ((!remote)) && ! printf '%s' "$command" | grep -qP 'systemctl\s[^;|&]*--user' && printf '%s' "$command" | grep -qPi '(systemctl|service)\s+(\S+\s+)?(start|stop|restart|enable|disable)'; then
+  ask "Controlling a system service can take the session or network down."
 fi
 
 # =============================================================================
@@ -274,6 +283,24 @@ fi
 # (ssh -i, git's user.signingKey) all still work.
 if printf '%s' "$command" | grep -qPi "${CMD}${READERS}\s+[^;|&]*${CRED_PATHS}|<\s*[^\s;|&]*${CRED_PATHS}"; then
   deny "Reading private key material or credential stores is not allowed. ls/stat/chmod and ssh-keygen are fine, as are *.pub, ~/.ssh/config and known_hosts."
+fi
+
+if printf '%s' "$command" | grep -qPi "${CMD}(mv|shred|truncate|dd)\s+[^;|&]*${CRED_PATHS}|>\s*[^\s;|&]*${CRED_PATHS}"; then
+  deny "Moving, overwriting or destroying private keys or credential stores is not allowed."
+fi
+
+if printf '%s' "$command" | grep -qPi "${CMD}(passwd|chpasswd|chage)\b|${CMD}usermod\s[^;|&]*(-p|--password)\b"; then
+  deny "Changing user passwords is not allowed."
+fi
+
+# Commands whose job is to print a stored secret or token.
+if printf '%s' "$command" | grep -qPi "${CMD}(gh\s+auth\s+token|secret-tool\s+lookup|git\s+credential\s+fill|docker-credential-\S+\s+get|gcloud\s+auth\s+(application-default\s+)?print-(access|identity)-token|az\s+account\s+get-access-token|aws\s+configure\s+get\s+\S*(secret|key)|vault\s+(kv\s+get|read)|kubectl\s+get\s+secrets?\b[^;|&]*(-o|--output)|gpg\s+[^;|&]*(--decrypt|--export-secret)|pass(\s+show)?\s+(?!ls\b|find\b|--help\b)[\w./-]+)"; then
+  deny "Printing a stored secret or token is not allowed. Use it in place (e.g. via an env var the tool reads) without displaying it."
+fi
+
+# Dumping the environment prints every secret in it; `env FOO=1 cmd` is fine.
+if printf '%s' "$command" | grep -qP "${CMD}(env|printenv)\s*(\$|[;|&>])|${CMD}printenv\s+\w*(KEY|SECRET|TOKEN(?!S\b)|PASSWORD|CREDENTIAL|PRIVATE)"; then
+  deny "Dumping environment variables would expose secrets. Check a single non-secret variable instead."
 fi
 
 # .env: create and append freely, never read the contents back.
@@ -301,25 +328,17 @@ if printf '%s' "$command" | grep -qPi 'kill\s+-9\s+1(\s|$)'; then
   deny "Cannot kill PID 1 (init/systemd)."
 fi
 
-if printf '%s' "$command" | grep -qPi 'chmod\s+(-R\s+)?777'; then
-  deny "chmod 777 makes files world-writable. Use more restrictive permissions."
+if printf '%s' "$command" | grep -qPi 'chmod\s+(-\w*R\w*|--recursive)\s+[0-7]?777'; then
+  ask "Recursive chmod 777 makes a whole tree world-writable."
 fi
 
-if printf '%s' "$command" | grep -qPi 'authorized_keys'; then
-  deny "Modifying SSH authorized_keys is not allowed."
+if printf '%s' "$command" | grep -qP "${CMD}crontab\s+(-\w*r|--remove)"; then
+  ask "crontab -r removes every cron job of the user."
 fi
 
-# =============================================================================
-# COMMAND INJECTION PATTERNS
-# =============================================================================
-
-if printf '%s' "$command" | grep -qPi ';\s*rm\s'; then
-  deny "Potential command injection pattern detected (;rm)."
-fi
-
-# shellcheck disable=SC2016
-if printf '%s' "$command" | grep -qPi '`.*rm\s+-[a-zA-Z]*r.*`'; then
-  deny "Dangerous command in backtick substitution."
+# Writing authorized_keys grants ssh logins; reading it and chmod are harmless.
+if printf '%s' "$command" | grep -qP "(>|${CMD}(tee|cp|mv|rm|truncate|install|ln)\b|${CMD}(sed|perl)\s+[^;|&]*-i)[^;|&]*authorized_keys"; then
+  ask "Writing authorized_keys grants ssh access to whoever holds that key."
 fi
 
 # =============================================================================
@@ -357,5 +376,8 @@ for script in $scripts; do
 done
 set +f
 
-# All checks passed
+if ((${#ask_reasons[@]})); then
+  jq -nc --arg r "$(printf '%s ' "${ask_reasons[@]}")" \
+    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$r}}'
+fi
 exit 0

@@ -14,8 +14,8 @@ READERS='(cat|bat|tac|head|tail|less|more|nl|od|xxd|hexdump|strings|base64|grep|
 #   \b(?!\.pub)  — public keys stay readable
 #   \.ssh\b(?!/) — catches bulk reads of the directory (grep -r . ~/.ssh)
 #                  while leaving ~/.ssh/config and known_hosts alone
-CRED_PATHS='(\.ssh/(id_[A-Za-z0-9_-]+|[A-Za-z0-9_-]*_(rsa|dsa|ecdsa|ed25519))\b(?!\.pub)|\.ssh\b(?![/\w-])|\.gnupg\b(?![\w-])|\.aws/credentials|\.netrc\b|\.config/gh/hosts\.ya?ml|\.docker/config\.json|\.kube/config\b)'
-
+#   /etc/shadow, password stores and keyrings hold the user's own passwords
+CRED_PATHS='(\.ssh/(id_[A-Za-z0-9_-]+|[A-Za-z0-9_-]*_(rsa|dsa|ecdsa|ed25519))\b(?!\.pub)|\.ssh\b(?![/\w-])|\.gnupg\b(?![\w-])|\.aws/credentials|\.netrc\b|\.config/gh/hosts\.ya?ml|\.docker/config\.json|\.kube/config\b|/etc/g?shadow\b|\.password-store\b|\.local/share/keyrings\b|\.git-credentials\b|\.pgpass\b|\.config/gcloud/(credentials\.db|application_default_credentials\.json|legacy_credentials)|\.azure\b(?![\w-]))'
 # .env and friends, but not the committed templates.
 ENV_PATH='(?<![\w.-])\.env\b(?!\.(example|sample|template|dist|defaults|schema))'
 
