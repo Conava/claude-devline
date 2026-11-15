@@ -132,7 +132,7 @@ scan_logs() {  # usage: scan_logs LOG_DIR [ALLOWLIST]; exit 1 on any unallowed e
 - **Map changed files to scenarios.** Running everything every time makes the default path too slow to use; running nothing misses breakage. Check: the project recipe's changed-file table (or `kb-blast-radius` for file reach) picks the scenarios, and the evidence names them.
 - **A harness change runs everything.** Fakes, fixtures and run scripts underlie every scenario. Check: a diff touching them runs the full sweep.
 - **Report changed code no scenario covers.** Silence reads as "verified". Check: the evidence lists uncovered changed paths under "Not verified".
-- **Keep a fast default path and a separate full sweep.** Claude Code runs a project `verify` skill before each commit, so the default must take a minute or two. Check: slow, timing-sensitive or exhaustive scenarios sit in the full sweep, run on request and at branch review.
+- **Keep a fast default path and a separate full sweep.** Claude Code prompts Claude to run a project `verify` skill before each commit (not an enforced hook), so the default must take a minute or two. Check: slow, timing-sensitive or exhaustive scenarios sit in the full sweep, run on request and at branch review.
 
 ## Performance claims
 

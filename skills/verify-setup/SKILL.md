@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 # Verify setup
 
-Offer the user a verification setup fitted to this project, write only what they pick, and prove it runs. The output is Claude Code's native project skill `.claude/skills/verify/SKILL.md`, which Claude Code (2.1.286 and later) runs before each commit, docs-only and tests-only commits excepted.
+Offer the user a verification setup fitted to this project, write only what they pick, and prove it runs. The output is Claude Code's native project skill `.claude/skills/verify/SKILL.md`, which Claude Code (2.1.286 and later) prompts Claude to run before each commit, docs-only and tests-only commits excepted. It is a prompt, not an enforced hook.
 
 Focus requested by the user: $ARGUMENTS
 

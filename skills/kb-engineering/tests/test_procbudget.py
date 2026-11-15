@@ -109,6 +109,25 @@ class Lifecycle(unittest.TestCase):
             time.sleep(0.2)
             self.assertEqual([p for p in pids if alive(p)], [])
 
+    def test_sigterm_to_procbudget_stops_target(self):
+        with tempfile.TemporaryDirectory() as d:
+            pf = Path(d, "pid")
+            p = subprocess.Popen([PY, "-I", str(HELPER), "--duration", "60", "--", "sh", "-c", f"echo $$ > {pf}; exec sleep 300"])
+            try:
+                end = time.time() + 10
+                while not (pf.exists() and pf.read_text().strip()) and time.time() < end:
+                    time.sleep(0.05)
+                pid = int(pf.read_text())
+                p.terminate()
+                p.wait(timeout=10)
+                time.sleep(0.2)
+                self.assertFalse(alive(pid), "target survived SIGTERM to procbudget")
+            finally:
+                p.kill()
+                p.wait()
+                if pf.exists() and alive(int(pf.read_text())):
+                    os.kill(int(pf.read_text()), 9)
+
     def test_json_has_all_keys(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d, "r.json")

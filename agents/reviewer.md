@@ -19,7 +19,7 @@ The launcher passes one of two scopes:
 
 ## Review Process (both scopes)
 
-1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do. Select the kb-engineering checklists for the change's stack and type (its Stack table and Change table), use Read on each selected file (`testing.md` Core at minimum), and use them as the lookup for steps 2-6; cite the item when a finding comes from one.
+1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do. Use Read on every checklist the kb-engineering Stack and Change tables select for this change (`testing.md` Core is always one of them; reading only `testing.md` when the tables select more is incomplete). Selecting from the table is not reading. Use them as the lookup for steps 2-6; cite the item when a finding comes from one.
 
 2. **Correctness** — Logic matches requirements; edge cases and error paths handled; no off-by-one or race conditions; tests exercise meaningful behavior, not just coverage.
 
@@ -41,7 +41,7 @@ The launcher passes one of two scopes:
 
 5. **Performance** — No N+1 queries; appropriate caching; no blocking ops in async contexts; efficient algorithms for the data size; no leaks (unclosed resources, growing collections).
 
-6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear. Comments follow `${CLAUDE_PLUGIN_ROOT}/skills/voice/core/code-comments.md` (if present); flag excess or bad comments as deferrable, with the lines to remove.
+6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear. Comments: few, short, self-contained; say why or a non-obvious constraint, not what the next line does; never point at local files, plans or tasks. Flag excess or bad comments per that rule as deferrable, with the lines to remove.
 
 7. **Plan compliance** — Every acceptance criterion implemented AND tested; no significant unjustified scope creep.
 
@@ -72,7 +72,6 @@ The final gate before merge. In addition to the shared review above, catch what 
 - **Cross-task integration sweep** — The #1 class of bugs per-task review misses: contracts spanning task boundaries where each side passes review in isolation but the connection is broken. From the plan's task specs, for each integration point: trace both sides (if Task A defines an event type and Task B should dispatch it, verify B's code contains the dispatch); `grep` for orphaned declarations (event types, interface methods, webhook names, enum values declared but never referenced from another file); verify listener/handler registration and that the trigger fires.
 - **Feature-goal end-to-end trace** — Green unit tests mean nothing if the feature doesn't work. For each feature goal / acceptance criterion, trace the execution path from user action to result through every handler, observer, callback, and state update; confirm the chain is connected (A notifies B, B handles it). Run integration/E2E tests if they exist; if they should exist but don't, flag major. Check the plan's feature-goal tests were implemented and test what they claim. A goal not verifiably working end-to-end is major/critical even if all unit tests pass.
 - **Branch-level architecture & cross-cutting** — Does the overall architecture match the plan's design decisions? New coupling points between tasks that harden future change? Consistent state management across tasks (one caches, another doesn't)? Code duplication **across tasks** (same pattern reimplemented in two tasks that could share a utility)? Race/ordering issues that only emerge when tasks interact? Also: run the project's dependency audit (`npm audit`, `pip-audit`, `cargo audit`) for CVEs in added/updated deps.
-
 - **Verification recipe** — Run the project's verify recipe (kb-engineering "Verification": fast path, plus the full sweep when the plan's goals need it) once and read its screenshots. A runtime-facing feature with no recipe is a finding that suggests `/devline:verify-setup`.
 
 ## Output Format
@@ -88,12 +87,13 @@ The final gate before merge. In addition to the shared review above, catch what 
    - **Classification:** [blocking / deferrable]   ← task scope only; branch scope = all must fix
    - **Why:** [Impact if not fixed]
    - **Fix:** [Specific, concrete fix — e.g. "change line 42 to use atomic remove()"]
+   - **Checklist:** <file> › <group heading> › <rule> (or "none")
 
 ### Test Results
 - X passed, Y failed — [details of any failures]
 
 ### Checklists read
-- [files and groups you opened with Read]
+- [every file and group the tables selected, each opened with Read; a selected file missing here means step 1 is unfinished]
 
 ### Summary
 [2-3 sentences on overall quality / merge-readiness]

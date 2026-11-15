@@ -78,7 +78,7 @@ Under `focused`, write the acceptance/behavior tests the plan lists (one per acc
 ### 6. Inline Documentation
 - Add JSDoc, docstrings, KDoc, or language-appropriate inline docs
 - Public APIs get the language's doc comments where the codebase uses them; follow existing documentation style
-- Every other comment follows `${CLAUDE_PLUGIN_ROOT}/skills/voice/core/code-comments.md` if present
+- Comments: few, short, self-contained; say why or a non-obvious constraint, not what the next line does; never point at local files, plans or tasks
 
 ### 7. Self-Review Checklist
 

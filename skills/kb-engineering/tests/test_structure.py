@@ -93,5 +93,14 @@ class VerifySetupTests(unittest.TestCase):
             self.assertIn(f"\n## {h}\n", template, f"template lacks '## {h}'")
 
 
+class AgentTests(unittest.TestCase):
+    def test_plugin_paths_in_agents_exist(self):
+        for agent in sorted((SKILLS.parent / "agents").glob("*.md")):
+            for ref in re.findall(r"\$\{CLAUDE_PLUGIN_ROOT\}/(skills/[^\s`)\"']+)", read(agent)):
+                ref = ref.rstrip(".,;:")
+                with self.subTest(agent=agent.name, ref=ref):
+                    self.assertTrue((SKILLS.parent / ref).exists(), f"{agent.name} points at missing {ref}")
+
+
 if __name__ == "__main__":
     unittest.main()

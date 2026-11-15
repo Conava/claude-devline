@@ -260,6 +260,9 @@ def main(argv):
             return 2
         root_pid = a.pid
     else:
+        # The target has its own session, so a signal to us would not reach it; exit through finally instead.
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            signal.signal(sig, lambda signum, _frame: sys.exit(128 + signum))
         try:
             popen = subprocess.Popen(a.cmd, start_new_session=True)
         except OSError as e:

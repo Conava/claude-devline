@@ -117,7 +117,7 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/brand` | Brand voice, visual identity, messaging |
 | `/graphic-design` | Logos, icons, banners, slides, corporate identity |
 
-`/devline:verify-setup` inspects the project, proposes a verification setup and writes only what you pick, mainly the native `.claude/skills/verify/SKILL.md` that Claude Code 2.1.286+ runs before commits (docs-only and tests-only commits excepted). It runs the fast path once and leaves everything uncommitted.
+`/devline:verify-setup` inspects the project, proposes a verification setup and writes only what you pick, mainly the native `.claude/skills/verify/SKILL.md` that Claude Code 2.1.286+ prompts Claude to run before commits (a prompt, not an enforced hook; docs-only and tests-only commits excepted). It runs the fast path once and leaves everything uncommitted.
 
 ---
 
