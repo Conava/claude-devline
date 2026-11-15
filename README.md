@@ -536,7 +536,7 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 - **`push`** -- commits anything pending, then pushes the current branch.
 - **`pr`** -- commits, pushes, and writes the PR body to `.devline/pr-body.md`. It stops there so you can edit the file, and runs `gh pr create --body-file` only when you say to post.
 
-Messages follow the `writing` skill. The body says why the change was needed and what it does at a level the code doesn't show, and never restates the diff. The PR body has Background, What it does, Details, Screenshots (UI changes only) and How to verify, in that order, unless the repo has a PR template, which takes precedence.
+Messages follow the `writing` skill. The body says why the change was needed and what it does at a level the code doesn't show, and never restates the diff. The PR body follows the repo's PR template when there is one. Otherwise it has a short `## Description` (what and why: intended effect, use case, issue), then the technical details (how it works, trade-offs, notable effects, closed issues), screenshots for UI changes, and a short `## Verification` only when it is needed.
 
 The skill never pushes to a protected branch without asking and never force-pushes on its own. It uses `--force-with-lease` only when you ask. It never merges. New branch names follow `branch_format` and `branch_kinds` (see [Branching strategy](#branching-strategy)).
 

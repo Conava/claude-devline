@@ -88,12 +88,13 @@ Pass the message with a heredoc (`git commit -F - <<'EOF'`) or a `-F` file so li
 1. **Base:** the repo default (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`) unless the user named one. State the base you use.
 2. **Title:** the same Conventional Commits form as a subject; squash merges use it as the commit subject.
 3. **Template:** if `pull_request_template.md` (any case) exists in the repo root, `docs/` or `.github/`, or `.github/PULL_REQUEST_TEMPLATE/` exists, its structure wins and the content below fills it.
-4. **Body sections**, in this order, omitting any that would be empty:
-   - **Background**: the problem or need, in a few sentences.
-   - **What it does**: the change in the abstract, a few sentences.
-   - **Details**: only what a reviewer needs to judge the change. Add a small diff sketch, call tree or file tree only if it makes a point clearer than prose.
+4. **Body** (no template), in this order, omitting any part that would be empty:
+   - `## Description`: a very short overview of what the change does and why: the intended effect, the use case, the issue it addresses. A few sentences.
+   - Technical details below it, as plain paragraphs or a short list: how it works, trade-offs, notable side effects, `Closes #N` for closed issues. Only what a reviewer needs to judge the change; a small diff sketch or tree only when it is clearer than prose.
    - **Screenshots**: UI changes only. Capture headlessly with what the project already has (Playwright, an existing screenshot script), save to the Defaults assets directory, and put one placeholder line per image in the body. `gh` cannot upload images, so tell the user to drag them into the PR on GitHub. If nothing can capture, say so and leave the placeholder. Never install a tool for this.
-   - **How to verify**: exact commands or steps, and what the reviewer should see.
+   - `## Verification`: only when a reviewer can't easily tell how to check the change. Short: the command or steps and what they should see.
+
+   No generic section names such as "Background" or "What it does".
 5. **Write** the body to the Defaults PR body file. Create `.devline/` first if missing, and exclude it per Staging. Print the proposed title and the absolute path of the file, then stop and wait for the user.
 6. **Post** only when the user says so. If `gh pr view` shows an open PR for the branch, offer `gh pr edit --body-file .devline/pr-body.md` instead. Otherwise `gh pr create --base <base> --title "<title>" --body-file .devline/pr-body.md`, then report the PR URL. Never run `gh pr merge`; merging is the user's call.
 
