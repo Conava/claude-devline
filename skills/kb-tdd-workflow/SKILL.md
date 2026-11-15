@@ -2,7 +2,7 @@
 name: kb-tdd-workflow
 description: Domain logic for TDD methodology — injected into agents that implement code using test-driven development. Not invoked directly.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # TDD Workflow

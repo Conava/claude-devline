@@ -21,7 +21,7 @@ description: >-
   Prefer this skill whenever documentation accuracy matters or when model
   knowledge may be outdated.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Documentation Lookup

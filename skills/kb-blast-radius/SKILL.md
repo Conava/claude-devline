@@ -2,7 +2,7 @@
 name: kb-blast-radius
 description: Grep-based reverse dependency analysis — injected into the planner and reviewer agents. Computes which files are affected by changes to a set of seed files. Not invoked directly.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Blast Radius Analysis
