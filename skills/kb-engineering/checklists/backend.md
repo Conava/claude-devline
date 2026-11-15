@@ -103,7 +103,7 @@ If the service cannot write its port, bind a port found with `python3 -c 'import
 - **Shutdown:** start a slow request in the background, `kill -TERM "$pid"`, assert the request finishes and `wait "$pid"` returns 0 within the deadline.
 - **Go:** `go vet ./... && go test -race -shuffle=on -count=1 ./... && go build ./...`.
 - **Rust:** `cargo clippy --all-targets -- -D warnings && cargo test && cargo build --release`.
-- **Python:** `python3 -X dev -m pytest -x -q` plus the project's type checker; grep `timeout=` as above.
+- **Python:** `python3 -X dev -m pytest -x -q` plus the project's type checker; grep `timeout=` as above. A `compileall` or `py_compile` gate step writes `__pycache__/`; make sure `.gitignore` lists it.
 - **Node:** `npx tsc --noEmit && npm test && npm run build`, then run the built output as above.
 
 ## Sources

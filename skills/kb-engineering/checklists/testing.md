@@ -106,16 +106,18 @@ echo "output in $run"
 
 - **Scan every log the run wrote, not just one.** Errors often land in the UI, compositor, browser console or a sidecar log. Check: the scan covers every file in the run's output dir, and the evidence names them.
 - **Fail the run on errors and warnings.** Tolerated warnings pile up until a real one is invisible. Check: the scan exits non-zero on any match outside the allowlist.
+- **Stop the app before scanning, and run it unbuffered.** A program whose stdout goes to a file block-buffers it, so lines still in the buffer are missing from a scan taken while it runs. Check: the scan runs after the processes are stopped; the app runs with `python3 -u` or `PYTHONUNBUFFERED=1`, `stdbuf -oL`, or line-buffered logging; one planted warning makes the scan fail.
 - **Allowlist only noise the project can't fix, each entry with a reason.** An allowlist without reasons becomes a hiding place. Check: every entry carries a reason; entries that no longer match anything are removed.
 
 A starting point for the scan (bash), to tune to the project's log format: an allowlist line is `regex  # reason`.
 
 ```bash
 # Starting point only: tune the pattern to the project's log format (e.g. JSON "level":"error").
+# \w* catches class-named messages such as Python's ResourceWarning or ValueError.
 scan_logs() {  # usage: scan_logs LOG_DIR [ALLOWLIST]; exit 1 on any unallowed error or warning
   local dir=$1 allow=${2:-/dev/null} pats hits rc=0
   pats=$(sed -E 's/[[:space:]]+#.*$//; /^[[:space:]]*(#|$)/d' "$allow")
-  hits=$(grep -rniE '\b(error|warn(ing)?|fatal|panic|exception|traceback|segfault|critical)\b' "$dir" \
+  hits=$(grep -rniE '\b(\w*(error|warning)|warn|fatal|panic|exception|traceback|segfault|critical)\b' "$dir" \
          | grep -vE "${pats:-^\$^}" || true)
   [ -z "$hits" ] || { echo "log scan FAILED:"; echo "$hits"; rc=1; }
   while IFS= read -r p; do                       # report allowlist entries that no longer match
@@ -168,7 +170,7 @@ Mutation testing on touched modules:
 - JS/TS: `npx stryker run --mutate 'src/notes/**/*.ts'`
 - Rust: `git diff main > "$run/changes.diff" && cargo mutants --in-diff "$run/changes.diff"`, or `cargo mutants --file src/parser.rs`
 
-Log scan: source the `scan_logs` function above and run `scan_logs "$run" .verify-allowlist` over the run's output dir; exit 0 and "log scan ok" is the passing result.
+Log scan: source the `scan_logs` function from "Logs are part of the result", stop the app, and run `scan_logs "$run" .verify-allowlist` over the run's output dir; exit 0 and "log scan ok" is the passing result.
 
 ## Sources
 

@@ -19,7 +19,7 @@ The launcher passes one of two scopes:
 
 ## Review Process (both scopes)
 
-1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do. Select the kb-engineering checklists for the change's stack and type (its Stack table and Change table) and use them as the lookup for steps 2-6; cite the item when a finding comes from one.
+1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do. Select the kb-engineering checklists for the change's stack and type (its Stack table and Change table), use Read on each selected file (`testing.md` Core at minimum), and use them as the lookup for steps 2-6; cite the item when a finding comes from one.
 
 2. **Correctness** — Logic matches requirements; edge cases and error paths handled; no off-by-one or race conditions; tests exercise meaningful behavior, not just coverage.
 
@@ -91,6 +91,9 @@ The final gate before merge. In addition to the shared review above, catch what 
 
 ### Test Results
 - X passed, Y failed — [details of any failures]
+
+### Checklists read
+- [files and groups you opened with Read]
 
 ### Summary
 [2-3 sentences on overall quality / merge-readiness]

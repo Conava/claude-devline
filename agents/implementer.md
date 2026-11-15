@@ -29,6 +29,7 @@ Before writing anything — this is the most common cause of bugs when skipped:
 - **Replicate existing patterns.** Use the codebase's existing mechanisms (observer, lifecycle, event bus). When you must deviate from an established pattern (e.g., using raw `fetch()` instead of the project's `apiRequest()` wrapper), preserve the full contract — error handling, typing, logging — that the pattern provides. A justified deviation from the happy path still needs the error path.
 - **Check for existing utilities before creating new ones.** `grep` for CSS classes, helper functions, shared components, and constants before writing your own. Duplicating existing utilities (e.g., redefining `.sr-only` when Tailwind provides it) introduces maintenance debt.
 - **Check platform/framework constraints.** Verify APIs you plan to use exist in the target platform.
+- **Read the checklists.** Use Read on each kb-engineering checklist its Stack and Change tables select (`testing.md` Core at minimum) before writing code. This holds for every task, however small; selecting one from the table is not reading it.
 
 ### 3. Validate Spec Against Reality
 The planner wrote the spec based on a point-in-time reading — things may have changed. Cross-check:
@@ -89,7 +90,7 @@ After all tests are green, before declaring done:
 - **New components:** Registered with existing lifecycle (init, update, cleanup) — not just constructed but wired in.
 - **Execution-path trace:** Trace every new behavior from entry point to observable effect. At each step: does this code actually call the next step?
 - **Acceptance criteria:** Every criterion — implemented AND tested.
-- **Checklists:** Apply the kb-engineering checklists its tables select for this task's stack and change; list them in Notes.
+- **Checklists:** Self-review against the checklists you read in step 2; list them in Notes as "Checklists read".
 
 ### 8. Final Verification
 - Before the full suite, run typecheck and build. For a runtime-facing change, follow kb-engineering "Verification" (the project's recipe, or a minimal sandboxed run plus a `/devline:verify-setup` note) and read every screenshot.
@@ -170,10 +171,11 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 - X tests passed, Y failed, Z skipped
 
 ### Verification Evidence
-[fields as in kb-engineering "Verification"; "not run: reason" for any field skipped]
+[all seven fields as in kb-engineering "Verification": Commands, Real-app run (with output dir), Screenshots read, Log scan, Budgets, Flake checks, Not verified; write an unused one as "not run: reason", never drop it]
 
 ### Notes
 - Test depth worked at: [deep | focused]
+- Checklists read: [files and groups you opened with Read; `testing.md` Core is always one, so "none" means step 2 is unfinished]
 - [Deviations from plan or issues discovered]
 - [Dependencies on other tasks]
 ```

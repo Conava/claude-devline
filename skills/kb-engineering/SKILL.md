@@ -2,7 +2,7 @@
 name: kb-engineering
 description: Engineering knowledge base for testing, reliability, performance, security and stack-specific verification (web, backend, Java/JVM, distributed, desktop). A router that selects checklists by stack and change type, plus the always-on rules and the verification evidence format. Injected into the implementer and reviewer agents. Not invoked directly.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Engineering Knowledge Base
@@ -24,6 +24,7 @@ Test levels and the red-green cycle stay in `kb-tdd-workflow`; the checklists li
 |---|---|
 | `pom.xml`, `build.gradle`, `build.gradle.kts` | `java.md` + `backend.md` |
 | `go.mod`, `Cargo.toml` with a binary, `pyproject.toml` or `requirements*.txt` with a server or CLI, `package.json` with a server | `backend.md` |
+| A stdlib-only Python server or CLI with no manifest (`*.py` entry point, no `pyproject.toml`, `requirements*.txt` or `setup.py`) | `backend.md` |
 | A browser frontend: framework config, `index.html`, Vite, Next and similar | `web.md` |
 | A desktop GUI: Qt/QML, GTK, Electron, Tauri, Flutter desktop | `desktop.md` |
 | Several deployable services: broker clients, service-to-service calls, Kubernetes or compose manifests | `distributed.md` |

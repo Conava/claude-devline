@@ -22,12 +22,12 @@ Read by `/devline:verify-setup`. The goal is a verification recipe that fits thi
 
 Offer only parts that fit the findings. Give each a recommendation, the reason and the cost (time per run, new files, new tools).
 
-1. **One gate command** that CI runs verbatim: lint, typecheck, tests in shuffled order with the seed printed, race detector or sanitizers where the stack has them, build. Cost: low. Almost always worth it.
+1. **One gate command** that CI runs verbatim: lint, typecheck, tests in shuffled order with the seed printed, race detector or sanitizers where the stack has them, build. Cost: low. Almost always worth it. Without CI, the gate is a local script the recipe runs; offer a CI workflow as a separate pick, never add one by default.
 2. **A sandboxed real-app run** for the stack: private HOME, XDG dirs and runtime dir, generated fixtures, started by PID, stopped by PID. Use the stack checklist's "Verify it" section as the starting point. Cost: medium; this is where tests alone miss broken startups.
 3. **Fakes for each external dependency** with injectable delay and failure: an in-process fake or a control file the fake re-reads per request (`delay`, `fail`), or toxiproxy for real protocols. Cost: medium; worth it for any dependency that can be slow or down.
 4. **What to drive and which screenshots to read** for anything with a UI: the key journeys, the screenshots the agent must open and describe, the input to drive for feel.
-5. **Logs to scan** and the failure patterns (error, warning, fatal, the toolkit's own markers). Scan every log the run writes. Allowlist only noise the project cannot fix, one entry per line with a reason.
-6. **Budgets recorded from a measured baseline**: peak memory, memory growth, idle CPU, VRAM, startup time, latency, frame gaps. Measure first, then set the limit with headroom; the project owns the number. Offer `helpers/procbudget.py` for process-tree PSS, growth, CPU and VRAM. Cost: medium; skip for tools where no budget matters.
+5. **Logs to scan** and the failure patterns (error, warning, fatal, the toolkit's own markers). Scan every log the run writes, after stopping the app, and run the app unbuffered (`python3 -u` or `PYTHONUNBUFFERED=1`, `stdbuf -oL`, line-buffered logging) so no line is still in a buffer. Tune the pattern per stack (`\w*Warning\b` catches Python's `ResourceWarning:`). Allowlist only noise the project cannot fix, one entry per line with a reason, in `.verify-allowlist` (the `scan_logs` starting point in `testing.md`).
+6. **Budgets recorded from a measured baseline**: peak memory, memory growth, idle CPU, VRAM, startup time, latency, frame gaps. Measure first, then set the limit with headroom; the project owns the number. Budgets live in the full sweep, so record the baseline with one full-sweep (`--full`) run during setup. Offer `helpers/procbudget.py` for process-tree PSS, growth, CPU and VRAM. Cost: medium; skip for tools where no budget matters.
 7. **A changed-file to scenario map** when there are several scenarios, so the fast path runs only what the diff can affect. A change to the harness itself runs everything.
 
 ## 3. The recipe file
@@ -48,7 +48,7 @@ Before each commit. Affected checks only, under about 1-2 minutes.
 
 1. [gate command or its fast subset, e.g. lint, typecheck, tests for the changed packages]
 2. [sandboxed run of the scenarios the changed files affect, via the changed-file map]
-3. [log scan over every log the run wrote]
+3. [log scan over every log the run wrote, after stopping the app]
 
 ## Full sweep
 
