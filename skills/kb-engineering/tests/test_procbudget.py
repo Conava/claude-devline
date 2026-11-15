@@ -1,6 +1,7 @@
 """Tests for helpers/procbudget.py: real child processes, plus a fake /proc tree for fdinfo parsing."""
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -127,6 +128,34 @@ class Lifecycle(unittest.TestCase):
                 p.wait()
                 if pf.exists() and alive(int(pf.read_text())):
                     os.kill(int(pf.read_text()), 9)
+
+    def _double_signal_stops_target(self, sig):
+        with tempfile.TemporaryDirectory() as d:
+            pf = Path(d, "pid")
+            script = f"echo $$ > {pf}; trap '' TERM; while :; do sleep 0.1; done"
+            p = subprocess.Popen([PY, "-I", str(HELPER), "--duration", "60", "--", "sh", "-c", script])
+            try:
+                end = time.time() + 10
+                while not (pf.exists() and pf.read_text().strip()) and time.time() < end:
+                    time.sleep(0.05)
+                pid = int(pf.read_text())
+                p.send_signal(sig)
+                time.sleep(0.5)
+                p.send_signal(sig)
+                p.wait(timeout=15)
+                time.sleep(0.2)
+                self.assertFalse(alive(pid), f"target leaked after double {sig.name}")
+            finally:
+                p.kill()
+                p.wait()
+                if pf.exists() and alive(int(pf.read_text())):
+                    os.kill(int(pf.read_text()), 9)
+
+    def test_double_sigterm_to_procbudget_stops_target(self):
+        self._double_signal_stops_target(signal.SIGTERM)
+
+    def test_double_sigint_to_procbudget_stops_target(self):
+        self._double_signal_stops_target(signal.SIGINT)
 
     def test_json_has_all_keys(self):
         with tempfile.TemporaryDirectory() as d:

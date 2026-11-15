@@ -8,7 +8,7 @@ Read by `/devline:verify-setup`. The goal is a verification recipe that fits thi
 - When a session starts with that skill present, Claude Code is told to run it right before each commit. Docs-only and tests-only commits are excepted.
 - So the recipe's default path must stay fast. Heavy scenarios go in a separate section that runs on request.
 - `/run-skill-generator` records launch recipes as `.claude/skills/run-<name>/`. If one exists, reference it from the recipe instead of duplicating the launch steps.
-- Check the installed version with `claude --version`. On an older version the file still works as documentation and for `/verify`, but nothing runs it before commits.
+- Check the installed version with `claude --version`. On an older version the file still works as documentation and for `/verify`, but Claude is not prompted to run it before commits.
 
 ## 1. Inventory (report what exists before proposing anything)
 

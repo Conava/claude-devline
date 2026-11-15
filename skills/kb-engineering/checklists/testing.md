@@ -117,7 +117,7 @@ A starting point for the scan (bash), to tune to the project's log format: an al
 scan_logs() {  # usage: scan_logs LOG_DIR [ALLOWLIST]; exit 1 on any unallowed error or warning
   local dir=$1 allow=${2:-/dev/null} pats hits rc=0
   pats=$(sed -E 's/[[:space:]]+#.*$//; /^[[:space:]]*(#|$)/d' "$allow")
-  hits=$(grep -rniE '\b(\w*(error|warning)|warn|fatal|panic|exception|traceback|segfault|critical)\b' "$dir" \
+  hits=$(grep -rniE '\b(\w*(errors?|warnings?)|warn|fatal|panic|exceptions?|traceback|segfault|critical)\b' "$dir" \
          | grep -vE "${pats:-^\$^}" || true)
   [ -z "$hits" ] || { echo "log scan FAILED:"; echo "$hits"; rc=1; }
   while IFS= read -r p; do                       # report allowlist entries that no longer match
@@ -182,7 +182,7 @@ Log scan: source the `scan_logs` function from "Logs are part of the result", st
 - anthropics/skills, `webapp-testing` (Apache-2.0): adapted (server lifecycle, reconnaissance before acting).
 - Shopify/toxiproxy (MIT): adapted (protocol-level fault injection).
 - microsoft/playwright documentation (Apache-2.0): adapted (`--repeat-each`, screenshot baselines).
-- Claude Code documentation, skills and "Run and verify your app" (Anthropic, vendor docs): paraphrased (project `verify` skill run before commits from v2.1.286, `run-*` skills).
+- Claude Code documentation, skills and "Run and verify your app" (Anthropic, vendor docs): paraphrased (Claude Code prompts Claude to run a project `verify` skill before commits from v2.1.286, not an enforced hook; `run-*` skills).
 - trailofbits/skills, `post-patch-validation`, `mutation-testing`, `property-based-testing` (CC-BY-SA-4.0): paraphrased (break the guard, mutation and property testing as proof).
 - JUnit User Guide, test execution order (EPL-2.0): paraphrased (random orderer configuration parameters).
 - Apache Maven Surefire documentation (Apache-2.0): adapted (`surefire.runOrder=random` and its seed).

@@ -263,15 +263,19 @@ def main(argv):
         # The target has its own session, so a signal to us would not reach it; exit through finally instead.
         for sig in (signal.SIGTERM, signal.SIGHUP):
             signal.signal(sig, lambda signum, _frame: sys.exit(128 + signum))
-        try:
-            popen = subprocess.Popen(a.cmd, start_new_session=True)
-        except OSError as e:
-            print(f"procbudget: cannot start {a.cmd[0]}: {e}", file=sys.stderr)
-            return 2
-        root_pid = popen.pid
     try:
+        if a.cmd:
+            try:
+                popen = subprocess.Popen(a.cmd, start_new_session=True)
+            except OSError as e:
+                print(f"procbudget: cannot start {a.cmd[0]}: {e}", file=sys.stderr)
+                return 2
+            root_pid = popen.pid
         samples, died, source = sample_loop(root_pid, popen, a)
     finally:
+        # A repeated signal during the grace period must not abort cleanup and leak the target.
+        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            signal.signal(sig, signal.SIG_IGN)
         if popen is not None:
             stop_group(popen.pid, popen)
             popen.wait()
