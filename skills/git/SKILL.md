@@ -1,6 +1,6 @@
 ---
 name: git
-description: Commit, push, or open a pull request with a Conventional Commit message and a PR body the user can edit before it is posted. Use when the user asks to commit, commit and push, push the branch, open/create a PR, write a commit message, or write a PR description, and when devline or quick reach their commit step. Do not use for general git questions (how rebase works, reading history, resolving a conflict).
+description: Commit, push, or open a pull request with a Conventional Commit message and a PR body the user can edit before it is posted. Use when the user asks to commit, commit and push, push the branch, open/create a PR, write a commit message, or write a PR description. Do not use for general git questions (how rebase works, reading history, resolving a conflict).
 argument-hint: "[commit|push|pr] [notes]"
 user-invocable: true
 disable-model-invocation: false
@@ -37,7 +37,7 @@ Each mode includes the one before it. Free text maps to the nearest mode ("commi
 Read `protected_branches`, `branch_format` and `branch_kinds` from `.claude/devline.local.md`, falling back to the Defaults. If the current branch is protected:
 
 - `commit`: ask whether to branch off first. Offer a name built from `branch_format`, with `{kind}` taken from the commit type when it is one of `branch_kinds` (otherwise `chore`) and `{title}` a short kebab-case summary.
-- `push` / `pr`: do not push to it without an explicit yes. Offer to branch off as above. In a non-interactive run, stop and report instead of pushing.
+- `push` / `pr`: offer to branch off as above. In a non-interactive run, stop and report instead of pushing.
 
 ## Staging
 
@@ -58,7 +58,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`, `ci`, `perf`, `build`
 - Then what it does, at a level the code does not show: the approach, the trade-off, what now behaves differently.
 - Never list files, restate the diff line by line, or narrate ("This commit...", "This PR...").
 
-The message text follows the `writing` skill's rules; apply them.
+Message text and the PR body follow the `writing` skill. Skip preambles; evidence (before/after, test output) beats adjectives.
 
 Example shape:
 
@@ -79,7 +79,7 @@ Pass the message with a heredoc (`git commit -F - <<'EOF'`) or a `-F` file so li
 ## Push
 
 - No upstream yet: `git push -u origin <branch>`. Otherwise `git push`.
-- Rejected push: stop. Run `git fetch`, explain how local and remote diverged, and ask what to do. Do not force push on your own initiative.
+- Rejected push: stop. Run `git fetch`, explain how local and remote diverged, and ask what to do.
 - The user asks to update a rebased or amended branch: `git push --force-with-lease`, never bare `--force`.
 
 ## PR mode
@@ -97,8 +97,6 @@ Pass the message with a heredoc (`git commit -F - <<'EOF'`) or a `-F` file so li
 6. **Post** only when the user says so: `gh pr create --base <base> --title "<title>" --body-file .devline/pr-body.md`, then report the PR URL. Never run `gh pr merge`; merging is the user's call.
 
 No `gh`, not authenticated, or no remote: say so and stop after writing the file.
-
-Prose in the body follows the `writing` skill as well. Skip preambles; evidence (before/after, test output) beats adjectives.
 
 ## Hooks
 
