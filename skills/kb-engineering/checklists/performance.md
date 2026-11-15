@@ -151,7 +151,7 @@ Benchmarks and budgets by toolchain:
 - Core Web Vitals thresholds (web.dev): vendor documentation, numbers only.
 - meta/memlab: MIT, usage adapted.
 - Qt Quick performance considerations and scene graph documentation: GFDL, paraphrased.
-- Brendan Gregg, the USE method: paraphrased.
+- Brendan Gregg, the USE method: author copyright, paraphrased, facts only.
 - dgryski/go-perfbook (measurement and benchstat): CC-BY-SA, paraphrased.
 - thedaviddias/Front-End-Performance-Checklist: MIT, adapted.
 - affaan-m/ECC, benchmark-methodology and latency-critical-systems: MIT, adapted.

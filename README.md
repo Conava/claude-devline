@@ -112,9 +112,12 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
 | `/devline:deps [--migrate] <CVEs \| package>` | Patch CVEs, or migrate a major version with `--migrate` |
 | `/devline:design` | Standalone component or theme design |
+| `/devline:verify-setup [focus]` | Set up how this project's changes are verified: sandboxed real-app run, log scan, budgets |
 | `/writing` | Clean AI slop and catch mistakes in your writing (write yourself, polish here); strict citation enforcement for scientific text |
 | `/brand` | Brand voice, visual identity, messaging |
 | `/graphic-design` | Logos, icons, banners, slides, corporate identity |
+
+`/devline:verify-setup` inspects the project, proposes a verification setup and writes only what you pick, mainly the native `.claude/skills/verify/SKILL.md` that Claude Code 2.1.286+ runs before commits (docs-only and tests-only commits excepted). It runs the fast path once and leaves everything uncommitted.
 
 ---
 
@@ -345,6 +348,8 @@ claude-devline/
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
 |   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
+|   |-- kb-engineering/      # Testing, reliability, performance, security checklists + router, setup recipe, procbudget.py helper
+|   |-- verify-setup/        # /devline:verify-setup
 |   +-- ...                  # More skills and knowledge bases
 |
 +-- hooks/                   # Security rules, compaction, agent logging
@@ -368,6 +373,7 @@ Agents don't start from scratch. Knowledge bases (the `kb-*` skills) get injecte
 | `kb-blast-radius` | Planner, Reviewer | Reverse dependency tracing -- "if I change file X, what breaks?" Grep-based import analysis across 12 languages |
 | `kb-design` | Frontend Planner | 67 styles, 161 palettes, 57 fonts, 160 animations, 161 industry rules, token architecture, accessibility priorities |
 | `kb-dependency-management` | Dependency | Ecosystem detection for 10+ package managers, version update mechanics, verification commands |
+| `kb-engineering` | Implementer, Reviewer | A router that picks checklists by stack and change type (testing, reliability, performance, security, web, backend, Java, desktop, distributed), always-on rules, the verification-evidence format, and an opt-in process budget sampler |
 | `find-docs` | All agents | Context7 integration for live library documentation lookup |
 
 </details>

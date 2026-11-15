@@ -38,3 +38,6 @@ jobs:
               python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::Invalid JSON"; exit 1; }
             fi
           done
+
+      - name: Test kb-engineering (structure and helper)
+        run: python3 -m unittest discover -s skills/kb-engineering/tests -v
