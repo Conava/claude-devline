@@ -32,9 +32,9 @@ A single task, run in place — no worktrees, no waves, no gates.
 1. **Branch setup** (Stage 0).
 2. **Implement** — one implementer agent, TDD at the right level (unit for pure logic, integration for persistence/endpoints; see `kb-tdd-workflow`).
 3. **ONE `reviewer` (scope=task)** — the standard per-task review. Run a fix cycle if it returns blocking findings.
-4. **Commit.** Then auto-proceed and ask only merge-or-not.
+4. **Commit** with the `git` skill (commit mode). Then auto-proceed and ask only: merge, open a PR (`git` pr mode), or leave it.
 
-The fast lane SKIPS: brainstorm + its approval gate; design-system (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge).
+The fast lane SKIPS: brainstorm + its approval gate; design-system (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge or open a PR).
 
 ## Progress Tracking
 
@@ -163,8 +163,9 @@ When deep review approves:
 2. Report summary (what was built, files, test results)
 3. Ask user via AskUserQuestion:
    - "I found a mistake / want to add something" → route to debugger (runtime bugs) or planner (everything else), restart from Stage 2
-   - "Merge to main and exit" → commit, squash merge (confirm target branch first), cleanup
-   - "Commit and exit" → commit, cleanup
+   - "Merge to main and exit" → commit with the `git` skill, then squash merge into the target branch (confirm it first) as one commit, cleanup
+   - "Commit and exit" → commit with the `git` skill, cleanup
+   - "Open a PR and exit" → `git` pr mode; run cleanup only after the PR is posted or the user declines (cleanup deletes `.devline/pr-body.md`)
    - "Exit" → cleanup
 
 **Exit cleanup sequence** (all foreground, in order):

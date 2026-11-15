@@ -15,7 +15,7 @@ Steps (single task, run in place — no worktrees, no waves, no gates):
 1. **Branch setup** — Stage 0 of the `devline` skill (branch off protected branches, create `.devline/`).
 2. **Implement** — launch ONE **implementer** agent with the task. It writes tests first (TDD at the right level: unit for pure logic, integration for persistence/endpoints — see `kb-tdd-workflow`), then implements. The fast lane runs at `focused` depth — small changes don't warrant deep, so skip exhaustive per-method units for trivial code; cover behavior plus any genuinely hard logic.
 3. **Review** — launch ONE **reviewer** agent (scope=task). Run a fix cycle if it returns blocking findings.
-4. **Commit**, then ask only whether to merge (auto-proceed otherwise).
+4. **Commit** with the `git` skill (commit mode), then ask only whether to merge, open a PR (`git` pr mode), or leave it (auto-proceed otherwise).
 
 Explicitly SKIP: brainstorm + its gate, design-system, the full plan doc + plan gate, the Feature E2E task, worktree/wave machinery, the deferred-findings batch-fix cycle, the docs-keeper full scan, `reviewer scope=branch` (deep review), and the final approval gate.
 

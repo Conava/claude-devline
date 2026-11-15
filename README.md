@@ -107,6 +107,7 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline:plan <spec>` | Create a TDD implementation plan |
 | `/devline:implement` | Implement tasks from an existing plan |
 | `/devline:quick <task>` | Fast lane -- implement, review, and commit a small change |
+| `/devline:git [commit\|push\|pr]` | Commit with a Conventional Commit message, push, or write a PR body to an editable file and open the PR |
 | `/devline:review` | Code review of recent changes |
 | `/devline:debug <error>` | Systematic root cause analysis |
 | `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
@@ -342,6 +343,7 @@ claude-devline/
 |   |   |-- SKILL.md
 |   |   +-- references/      # Implementation protocol, worktree protocol, agent health
 |   |-- setup/               # /devline:setup
+|   |-- git/                 # /devline:git (commit, push, PR body)
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
 |   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
@@ -526,6 +528,20 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 
 ---
 
+## Commits, Pushes and Pull Requests
+
+`/devline:git` handles every commit, push and PR devline makes for you. Each mode includes the one before it, and the default is `commit`.
+
+- **`commit`** -- stages the files that belong to the change and writes a Conventional Commit.
+- **`push`** -- commits anything pending, then pushes the current branch.
+- **`pr`** -- commits, pushes, and writes the PR body to `.devline/pr-body.md`. It stops there so you can edit the file, and runs `gh pr create --body-file` only when you say to post.
+
+Messages follow the `writing` skill. The body says why the change was needed and what it does at a level the code doesn't show, and never restates the diff. The PR body has Background, What it does, Details, Screenshots (UI changes only) and How to verify, in that order, unless the repo has a PR template, which takes precedence.
+
+The skill never pushes to a protected branch without asking and never force-pushes on its own. It uses `--force-with-lease` only when you ask. It never merges. New branch names follow `branch_format` and `branch_kinds` (see [Branching strategy](#branching-strategy)).
+
+---
+
 ## Writing and Content
 
 The `/writing` skill takes a draft and strips the AI slop out of it — negative parallelism, tricolon abuse, uniform sentence length, sycophantic filler — while catching mistakes, so the text reads like a person wrote it. It can write from scratch too, but its best use is on writing you've already drafted: **write it yourself, then run `/writing` to clean it up and find mistakes.** It detects the purpose first and applies purpose-specific rules; for scientific writing it enforces a strict citation contract before returning anything (see below).
@@ -604,7 +620,7 @@ fast_lane: always
 |---------|---------|-------------|
 | `branch_format` | `"{kind}/{title}"` | Branch naming (`{kind}`, `{title}` placeholders) |
 | `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds |
-| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of |
+| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of, and branches `/devline:git` will not push to without asking |
 
 #### Framework overrides
 
