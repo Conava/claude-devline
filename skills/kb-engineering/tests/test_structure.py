@@ -9,8 +9,7 @@ ROUTER = KB / "SKILL.md"
 VERIFY_SETUP = SKILLS / "verify-setup" / "SKILL.md"
 SETUP_MD = KB / "references" / "setup.md"
 
-# The plan's convention is 120-250 lines; a known deferred finding keeps a few
-# files shorter, so this only guards against stubs.
+# Checklists are curated, not padded: short ones are fine, this only guards against stubs.
 MIN_CHECKLIST_LINES = 80
 # Unlicensed vendor docs and ideas-only sources state their status instead of a licence name.
 LICENCE = re.compile(

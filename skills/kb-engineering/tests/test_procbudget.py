@@ -12,7 +12,7 @@ HELPER = Path(__file__).resolve().parent.parent / "helpers" / "procbudget.py"
 sys.path.insert(0, str(HELPER.parent))
 
 PY = sys.executable
-FAST = ["--duration", "2", "--interval", "0.2"]
+FAST = ["--duration", "1", "--interval", "0.1"]
 
 # 60 MB held by the interpreter (bytes * n touches every page, so it is resident)
 HOLD = "import time; x = b'x' * ({mb} * 1024 * 1024); time.sleep(30)"

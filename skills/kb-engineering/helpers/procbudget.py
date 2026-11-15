@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Usage: procbudget.py [--duration S] [--mem-max MB] [--growth-max MB] [--cpu-max PCT] [--vram-max MB] (--pid PID | -- CMD [ARGS...])
+# Usage: procbudget.py [--duration S] [--mem-max MiB] [--growth-max MiB] [--cpu-max PCT] [--vram-max MiB] (--pid PID | -- CMD [ARGS...])
 # SPDX-License-Identifier: MIT
 """Sample a process tree's memory (PSS), growth, CPU and VRAM and fail when a budget is breached. Linux, stdlib only.
 
@@ -75,7 +75,7 @@ def tree(root_pid, procs):
 
 
 def mem_mb(pids):
-    """Tree memory in MB and its source: 'pss' if every process had smaps_rollup, else 'rss'."""
+    """Tree memory in MiB and its source: 'pss' if every process had smaps_rollup, else 'rss'."""
     root, total_kb, source = proc_root(), 0, "pss"
     for p in pids:
         m = re.search(r"^Pss:\s+(\d+) kB", read(f"{root}/{p}/smaps_rollup") or "", re.M)
@@ -145,14 +145,16 @@ def vram_mib(pids):
     return v if v is not None else nvidia_vram_mib(pids)
 
 
-def stop_group(pgid):
-    """SIGTERM the group, wait up to 3 s, then SIGKILL."""
+def stop_group(pgid, popen=None):
+    """SIGTERM the group, wait up to 3 s, then SIGKILL. Pass popen so the dead leader is reaped and does not keep the group "alive"."""
     try:
         os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
         return
     end = time.time() + 3
     while time.time() < end:
+        if popen is not None:
+            popen.poll()
         try:
             os.killpg(pgid, 0)
         except ProcessLookupError:
@@ -165,7 +167,8 @@ def stop_group(pgid):
 
 
 def sample_loop(root_pid, popen, a):
-    """Return (samples, died_message). A sample is (t, mem_mb, source, cumulative_cpu_ticks, vram_mib)."""
+    """Return (samples, died_message, mem_source). A sample is (t, mem_mib, cumulative_cpu_ticks, vram_mib);
+    mem_source is 'rss' if any sample fell back to RSS, else 'pss'. Budgets and *_mb metric names are MiB (1024**2 bytes)."""
     start, samples, ticks_seen, died = time.monotonic(), [], {}, None
     sources = set()
     while True:
@@ -189,7 +192,7 @@ def sample_loop(root_pid, popen, a):
     return samples, died, ("rss" if "rss" in sources else "pss")
 
 
-def compute(samples, source, a):
+def compute(samples, a):
     post = [s for s in samples if s[0] >= a.warmup]
     clk = os.sysconf("SC_CLK_TCK")
     vals = {
@@ -223,10 +226,10 @@ def parse_args(argv):
     p.add_argument("--duration", type=float, default=10, help="sampling window in seconds (default 10)")
     p.add_argument("--interval", type=float, default=0.5, help="seconds between samples (default 0.5)")
     p.add_argument("--warmup", type=float, default=0, help="seconds ignored for growth and CPU (default 0)")
-    p.add_argument("--mem-max", type=float, metavar="MB", help="peak tree PSS (RSS fallback)")
-    p.add_argument("--growth-max", type=float, metavar="MB", help="last sample minus first post-warmup sample")
+    p.add_argument("--mem-max", type=float, metavar="MiB", help="peak tree PSS (RSS fallback)")
+    p.add_argument("--growth-max", type=float, metavar="MiB", help="last sample minus first post-warmup sample")
     p.add_argument("--cpu-max", type=float, metavar="PCT", help="tree CPU as percent of one core")
-    p.add_argument("--vram-max", type=float, metavar="MB", help="peak tree VRAM (DRM fdinfo, else nvidia-smi)")
+    p.add_argument("--vram-max", type=float, metavar="MiB", help="peak tree VRAM (DRM fdinfo, else nvidia-smi)")
     p.add_argument("--json", metavar="FILE", help="also write metrics and verdicts as JSON")
     p.add_argument("--pid", type=int, help="sample an existing process instead of starting CMD")
     cmd = []
@@ -267,9 +270,9 @@ def main(argv):
         samples, died, source = sample_loop(root_pid, popen, a)
     finally:
         if popen is not None:
-            stop_group(popen.pid)
+            stop_group(popen.pid, popen)
             popen.wait()
-    res = verdicts(compute(samples, source, a), a)
+    res = verdicts(compute(samples, a), a)
     for name, r in res.items():
         budget = f" budget {r['budget']:g}" if r["budget"] is not None else ""
         value = "n/a" if r["value"] is None else f"{r['value']:.1f}"
