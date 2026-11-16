@@ -77,7 +77,7 @@ Read `.claude/devline.local.md` (if it exists):
 1. Read branching settings from `.claude/devline.local.md` (`branch_format`, `branch_kinds`, `protected_branches`)
 2. **Active pipeline detection:** If `.devline/state.md` exists, this is a resume scenario (new conversation or post-compaction). Run the recovery protocol (`references/recovery.md`) and ask the user whether to resume or start fresh. If resuming, skip to the recovered stage.
 3. If on a protected branch (default: main, master, develop, release, production, staging): create a branch using `branch_format` (default: `{kind}/{title}`). The `{kind}` must be one of `branch_kinds` (default: feat, fix, refactor, docs, chore, test, ci).
-4. Create `.devline/` directory and add to `.gitignore` if needed
+4. Create `.devline/`; if git does not already ignore it, add it to `.git/info/exclude` (local, no tracked-file change)
 5. **CLAUDE.md check:** If `CLAUDE.md` does not exist in the project root, warn the user: "No CLAUDE.md found. Run `/devline:setup` to create one — it stores project conventions that improve pipeline quality across runs." Continue without it (not blocking).
 6. **Stale artifact check:** If `.devline/plan.md` or any `.devline/plan-phase-*.md` files already exist, read the `**Branch:**` header from `plan.md` (or `plan-phase-1.md` if only phase plans exist). If it references a different branch or the `**Status:**` is `completed`, delete all `.devline/` artifacts (including `plan-phase-*.md`) and inform user. If it matches current branch with `active` status, ask user whether to resume or start fresh.
 

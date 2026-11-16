@@ -154,7 +154,7 @@ Benchmarks and budgets by toolchain:
 - Linux kernel documentation, "DRM client usage stats": GPL documentation, facts only (key names, units, client-id rule).
 - HikariCP wiki, "About Pool Sizing": Apache-2.0, adapted.
 - GoogleChrome/lighthouse-ci and ai/size-limit: Apache-2.0 and MIT, usage adapted.
-- Core Web Vitals thresholds (web.dev): vendor documentation, numbers only.
+- Core Web Vitals thresholds (web.dev, CC-BY-4.0): paraphrased, numbers only.
 - meta/memlab: MIT, usage adapted.
 - Qt Quick performance considerations and scene graph documentation: GFDL, paraphrased.
 - Brendan Gregg, the USE method: author copyright, paraphrased, facts only.

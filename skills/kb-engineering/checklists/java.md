@@ -151,4 +151,4 @@ Testcontainers and toxiproxy latency test (outline; artifact `org.testcontainers
 - AWS Builders' Library, timeouts and retries (AWS copyright): paraphrased (one retrying layer).
 - OWASP Deserialization and XXE Prevention cheat sheets (CC-BY-SA-4.0): paraphrased (deserialization filters, parser factory settings).
 - Scientific findings on LLM-written code, facts only: Zhong and Wang, RobustAPI (AAAI 2024); CONCUR (ISSTA 2026).
-- Lessons from real agent mistakes in a Kotlin and Spring Boot 4 project, kept where they hold for any Spring or JPA codebase: original text under the project licence.
+- Lessons from real agent mistakes in own projects, kept where they hold for any Spring or JPA codebase: original text under the project licence.

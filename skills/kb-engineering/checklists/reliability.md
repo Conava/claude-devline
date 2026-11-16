@@ -7,7 +7,7 @@ Item format: rule, why, then `Check:` for the concrete step. Cite the item when 
 ## Timeouts and bounds on all I/O
 
 - **Give every network, exec and IPC call a timeout.** A call without one turns a slow dependency into a hung process and then a full thread pool. Check: grep each client construction and call site for a timeout; the "Verify it" section lists libraries whose default is infinite.
-- **Derive timeouts from the downstream's latency percentiles and the caller's remaining deadline.** A fixed 30 s inside a 5 s request wastes work nobody waits for. Check: the timeout is below the caller's deadline and above the dependency's observed p99 or p99.9.
+- **Derive timeouts from the downstream's measured latency and the caller's remaining deadline.** Rule and check: `distributed.md`, "Pick timeouts from the dependency's measured latency" and "Propagate one deadline across every hop"; they apply to a single service's outbound calls too.
 - **Set connect and read (or overall) timeouts separately.** A connect timeout alone does not stop a server that accepts and then goes silent. Check: both are set, or an overall deadline wraps the call.
 - **Bound every read and every captured output.** An unbounded body, stdout capture or log line is a memory leak waiting for a large or hostile peer. Check: reads use a size limit; child-process output is capped or streamed to a file.
 - **Never do I/O while holding a lock.** One slow call then blocks every other waiter and can deadlock the shutdown path. Check: read the critical sections; copy the data out, release, then call.
@@ -41,8 +41,7 @@ Item format: rule, why, then `Check:` for the concrete step. Cite the item when 
 
 ## Maintainability
 
-- **Search for an existing helper before writing one.** Agent-written changes miss reuse and add near-duplicate functions more often than human ones, and reviewers rarely notice (Huang et al., MSR 2026). Check: grep or symbol-search for the new function's purpose and its key calls; the report names what was reused or why nothing fit; a clone detector (`npx jscpd <changed paths>`, PMD CPD for JVM code) finds no new duplicate blocks.
-- **Confirm every API call against the installed version.** Models reach for deprecated or misremembered signatures, especially when surrounding code is old or the API is rarely used (Wang et al., ICSE 2025; RobustAPI, AAAI 2024). Check: the version comes from the lockfile; compiling or linting the changed lines shows no deprecation warnings (`javac -Xlint:deprecation`, `python -W error::DeprecationWarning`, `@typescript-eslint/no-deprecated`, staticcheck SA1019); exceptions, close rules and null returns match that version's docs.
+- **Reuse existing helpers and check APIs against the installed version.** Rule and check: `agent-process.md`, "Reuse what exists before writing something new" and "Check every API against the installed or released version".
 - **Look docs up for unfamiliar or version-sensitive APIs, not for everything.** Retrieval helps rare and recently changed APIs and adds noise for ones used everywhere in the codebase (CloudAPIBench 2024). Check: calls into an API new to the codebase, recently upgraded or pinned to an old version were read from its docs or source (the dependency's sources jar, `node_modules/<pkg>`, `go doc`), not recalled.
 - **Check each external tool's real flags, exit codes and output, per supported version.** Some tools exit 1 for "updates available", a dismissed privilege prompt exits 126 (a cancel, not a failure), and an option missing on an older distro's build fails the whole call. Check: read the man page or `--help` of the oldest version the targets ship, or detect support once and fall back; match states exactly, not by substring; an unknown backend gets a no-op, never another backend's value.
 
@@ -143,5 +142,5 @@ Fault injection, in a sandbox and never against the user's real services.
 - Python `requests` and `httpx` documentation, Java SE `java.net.http` documentation: vendor and project documentation, facts only.
 - Google SRE book and workbook (overload, cascading failures): CC-BY-NC-ND-4.0, paraphrased.
 - CoSAI project-codeguard logging rules: CC-BY-4.0, adapted.
-- Scientific findings on LLM-written code, facts only: Huang et al., "More Code, Less Reuse" (MSR 2026); Wang et al., "How and Why LLMs Use Deprecated APIs in Code Completion?" (ICSE 2025); Zhong and Wang, RobustAPI (AAAI 2024); Jain et al., CloudAPIBench (2024); Tambon et al., "Bugs in Large Language Models Generated Code" (2024).
+- Scientific findings on LLM-written code, facts only: Jain et al., CloudAPIBench (2024); Tambon et al., "Bugs in Large Language Models Generated Code" (2024).
 - Lessons from real agent mistakes in the maintainer's own projects (shared-helper regressions, unreadable consumers, process facts): original text under the project licence.

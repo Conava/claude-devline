@@ -133,7 +133,12 @@ class Lifecycle(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             pf = Path(d, "pid")
             script = f"echo $$ > {pf}; trap '' TERM; while :; do sleep 0.1; done"
-            p = subprocess.Popen([PY, "-I", str(HELPER), "--duration", "60", "--", "sh", "-c", script])
+            # A backgrounded non-interactive shell starts jobs with SIGINT ignored, and
+            # Python keeps an inherited SIG_IGN; restore the default so SIGINT arrives.
+            p = subprocess.Popen(
+                [PY, "-I", str(HELPER), "--duration", "60", "--", "sh", "-c", script],
+                preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL),
+            )
             try:
                 end = time.time() + 10
                 while not (pf.exists() and pf.read_text().strip()) and time.time() < end:

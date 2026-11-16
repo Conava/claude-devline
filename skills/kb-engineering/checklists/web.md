@@ -164,7 +164,7 @@ Other checks: `npx chrome-devtools-mcp@latest --isolated` for traces and heap sn
 
 - MDN Web Docs, HTTP cookies guide (CC-BY-SA-2.5, paraphrased): cookie attributes, `SameSite` default, `__Host-` and `__Secure-` prefixes.
 - React docs, `hydrateRoot` (CC-BY-4.0, adapted): causes of hydration mismatches, two-pass rendering, `suppressHydrationWarning`, `onRecoverableError`.
-- web.dev "Interaction to Next Paint" (CC-BY-4.0 text, adapted): INP thresholds, phases, `web-vitals` field measurement.
+- web.dev "Interaction to Next Paint" (CC-BY-4.0, adapted): INP thresholds, phases, `web-vitals` field measurement.
 - anthropics/skills `webapp-testing` (Apache-2.0, adapted): reconnaissance first, server lifecycle.
 - Playwright, Playwright MCP and CLI docs including Best Practices (Apache-2.0, adapted): fresh contexts, `webServer`, traces, `emulateMedia`, `toHaveScreenshot`, web-first assertions, `page.route()` stubs, browser projects, `no-floating-promises`.
 - ChromeDevTools/chrome-devtools-mcp (Apache-2.0, adapted): isolated mode, heap snapshot leak workflow, traces.
@@ -174,5 +174,5 @@ Other checks: `npx chrome-devtools-mcp@latest --isolated` for traces and heap sn
 - meta/memlab (MIT, adapted): scenario-driven heap leak detection.
 - GoogleChrome/lighthouse-ci (Apache-2.0, adapted) and ai/size-limit (MIT, adapted): budgets that fail the build.
 - GoogleChrome/modern-web-guidance (Apache-2.0, adapted): companion lookup for native platform features, `search`, `retrieve`, `legacy-scan`.
-- web.dev Core Web Vitals thresholds and W3C WCAG 2.2 (vendor and standards docs, paraphrased, facts only).
+- web.dev Core Web Vitals thresholds (CC-BY-4.0, paraphrased) and W3C WCAG 2.2 (standards doc, paraphrased, facts only).
 - OWASP Top 10:2025 and Cheat Sheet Series: HTML5 Security, Content Security Policy, CSRF Prevention (CC-BY-SA-4.0, paraphrased): strict CSP and report-only rollout, `frame-ancestors`, `postMessage`, CORS, service workers, sandboxed iframes, CSRF defenses.

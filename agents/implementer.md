@@ -150,7 +150,7 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 | Cargo | `cargo test my_test` | `cargo test` |
 
 **Error recovery:**
-- If the same error occurs 3 times, stop retrying. Document it, commit what you have, report back.
+- Follow kb-engineering `agent-process.md` ("When it does not work"): after two failed attempts at the same fix, stop and re-diagnose. If that does not resolve it, document it, commit what you have, report back.
 - If a build hangs past the timeout, investigate the root cause (daemon lock, infinite loop) and try once more with `--no-daemon`.
 
 ## Bash Discipline
