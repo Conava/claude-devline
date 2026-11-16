@@ -1,6 +1,6 @@
 ---
 name: kb-engineering
-description: Engineering knowledge base for agent process, testing, reliability, performance, security and stack-specific verification (web, backend, Java/JVM, distributed, desktop). A router that selects checklists by stack and change type, plus the always-on rules and the verification evidence format. Injected into the implementer and reviewer agents. Not invoked directly.
+description: Engineering knowledge base for agent process, testing, reliability, performance, security and stack-specific verification (web, backend, distributed, desktop; Java/JVM, Go, Rust, TypeScript/JavaScript, Python). A router that selects checklists by stack and change type, plus the always-on rules and the verification evidence format. Injected into the implementer and reviewer agents. Not invoked directly.
 user-invocable: false
 disable-model-invocation: false
 ---
@@ -23,11 +23,17 @@ Test levels and the red-green cycle stay in `kb-tdd-workflow`; the checklists li
 | Signal in the project | Read |
 |---|---|
 | `pom.xml`, `build.gradle`, `build.gradle.kts` | `java.md` + `backend.md` |
-| `go.mod`, `Cargo.toml` with a binary, `pyproject.toml` or `requirements*.txt` with a server or CLI, `package.json` with a server | `backend.md` |
-| A stdlib-only Python server or CLI with no manifest (`*.py` entry point, no `pyproject.toml`, `requirements*.txt` or `setup.py`) | `backend.md` |
+| `go.mod` | `go.md` |
+| `Cargo.toml` | `rust.md` |
+| `tsconfig.json` or `.ts`/`.tsx` files; also a plain JavaScript project with `package.json` (the file says which groups apply to plain JS) | `typescript.md` |
+| `pyproject.toml`, `requirements*.txt` or `setup.py` | `python.md` |
+| A stdlib-only Python server or CLI with no manifest (`*.py` entry point, no `pyproject.toml`, `requirements*.txt` or `setup.py`) | `python.md` + `backend.md` |
+| A server, CLI or daemon in any language (also every row above that builds one) | `backend.md` |
 | A browser frontend: framework config, `index.html`, Vite, Next and similar | `web.md` |
 | A desktop GUI: Qt/QML, GTK, Electron, Tauri, Flutter desktop | `desktop.md` |
 | Several deployable services: broker clients, service-to-service calls, Kubernetes or compose manifests | `distributed.md` |
+
+Language checklists (`java.md`, `go.md`, `rust.md`, `typescript.md`, `python.md`) are read together with `backend.md`, `web.md` or `desktop.md`, whichever the project is.
 
 ## Change table (decide from the task)
 
@@ -75,11 +81,11 @@ Report this block (same fields as `testing.md` Core). Write "not run: reason" ra
 
 The checklists adapt (rewritten and condensed, with credit) or paraphrase (ideas and facts only, no copied sentences) these sources. Each checklist's Sources section says which items came from where.
 
-- **MIT, adapted:** obra/superpowers; affaan-m/ECC (everything-claude-code); addyosmani/agent-skills; mattpocock/skills; goldbergyoni/javascript-testing-best-practices; Shopify/toxiproxy; heroku/12factor; uber-go/goleak; tokio-rs/loom and tokio-console; meta/memlab; ai/size-limit; thedaviddias/Front-End-Checklist and Front-End-Performance-Checklist; mercari/production-readiness-checklist; Pact documentation and pact-foundation/pact-specification; testcontainers-java documentation; uber/NullAway; web-infra-dev/midscene; Electron security tutorial, fuses and testing docs; cargo-mutants documentation; practices from the plugin author's own projects and agent sessions (own work).
-- **Apache-2.0, adapted:** stryker-js documentation; anthropics/skills (`webapp-testing`); Playwright, Playwright MCP and CLI documentation; ChromeDevTools/chrome-devtools-mcp; vercel-labs/agent-browser; GoogleChrome/lighthouse-ci; GoogleChrome/modern-web-guidance; uber-go/guide; rust-fuzz/cargo-fuzz; kgoralski/microservice-production-readiness-checklist; chaos-mesh/chaos-mesh; open-telemetry/semantic-conventions; resilience4j/resilience4j; Spring Boot and Spring Framework reference documentation; brettwooldridge/HikariCP wiki; TNG/ArchUnit; google/error-prone; hcoles/pitest and szpak/gradle-pitest-plugin; Apache Maven Surefire documentation; Tauri v2 documentation (Apache-2.0/MIT).
+- **MIT, adapted:** obra/superpowers; affaan-m/ECC (everything-claude-code); addyosmani/agent-skills; mattpocock/skills; goldbergyoni/javascript-testing-best-practices; Shopify/toxiproxy; heroku/12factor; uber-go/goleak; tokio-rs/loom and tokio-console; meta/memlab; ai/size-limit; thedaviddias/Front-End-Checklist and Front-End-Performance-Checklist; mercari/production-readiness-checklist; Pact documentation and pact-foundation/pact-specification; testcontainers-java documentation; uber/NullAway; web-infra-dev/midscene; Electron security tutorial, fuses and testing docs; cargo-mutants documentation; typescript-eslint, zod, valibot, Vitest, mypy, pyright, ruff, pytest and pytest-randomly documentation; practices from the plugin author's own projects and agent sessions (own work).
+- **Apache-2.0, adapted:** stryker-js documentation; anthropics/skills (`webapp-testing`); Playwright, Playwright MCP and CLI documentation; ChromeDevTools/chrome-devtools-mcp; vercel-labs/agent-browser; GoogleChrome/lighthouse-ci; GoogleChrome/modern-web-guidance; uber-go/guide; rust-fuzz/cargo-fuzz; kgoralski/microservice-production-readiness-checklist; chaos-mesh/chaos-mesh; open-telemetry/semantic-conventions; resilience4j/resilience4j; Spring Boot and Spring Framework reference documentation; brettwooldridge/HikariCP wiki; TNG/ArchUnit; google/error-prone; hcoles/pitest and szpak/gradle-pitest-plugin; Apache Maven Surefire documentation; Tauri v2 documentation (Apache-2.0/MIT); TypeScript handbook and TSConfig reference; requests, pip-audit and uv documentation.
 - **CC-BY-4.0, adapted:** cosai-oasis/project-codeguard v1.5.0 rules; Microsoft Azure Architecture Center cloud design patterns; donnemartin/system-design-primer; React docs; Google API Improvement Proposals (AIP); web.dev (Interaction to Next Paint, Core Web Vitals thresholds).
-- **CC-BY-SA, paraphrased:** OWASP Top 10:2025, OWASP Cheat Sheet Series and OWASP Top 10 for LLM Applications 2025; trailofbits/skills; goldbergyoni/nodebestpractices; dgryski/go-perfbook; MDN Web Docs (CC-BY-SA-2.5).
-- **Other licences, paraphrased:** Google SRE book and workbook (CC-BY-NC-ND-4.0); JUnit User Guide (EPL-2.0); Qt documentation (GFDL); PostgreSQL documentation (PostgreSQL licence).
-- **Vendor and copyrighted docs, paraphrased, facts only:** AWS Builders' Library; OpenJDK JEPs 444, 474, 490, 491, 505 and 506; Claude Code documentation; W3C WCAG 2.2; official Go, Rust, tokio, Python, requests, httpx, asyncio, Node.js and Java SE `java.net.http` docs; Linux kernel DRM client usage stats (GPL docs, facts only); wlroots, sway, Weston and KWin docs; Freedesktop specifications; Jepsen analyses; the fallacies of distributed computing; Brendan Gregg's USE method.
+- **CC-BY-SA, paraphrased:** Python Packaging User Guide; OWASP Top 10:2025, OWASP Cheat Sheet Series and OWASP Top 10 for LLM Applications 2025; trailofbits/skills; goldbergyoni/nodebestpractices; dgryski/go-perfbook; MDN Web Docs (CC-BY-SA-2.5).
+- **Other licences, paraphrased:** Google SRE book and workbook (CC-BY-NC-ND-4.0); Python documentation and PEP 602 (PSF licence); Hypothesis documentation (MPL-2.0); npm CLI documentation (Artistic-2.0, facts only); JUnit User Guide (EPL-2.0); Qt documentation (GFDL); PostgreSQL documentation (PostgreSQL licence).
+- **Vendor and copyrighted docs, paraphrased, facts only:** AWS Builders' Library; OpenJDK JEPs 444, 474, 490, 491, 505 and 506; Claude Code documentation; W3C WCAG 2.2; official Go, Rust, tokio, Python, requests, httpx (BSD), asyncio, Node.js and Java SE `java.net.http` docs; WHATWG DOM Standard (abort and timeout reasons); ruff release notes; Linux kernel DRM client usage stats (GPL docs, facts only); wlroots, sway, Weston and KWin docs; Freedesktop specifications; Jepsen analyses; the fallacies of distributed computing; Brendan Gregg's USE method.
 - **Peer-reviewed papers and research reports, paraphrased, facts and numbers only:** studies of LLM coding agents on test tampering, patch correctness, test oracles, mutation- and property-guided testing, self-correction, agent failure modes, API misuse and long-context loss (ImpossibleBench, METR, PatchDiff, SWE-Bench+, UTBoost, MuTAP, PGS and others; full references in each checklist's Sources).
 - **Tools named for use only, no text adapted:** gitleaks, osv-scanner, trivy, semgrep, zizmor, govulncheck, pip-audit, cargo-audit, OWASP dependency-check, nvtop, heaptrack, async-profiler, JDK Flight Recorder.

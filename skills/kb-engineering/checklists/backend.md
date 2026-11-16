@@ -1,6 +1,6 @@
 # Backend checklist
 
-Selected for services and CLIs in Go, Rust, Python and Node (`go.mod`, a Cargo binary, a Python server or CLI, a Node server). JVM projects also read java.md. Timeouts, retries and logging detail lives in reliability.md; this file covers what is specific to services and command-line programs.
+Selected for services and command-line programs in any language. Read it together with the language checklist (Language specifics). Timeouts, retries and logging detail lives in reliability.md; this file covers what is specific to services and command-line programs.
 
 ## API
 
@@ -54,39 +54,15 @@ Selected for services and CLIs in Go, Rust, Python and Node (`go.mod`, a Cargo b
 - **Bound output and honor `NO_COLOR` and non-TTY output.** Megabytes of output flood terminals and agent contexts, and escape codes corrupt files. Check: large input produces a summary plus a flag for full output; output piped to a file has no escape codes.
 - **Make destructive commands support `--dry-run` and refuse paths derived from unvalidated input.** Wrong deletes are unrecoverable. Check: dry run prints the plan and changes nothing; tests run under a temp directory.
 
-## Go
+## Language specifics
 
-- **Pass `context.Context` as the first parameter through every call that blocks, and derive timeouts from it.** Contexts carry cancellation and deadlines across layers. Check: `grep -rn 'context.Background()' --include='*.go' .` shows only `main`, tests and top-level jobs.
-- **Set timeouts on `http.Server` (at least `ReadHeaderTimeout`) and on every `http.Client`.** A zero `Client.Timeout` means no timeout, `http.Get` and `http.Post` use `DefaultClient`, which has none, and zero `ReadTimeout` and `WriteTimeout` on a server mean none (`ReadHeaderTimeout` and `IdleTimeout` fall back to `ReadTimeout`). Check: grep for `http.Get(`, `http.Post(`, `http.DefaultClient` and `&http.Server{` without the fields.
-- **Give every goroutine an owner and an exit path.** Fire-and-forget goroutines leak and hide panics (uber-go guide). Check: `go.uber.org/goleak` `VerifyTestMain` in packages that start goroutines; use `errgroup` or `sync.WaitGroup` to wait on shutdown.
-- **Wrap errors once with context using `%w`, and handle them once.** Logging and returning the same error duplicates noise; bare returns lose the operation. Check: no `log` call immediately followed by `return err` for the same error; callers use `errors.Is` and `errors.As`.
-- **Run tests with `-race` and `-shuffle=on`, and use `-count=1` to bypass the test cache.** Data races and order dependence are bugs that pass quietly. Check: `go test -race -shuffle=on -count=1 ./...` is green; the printed seed is kept in the evidence.
-- **Exit and panic only in `main`.** Library code that calls `os.Exit` or `log.Fatal` skips deferred cleanup and cannot be tested. Check: grep `os.Exit|log.Fatal|panic(` outside `main` packages.
+Language traps, toolchain gates and runtime defaults (timeouts, async pitfalls, test flags) live in the language checklists; read the one for the project's language together with this file.
 
-## Rust
-
-- **Keep blocking calls off the async runtime.** A blocking call on a tokio worker stalls every task on it. Check: file I/O, heavy CPU and synchronous clients go through `tokio::task::spawn_blocking` or an async equivalent; `tokio-console` shows no task with long polls.
-- **Set timeouts explicitly.** `reqwest`'s `ClientBuilder` sets no total, connect or read timeout by default, and futures wait forever. Check: `Client::builder().timeout(..)` and `tokio::time::timeout` around external awaits.
-- **Do not hold a `std::sync::Mutex` guard across an `.await`.** It deadlocks or blocks the worker. Check: clippy's `await_holding_lock` is on (it is in the default `suspicious` group); use `tokio::sync::Mutex` only when a guard must cross an await.
-- **Return `Result` and avoid `unwrap` and `expect` on external input.** Panics in a task abort the request or the process. Check: grep `unwrap()` and `expect(` outside tests; `cargo clippy -- -D warnings` passes, with `clippy::pedantic` where the project has adopted it.
-- **Fuzz parsers and test concurrency primitives with permutation tools.** Hostile input and interleavings are where unsafe and lock-free code fails. Check: `cargo fuzz run <target>` for a few minutes on touched parsers; `RUSTFLAGS="--cfg loom" cargo test` for loom models; AddressSanitizer or ThreadSanitizer via `cargo +nightly` with `-Zsanitizer` where `unsafe` changed.
-
-## Python
-
-- **Pass an explicit timeout to every `requests` call.** `requests` has no default timeout, so a stalled server hangs the worker forever. `httpx` defaults to 5 seconds of network inactivity per phase (connect, read, write, pool), which is often too short or hides intent. Check: grep for `requests.(get|post|put|delete|request)(` and `Session` calls without `timeout=`; set a `(connect, read)` tuple.
-- **Never leave asyncio tasks unreferenced or un-awaited.** The loop keeps only weak references, so tasks may be garbage collected mid-run, and exceptions vanish. Check: store tasks or use `asyncio.TaskGroup` (3.11+); wrap external awaits in `asyncio.timeout()` (3.11+) or `asyncio.wait_for`; run tests with `PYTHONASYNCIODEBUG=1` or `-X dev`.
-- **Do not call blocking code inside `async def`.** One `time.sleep` or sync DB call stalls every request. Check: use `asyncio.to_thread` or async drivers; asyncio debug mode logs slow callbacks.
-- **Randomize test order only where the project has `pytest-randomly` or `pytest-xdist`; do not add them uninvited.** Adding plugins changes the project's toolchain. Check: if present, run `pytest -p randomly` and note the printed seed; if absent, mention it as a suggestion.
-- **Type configuration and validate it at startup.** Untyped `os.environ[...]` scattered through code fails late. Check: one settings class (pydantic-settings, dataclass or similar) parsed at boot; `mypy` or `pyright` passes if the project uses it.
-- **Use `subprocess` with a list and `shell=False`, and always pass `timeout=`.** Shell strings are injection and untimed children hang. Check: grep `shell=True` and `subprocess.run(` without `timeout`.
-
-## Node
-
-- **Let unhandled rejections crash the process, and run under a supervisor.** Since Node 15 the default `--unhandled-rejections` mode is `throw`, and continuing in unknown state corrupts data. Check: no `process.on('unhandledRejection', () => {})` swallowing handler; a process manager, container restart policy or systemd restarts with backoff.
-- **Pass `AbortSignal.timeout(ms)` to `fetch` and other cancellable calls.** `fetch` has no overall timeout; undici's header and body timeouts are 300 seconds each. Check: grep `fetch(` calls without `signal`; HTTP servers set `server.requestTimeout` (default 300 s since Node 18), `headersTimeout` (default 60 s) and `keepAliveTimeout` deliberately; `server.timeout` defaults to 0 (none).
-- **Do not block the event loop.** Sync file APIs, large JSON parsing and CPU loops stall every request. Check: measure lag with `perf_hooks.monitorEventLoopDelay()` under load and keep p99 within budget; move CPU work to `worker_threads`.
-- **Close the server and drain on SIGTERM.** Without `server.close()` and in-flight tracking, deploys drop requests. Check: handler for `SIGTERM` stops accepting, awaits in-flight work and exits within the deadline.
-- **Distinguish operational errors from programmer errors.** Retry or report the first; crash on the second. Check: error classes or flags separate them; the central handler does not hide `TypeError` and `ReferenceError`.
+- **Go:** `go.md`.
+- **Rust:** `rust.md`.
+- **Python:** `python.md`.
+- **TypeScript and JavaScript (Node):** `typescript.md`.
+- **Java and Kotlin:** `java.md`.
 
 ## Verify it
 
@@ -110,23 +86,16 @@ If the service cannot write its port, bind a port found with `python3 -c 'import
 - **Latency percentiles:** use an installed load tool, for example `oha -z 20s -c 32 http://127.0.0.1:$port/notes`, `hey -z 20s -c 32 URL`, `wrk -t2 -c32 -d20s --latency URL` or `k6 run script.js`; run alone, record load average and read p50, p95 and p99 against the project's budget.
 - **Migrations:** apply them to a throwaway database, for example `docker run --rm -d -e POSTGRES_PASSWORD=x -p 54329:5432 postgres:16` (stop it by container id afterwards) or Testcontainers in the test suite, then boot the app against it.
 - **Shutdown:** start a slow request in the background, `kill -TERM "$pid"`, assert the request finishes and `wait "$pid"` returns 0 within the deadline.
-- **Go:** `go vet ./... && go test -race -shuffle=on -count=1 ./... && go build ./...`.
-- **Rust:** `cargo clippy --all-targets -- -D warnings && cargo test && cargo build --release`.
-- **Python:** `python3 -X dev -m pytest -x -q` plus the project's type checker; grep `timeout=` as above. A `compileall` or `py_compile` gate step writes `__pycache__/`; make sure `.gitignore` lists it.
-- **Node:** `npx tsc --noEmit && npm test && npm run build`, then run the built output as above.
+- **Language gates:** typecheck, lint, test and build commands per toolchain are in each language checklist's Verify it.
 
 ## Sources
 
 - heroku/12factor (MIT, adapted): config, logs, disposability, dev and prod parity, backing services, admin processes.
 - Google API Improvement Proposals AIP-155, AIP-158, AIP-193 (CC-BY-4.0, adapted): request ids and replayed responses, pagination limits and opaque tokens, permission before existence and stable error reasons.
 - PostgreSQL documentation: constraints, CREATE INDEX, JSON types, date and time types (PostgreSQL licence, facts only).
-- uber-go/guide (Apache-2.0, adapted): error handling, goroutine lifetimes, exit in main only.
-- uber-go/goleak (MIT, adapted): goroutine leak detection in tests.
 - addyosmani/agent-skills `performance-optimization` (MIT, adapted): backend symptoms such as N+1, pool exhaustion and unbounded fetches.
 - MicrosoftDocs/architecture-center cloud design patterns (CC-BY-4.0, adapted): health endpoint monitoring, throttling, retry.
 - Shopify/toxiproxy (MIT, adapted): fault injection between a service and its dependency.
-- tokio-rs/loom and tokio-console (MIT, adapted), rust-fuzz/cargo-fuzz (Apache-2.0, adapted): Rust concurrency and fuzz checks.
-- goldbergyoni/nodebestpractices (CC-BY-SA, paraphrased): operational versus programmer errors, crash on unknown state, process manager.
 - AWS Builders' Library on timeouts, retries and idempotent APIs (AWS copyright, paraphrased): idempotency keys, timeouts.
 - OWASP Cheat Sheet Series, including Authorization (CC-BY-SA-4.0, paraphrased): input validation, error handling, deny by default, object-level checks.
-- Official docs for Go `net/http`, reqwest, tokio, Python asyncio, httpx, requests, undici and Node.js `http` and CLI (vendor docs, paraphrased, facts only), rechecked 2026-11: default timeouts, `MaxBytesReader`, task references, unhandled rejection mode.
+- Official Go `net/http` docs (vendor docs, paraphrased, facts only): `MaxBytesReader`.
