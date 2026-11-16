@@ -42,7 +42,7 @@ flowchart TD
 curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash
 ```
 
-Installs Claude Code (if missing), the devline plugin, and the recommended companions (RTK, Ponytail, Basic Memory). Works on **Linux** (apt/pacman/dnf/zypper/apk), **macOS** (Homebrew), and **Windows via WSL or Git Bash** — it prompts before installing any missing underlying tool. Review the script first if you like. Flags: `--minimal` (devline only), `--skip-rtk`/`--skip-ponytail`/`--skip-memory`, `--yes` (non-interactive). Example: `curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash -s -- --minimal`.
+Installs Claude Code (if missing), the devline plugin, and the recommended companions (RTK, Ponytail). Works on **Linux** (apt/pacman/dnf/zypper/apk), **macOS** (Homebrew), and **Windows via WSL or Git Bash** — it prompts before installing any missing underlying tool. Review the script first if you like. Flags: `--minimal` (devline only), `--skip-rtk`/`--skip-ponytail`, `--yes` (non-interactive). Example: `curl -fsSL https://raw.githubusercontent.com/Conava/claude-devline/main/install.sh | bash -s -- --minimal`.
 
 ### From the marketplace
 
@@ -78,17 +78,12 @@ For zero prompts on long unattended runs you can also add `--dangerously-skip-pe
 
 ## Recommended companions
 
-Optional, but they make devline leaner and more capable — `/devline:setup` offers to install all three. The [quick installer](#quick-install) sets up all three automatically, and wires Basic Memory through a per-session MCP wrapper so parallel Claude sessions each bind to their own repo's `memory/` project (multi-session-safe).
+Optional, but they make devline leaner and more capable — `/devline:setup` offers to install both, and the [quick installer](#quick-install) sets up both automatically.
 
 - **[RTK](https://github.com/rtk-ai/rtk)** — a CLI proxy that filters command-output noise for 60-90% token savings. devline runs many parallel agents issuing Bash commands, so it compounds.
   ```bash
   curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
   rtk init -g
-  ```
-- **[Basic Memory](https://github.com/basicmachines-co/basic-memory)** — local-first, per-project memory stored as plain Markdown you commit to the repo, retrieved on demand so it never bloats context. Persistent cross-session recall in any Claude Code session, not just devline.
-  ```bash
-  uv tool install basic-memory
-  claude mcp add basic-memory -- uvx basic-memory mcp
   ```
 - **[Ponytail](https://github.com/DietrichGebert/ponytail)** — a separate Claude Code plugin that keeps generated code minimal (YAGNI, stdlib-first, shortest working diff). It composes with devline: devline enforces the process, ponytail keeps the code it produces lean.
   ```
@@ -730,7 +725,7 @@ Scans your text against 60+ known AI writing patterns (negative parallelism, tri
 - **`/compact` at ~70% context.** The PreCompact hook preserves pipeline state automatically. Pass focus instructions: `/compact Focus on the API changes`.
 - **Use `/devline:implement` for well-defined tasks.** Skip brainstorming when you already know exactly what to build.
 - **Use `/devline:debug` instead of manual debugging.** The scientific method catches root causes faster than reading code and guessing.
-- **Install the [recommended companions](#recommended-companions).** RTK, Basic Memory, and Ponytail — `/devline:setup` offers all three.
+- **Install the [recommended companions](#recommended-companions).** RTK and Ponytail — `/devline:setup` offers both.
 
 ---
 
