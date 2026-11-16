@@ -12,14 +12,16 @@ Test levels, seams and the red-green cycle live in `kb-tdd-workflow`; this file 
 |---|---|---|
 | Tests pass | A fresh full run of the suite: exit 0, 0 failures, counts read | An earlier run, a subset, "should pass" |
 | It builds | The build command exits 0 | Lint passing, the IDE showing no errors |
-| Types are sound | The typechecker exits 0 | Tests passing (they skip unexercised paths) |
-| Bug fixed | The original symptom reproduced, then gone | The code changed, a new test passes |
+| Types are sound | The typechecker exits 0 on a config that includes test sources and fixtures | Tests passing (they skip unexercised paths) |
+| Bug fixed | The original symptom reproduced, then gone; the full suite green after the last edit; one new test on an input the issue's own tests did not cover | The code changed, the issue's reproducer turning green |
 | Regression test works | Seen red with the fix reverted, green with it | Passing once |
 | Feature works | The real app driven through the feature, its output or screenshot read | Unit tests green, a clean exit |
-| Subagent finished | The VCS diff read and checked | Its report saying success |
-| Requirements met | Each acceptance criterion ticked against evidence | The suite passing |
+| Subagent finished | The VCS diff read and checked; gates re-run on the merged tree | Its report saying success |
+| Requirements met | Each acceptance criterion, re-read from the spec or issue, ticked against evidence | The suite passing |
 
-- **Typecheck and build always run.** Test runners often transpile without type checking and skip the production bundler, so green tests can sit on a broken build. Check: the evidence lists the typecheck and build commands with exit codes, even for a one-line change.
+- **Typecheck and build always run, each CI gate as its own command.** Test runners often transpile without type checking and skip the production bundler, lint does not check formatting, and a workspace runner with `--if-present` silently skips a package without a `test` script. Check: the evidence lists format check, lint, typecheck (test sources included), tests and build as separate commands with exit codes, even for a one-line change; the commands match the CI workflow verbatim, including its build tags and feature flags; per-package test counts were read so a skipped package shows up.
+- **Never edit, delete, skip or loosen a test to make it pass.** Frontier agents measurably rewrite tests, special-case test inputs or widen tolerances when a test resists, and a test changed to fit the code proves nothing; transcript-reading monitors miss much of this, a diff does not. Check: `git diff <base> -- <test dirs>` was read; every removed assertion, widened tolerance, new skip, `xfail`, `.only`, `@Disabled` or changed expected value has a stated reason tied to a requirement change; production code has no branch keyed to a test input or a test-only environment flag.
+- **When the spec and a test disagree, stop and report.** Satisfying the test silently builds the wrong behaviour or hides a stale test; an explicit "flag it" exit cut cheating several-fold in measurements. Check: the report lists each requirement-test conflict found; none was resolved by changing the test or by code that recognises the test's inputs (process side in `agent-process.md`).
 - **Know whether the change is runtime-facing.** It is when it changes anything a running program does that a user, caller or operator can observe: UI, endpoints, CLI output, startup, shutdown, I/O, persistence, config, logging, performance. Docs-only and tests-only changes are not; when unsure, treat it as runtime-facing. Check: the report says which, and a runtime-facing change has a real-app run.
 - **Report a `### Verification Evidence` block.** Reviewers check evidence, not intentions. Check: the block has these fields, with "not run: reason" instead of leaving one out:
 
@@ -36,22 +38,30 @@ Test levels, seams and the red-green cycle live in `kb-tdd-workflow`; this file 
 
 ## Tests that prove something
 
-- **A test must fail on the broken code.** A test that passes either way is decoration. Check: break the guard or revert the fix once, watch the test go red for the right reason, restore it.
+- **A test must fail on the broken code.** A test that passes either way is decoration. Check: break the guard or revert the fix once, watch the test go red for the right reason, restore it; when the test imports a package by name rather than a relative source path, rebuild that package between the mutation and the run.
 - **Prove a bug before fixing it.** Write the test that reproduces the reported symptom, see it fail, then fix. Check: the evidence shows the red run before the green one.
+- **Write expected values from the spec, never from running the code.** A value captured from today's output freezes today's bug, and model-written oracles mostly encode what the code does rather than what it should do. Check: each new assertion's expected value traces to the requirement, the issue or a hand calculation; snapshot and golden files created in the same change were read and judged correct, not just recorded.
+- **Choose inputs that separate correct code from confidently wrong code.** Fixtures written to show a feature working put the element first, keep it minimal and skip the noise, which is where positional and stateful bugs hide. Check: positional or stateful logic is tested with the subject first, last and after a sibling; at least one input is a case where a wrong answer would still look valid; the test covers what the fix newly depends on, not only the original reproduction.
+- **Assert the whole result, not membership or presence.** `toContain`, `not.toBeNull` or a substring match over a serialized parent passes on the wrong element, the wrong key or a sibling's value, and weakened assertions take this shape. Check: lists, maps and output blocks are compared with equality against the complete expected value; presence checks remain only where the rest of the value is genuinely unspecified.
 - **Turn a bug class into a permanent check over every instance.** Fixing one endpoint leaves its siblings broken. Check: the fix adds one of: an architecture test (ArchUnit and the like), a lint or semgrep rule, a table test over all endpoints, pages or fields, or a scenario that walks every page.
-- **Assert outcomes, not call sequences.** Asserting that a mock was called proves wiring, not behaviour, and breaks on every refactor. Check: assertions read state, responses, files or emitted events; `verify(...)`-style assertions only for effects at boundaries you don't own.
-- **Use mutation testing when the suite's strength is in doubt.** Coverage counts lines run, not lines checked. Check: run PIT, Stryker or cargo-mutants on the touched modules and look at surviving mutants in changed code.
+- **Assert outcomes, not call sequences, and never mock the unit under test.** Asserting that a mock was called proves wiring, not behaviour, and breaks on every refactor; mocking the unit itself hides the bugs inside it, and fixtures with made-up shapes make wrong code look right. Check: assertions read state, responses, files or emitted events; `verify(...)`-style assertions only for effects at boundaries you don't own; each critical path has a test through the real implementation; fixture types come from what the library actually returns; no assertions over source text where rendered output or behaviour can be checked.
+- **Check the caller of every integration contract, not only the callee.** A callee or event type implemented and reviewed alone passes while nothing calls or dispatches it. Check: for each "A calls B" contract and each new event, a test drives A and asserts B happened, or `git grep` shows the call site.
+- **Exercise flows twice, from every entry point, and with every existing action.** Bugs hide in the second pass (lock, unlock, lock again; leave and come back) and in a new state that existing actions ignore. Check: scenarios repeat the flow, re-enter it after leaving, trigger it from each entry point and input type, and try each existing action in each new state.
+- **Kill surviving mutants in changed code.** Coverage counts lines run, not lines checked; feeding survivors back as test targets is the measured way to strengthen a suite. Check: run PIT, Stryker or cargo-mutants on the touched modules; each survivor in changed code gets a test that kills it or a stated reason it is equivalent; the evidence gives the score before and after. Perturb values (invert a predicate, drop one entry) rather than dead-coding a branch so the mutant compiles, check the build's exit code inside the loop, and count load failures and unexpected skips as red.
+- **The test runtime is not the production runtime.** Node passes code an embedded JS engine cannot run, and jsdom normalises CSS differently from a browser. Check: the diff was grepped for APIs the production engine lacks; engine-dependent behaviour was checked in the real runtime (a dev run plus a log scan for `TypeError` and similar), not only in the test runner.
+- **Keep test volume proportional.** Bloated suites cost review and maintenance, and tests of defaults, instantiation or framework behaviour pin nothing (depth rules are in `kb-tdd-workflow`). Check: `git diff --stat <base>` shows tests as a modest share of the change; one behaviour test per acceptance criterion plus targeted tests for hard logic; repeated assertions over varying input are one table test whose rows carry behavioural titles; a small fix is proven red and green, and its test is committed only if the project keeps such tests.
 
 ## Flakes
 
 - **A flaky test is a bug, never retried away.** Retries hide races that later hit production. Check: no new retry annotations, `--retries`, `rerunFailingTestsCount` or sleeps added to make a test pass; find and fix the cause or report it.
 - **Run tests in shuffled order and print the seed.** Order dependence is the most common hidden coupling, and the seed makes a failure reproducible. Check: the evidence names the seed of a shuffled run (commands in Verify it).
 - **Stress-loop the tests you touched.** One green run of a timing-sensitive test says little. Check: touched concurrency, async, timer or I/O tests ran 20-100 times without a failure.
+- **Pin the clock in time-dependent tests.** Output computed from the real time breaks as the calendar moves past a milestone. Check: every test of time-dependent output sets a fixed clock (injected clock, `vi.setSystemTime`, `jest.useFakeTimers`, `freezegun`, `Clock.fixed`) and restores real timers afterwards.
 - **Run race detectors and sanitizers where the toolchain has them.** Data races rarely fail a single run. Check: Go `-race`, C/C++ ASan/UBSan/TSan, Rust sanitizers or Miri on nightly, loom for Rust concurrency primitives, jcstress for lock-free JVM code.
 
 ## Beyond examples
 
-- **Use property-based tests and fuzzing for parsers, serializers, protocol handlers and hostile input.** Hand-picked examples miss the inputs attackers and real data produce. Check: a property test (Hypothesis, fast-check, jqwik, proptest) or a fuzz target (Go native fuzzing, cargo-fuzz, Jazzer, atheris) covers the new parsing code.
+- **Use property-based tests and fuzzing for parsers, serializers, protocol handlers, hostile input and any algorithm with an invariant.** Hand-picked examples miss the inputs attackers and real data produce, and a property is an oracle independent of the code the agent wrote (round-trip, ordering, conservation, idempotence). Check: a property test (Hypothesis, fast-check, jqwik, proptest) run with a printed seed, or a fuzz target (Go native fuzzing, cargo-fuzz, Jazzer, atheris), covers the new code; every bug a fuzzer or property found gets a fixed regression case, since the harness is not guaranteed to find it again.
 - **Put contract tests at service boundaries.** Each side's own tests pass while the two disagree. Check: a consumer-driven contract (Pact) or a shared schema test runs on both sides.
 - **Use visual baselines only with an agreed baseline.** A baseline the agent recorded itself just freezes whatever it built. Check: screenshot assertions compare against a baseline the owner has seen; otherwise read the screenshots instead.
 
@@ -93,6 +103,7 @@ echo "output in $run"
 
 ## Fakes and fault injection
 
+- **Unit tests never reach live services.** A test without its mock fell back to the real system bus and changed the user's live network settings. Check: tests pass with networking off (`unshare -rn <test command>` on Linux); temp dirs only; mocks fail on unexpected calls; bus and service addresses point at a dead socket (`DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent`, same for the system bus), including in scratch copies made for mutation checks.
 - **Fake every external dependency with injectable delay and failure.** Real upstreams are slow, rate-limited and never fail on demand. Check: in-process fakes (Go `httptest`, WireMock, MSW) for HTTP; toxiproxy between the app and a real DB, broker or service for protocol-level latency, resets and timeouts.
 - **Let scenarios steer the fake through control files.** A fake that re-reads `delay` and `fail` files per request lets one running instance serve every scenario. Check: the scenario writes the control file, acts, and asserts the app's degraded behaviour.
 - **Cover slow, failing, killed and malformed dependencies.** The happy path is the one already tested. Check: one scenario each for latency past the timeout, error responses, a dependency killed mid-run, and a truncated or malformed reply.
@@ -145,6 +156,10 @@ scan_logs() {  # usage: scan_logs LOG_DIR [ALLOWLIST]; exit 1 on any unallowed e
 
 ## Verify it
 
+Tests weakened since the base (read every hit):
+- `git diff --stat <base> -- <test dirs>`, then `git diff <base> -- <test dirs> | grep -nE '^[-+].*(skip|xfail|\.only|@Disabled|@Ignore|toBeCloseTo|approx|assert|expect)'`
+- Special-casing: `git diff <base> -- <src dirs> | grep -nE '^\+.*(test|fixture|mock|CI\b|PYTEST|JEST_WORKER)'`
+
 Shuffled order (print or record the seed):
 - Go: `go test -shuffle=on -count=1 ./...` (the seed is printed; rerun with `-shuffle=<seed>`)
 - JUnit 5/6 (Gradle or Maven): in `src/test/resources/junit-platform.properties` set `junit.jupiter.testmethod.order.default=org.junit.jupiter.api.MethodOrderer$Random`, `junit.jupiter.testclass.order.default=org.junit.jupiter.api.ClassOrderer$Random`, and pass `junit.jupiter.execution.order.random.seed` per run so the seed is known
@@ -188,3 +203,9 @@ Log scan: source the `scan_logs` function from "Logs are part of the result", st
 - Apache Maven Surefire documentation (Apache-2.0): adapted (`surefire.runOrder=random` and its seed).
 - gradle-pitest-plugin, pitest, stryker-js, cargo-mutants documentation (Apache-2.0 / MIT): adapted (mutation testing commands).
 - Practices from the plugin author's own desktop project (own work, contributed under this plugin's MIT licence): adapted (sandboxed real runs, stop by PID, fail on every log, allowlist with reasons, changed-file to scenario table, break the guard once).
+- Practices from the plugin author's other projects and agent sessions (own work, contributed under this plugin's MIT licence): adapted (separate CI gates, typecheck test sources, inputs that separate correct from wrong code, assert the whole result, caller-side contract checks, flows twice, mutation harness pitfalls, test vs production runtime, proportional test volume, pinned clock, no live services in unit tests).
+- Zhong, Raghunathan, Carlini, "ImpossibleBench", arXiv 2510.20270, 2025; METR, "Recent Frontier Models Are Reward Hacking", 2025; Gabor, Lynch, Rosenfeld, "EvilGenie", arXiv 2511.21654, 2025 (papers and report; facts and numbers only): paraphrased (agents weaken tests; stop and report spec-test conflicts; check the diff, not the narrative).
+- Wang, Pradel, Liu, "PatchDiff", ICSE 2026; Aleithan et al., "SWE-Bench+", arXiv 2410.06992, 2024; Yu et al., "UTBoost", ACL 2025 (papers; facts only): paraphrased (passing the issue's tests is not a fix).
+- Konstantinou, Degiovanni, Papadakis, arXiv 2410.21136, 2024; Alshahwan et al., "TestGen-LLM", FSE 2024 (papers; facts only): paraphrased (expected values from the spec, not captured output).
+- Dakhel et al., "MuTAP", IST 2024; Foster et al., Meta ACH, FSE Companion 2025 (papers; facts only): paraphrased (kill surviving mutants).
+- He et al., "PGS", arXiv 2506.18315, 2025; Vikram et al., arXiv 2307.04346, 2024 (papers; facts only): paraphrased (properties as an independent oracle).
