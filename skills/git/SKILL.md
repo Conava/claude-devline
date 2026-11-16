@@ -1,6 +1,6 @@
 ---
 name: git
-description: Commit, push, or open a pull request with a Conventional Commit message and a PR body the user can edit before it is posted. Use when the user asks to commit, commit and push, push the branch, open/create a PR, write a commit message, or write a PR description. Do not use for general git questions (how rebase works, reading history, resolving a conflict).
+description: Commit, push, or open a pull request with a Conventional Commit message and a PR body the user can edit before it is posted. Use when the user asks to commit, commit and push, push the branch, open/create a PR, write a commit message, or write a PR description. Do not use for general git questions.
 argument-hint: "[commit|push|pr] [notes]"
 user-invocable: true
 disable-model-invocation: false
@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 # Git — Commit, Push, Pull Request
 
-You handle the final commit, push and pull request at the end of a devline pipeline or fast lane, or whenever the user asks. The goal is a commit message and a PR body the user would post without editing.
+You handle commits, pushes and pull requests during or at the end of a devline pipeline or fast lane, or whenever the user asks. The goal is a commit message and a PR body the user would write themselves.
 
 ## Defaults
 
