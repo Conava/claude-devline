@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Build <workdir>/gallery/index.html: one card per <items-subdir>/*.html.
 
-Usage: python3 -I gallery.py <workdir> <items-subdir> <captures-subdir> "<title>"
+Usage: python3 -I gallery.py <workdir> <items-subdir> <captures-subdir> "<title>" [--only <file>]
+--only shows just the listed items, in file order: lines that are a bare stem ("s3"), or cull.md
+lines "s3 | 8 | keep | ..." (drop lines are ignored).
 Captures for item X are read from <captures-subdir>/X/ (capture.mjs output). Items and captures
 are copied into the gallery, so `python3 -m http.server` in the gallery dir serves everything.
 """
@@ -70,10 +72,22 @@ def card(item, items_sub, cap_sub, cap):
     return "".join(parts)
 
 
-def build(workdir, items_sub, cap_sub, title):
+def only_stems(path):
+    stems = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\s*[-*|]?\s*`?([\w-]+)`?\s*(?:$|\|\s*[\d.]+\s*\|\s*keep\b)", line, re.I)
+        if m:
+            stems.append(m.group(1))
+    return stems
+
+
+def build(workdir, items_sub, cap_sub, title, only=None):
     work = Path(workdir).resolve()
     items_dir, caps_dir, gal = work / items_sub, work / cap_sub, work / "gallery"
     items = sorted(items_dir.glob("*.html"), key=natural)
+    if only is not None:
+        by_stem = {i.stem: i for i in items}
+        items = [by_stem[s] for s in dict.fromkeys(only_stems(only)) if s in by_stem]
     if not items:
         sys.exit(f"no *.html in {items_dir}")
     gal.mkdir(exist_ok=True)
@@ -92,6 +106,11 @@ def build(workdir, items_sub, cap_sub, title):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    args = sys.argv[1:]
+    only = None
+    if len(args) == 6 and args[4] == "--only":
+        only = args.pop()
+        args.pop()
+    if len(args) != 4:
         sys.exit(__doc__)
-    print("gallery:", build(*sys.argv[1:]))
+    print("gallery:", build(*args, only=only))

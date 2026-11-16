@@ -35,6 +35,22 @@ class GalleryTests(unittest.TestCase):
             for f in ("sketches/s1.html", "captures/s1/desktop.png", "captures/s1/recording.webm"):
                 self.assertTrue((work / "gallery" / f).is_file(), f)
 
+    def test_only_shows_kept_sketches_in_cull_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            work = Path(d)
+            (work / "sketches").mkdir()
+            for k in (1, 2, 3, 10):
+                (work / f"sketches/s{k}.html").write_text("<p>x</p>")
+            (work / "cull.md").write_text("# Cull\n\ns10 | 8 | keep | strong | the ring\n"
+                                          "s2 | 4 | drop | generic\n| s3 | 7 | keep | ok | the fold |\n")
+            r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "gallery.py"), str(work), "sketches", "captures",
+                                "Sketches", "--only", str(work / "cull.md")], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            index = (work / "gallery/index.html").read_text()
+            self.assertNotIn("s1.html", index)
+            self.assertNotIn("s2.html", index)
+            self.assertLess(index.index("s10.html"), index.index("s3.html"))
+
     def test_no_items_fails(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "final").mkdir()

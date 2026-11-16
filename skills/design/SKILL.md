@@ -20,7 +20,7 @@ node <base>/scripts/capture.mjs <file.html> <outdir> --sheet --frames --video sc
 node <base>/scripts/capture.mjs <file.html> <outdir> --narrow 420 --video script --demo <steps.json>     # app UI, widget, mockup
 node <base>/scripts/capture.mjs <file.html> <outdir> --stills-only                                      # sketch
 node <base>/scripts/slop-scan.mjs <file.html> > <outdir>/slop.json
-python3 -I <base>/scripts/gallery.py <workdir> <items-subdir> <captures-subdir> "<title>"
+python3 -I <base>/scripts/gallery.py <workdir> <items-subdir> <captures-subdir> "<title>" [--only <cull.md|stems file>]
 ```
 capture needs playwright-core in `~/.cache/devline/capture`. If it's missing, ask before installing (about 150 MB): `npm i --prefix ~/.cache/devline/capture playwright-core && node ~/.cache/devline/capture/node_modules/playwright-core/cli.js install chromium`. Without it, the critic judges from the HTML only and the report says so.
 
@@ -44,7 +44,7 @@ Read `.claude/devline.local.md` (repo), then `~/.claude/devline.local.md` (user)
 2. **Sketch**: one launch per seed, **all in one message**, `Step: sketch` → `sketches/s<k>.html` + `sketches/s<k>.story.md`. Cheap: a finished first screen and a storyboard; no 3D or interaction code.
 3. **Capture** each sketch with `--stills-only` into `captures/s<k>/`.
 4. **Cull**: one fresh launch, `Step: cull`, all capture folders and story files → `cull.md`: drops weak, generic and sibling sketches, keeps 4-8 ranked (fewer only if fewer deserve it), each with the quality to protect.
-5. **Pick**: build the sketch gallery (`gallery.py .devline/design sketches captures "Sketches"`), give the user the serve command (`cd <abs>/.devline/design/gallery && python3 -m http.server 8092`) and ask which to build with AskUserQuestion (multi-select over the kept sketches, usually 2-4). With `design_pick: auto` or a request that delegates the choice, take the top 3 from `cull.md`.
+5. **Pick**: build the sketch gallery (`gallery.py .devline/design sketches captures "Sketches" --only .devline/design/cull.md`, so only the kept sketches appear, in cull rank order), give the user the serve command (`cd <abs>/.devline/design/gallery && python3 -m http.server 8092`) and ask which to build with AskUserQuestion (multi-select over the kept sketches, usually 2-4). With `design_pick: auto` or a request that delegates the choice, take the top 3 from `cull.md`.
 6. **Build**: one launch per pick, in parallel, `Step: build` → `final/<k>.html`, plus `final/<k>.demo.json` for app UIs and widgets: the full working prototype.
 7. **Capture** each (web: `--sheet --frames --video scroll`; app UI: `--narrow 420 --video script --demo final/<k>.demo.json`) + slop scan into `captures/final/<k>/`.
 8. **Critique**: one fresh launch per design, `Step: critique` → `critique-<round>-<k>.md` with Wow and Craft scores and the next verb(s) or `done`.
