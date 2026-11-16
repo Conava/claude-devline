@@ -48,7 +48,8 @@ frontend_framework: auto-detect   — Override: "react", "vue", "svelte", etc.
 doc_format: auto-detect           — Override: "markdown", "asciidoc", etc.
 cloud_provider: auto-detect       — Override: "aws", "gcp", "azure", etc.
 test_depth: auto                  — auto = infer & ask if unclear | deep = exhaustive (every method/config) | focused = big workflow/class tests + hard logic, skip trivial-method units
-design_model: opus                — Model for design exploration (/devline:design)
+sketch_model: sonnet              — Model for design seeds, sketches, cull (/devline:design)
+design_model: opus                — Model for design builds, refines, critiques
 mockup_model: sonnet              — Model for design mockups
 design_sketches: 10               — Sketches per design exploration
 design_pick: ask                  — ask = you pick sketches to build | auto = critic's top 3

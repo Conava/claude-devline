@@ -301,7 +301,7 @@ flowchart TB
 | **Implementer** | Sonnet | One task, one agent, strict TDD. Runs in a git worktree. Also handles build systems, CI/CD, Docker, and infrastructure-as-code tasks. Validates spec against actual codebase before writing code. Commits only specific files -- never `git add .` |
 | **Reviewer** | Sonnet (Opus for `scope: branch`) | Per-task review (`scope: task`): correctness, spec compliance, integration contracts, security (OWASP + multi-tenant), performance, code quality, plan compliance, test assertion quality, stale artifacts, mandatory test run. As the final gate (`scope: branch`, Opus) it builds and tests first (any failure = HAS_FINDINGS), then runs the cross-task integration sweep, feature-goal trace, regression check, and branch-level architecture review. |
 | **Debugger** | Opus | Six-phase scientific method: check known patterns, reproduce, gather evidence, hypothesize (2-3 ranked), test hypotheses, verify and prevent. Can operate standalone or as a pipeline planner for failed review loops. |
-| **Designer** | Opus (`design_model`; mockups Sonnet, `mockup_model`) | One design step per launch: seeds, sketch, cull, build, refine, critique, mockup. Builds self-contained HTML from real content; critiques only from rendered captures (stills, recordings, frame diffs, slop scan) of work it didn't build. |
+| **Designer** | Opus for build/refine/critique (`design_model`); Sonnet for seeds/sketch/cull (`sketch_model`) and mockups (`mockup_model`) | One design step per launch: seeds, sketch, cull, build, refine, critique, mockup. Builds self-contained HTML from real content; critiques only from rendered captures (stills, recordings, frame diffs, slop scan) of work it didn't build. |
 | **Docs Keeper** | Sonnet | Proactive documentation sweep. Reads `git diff` and plan, scans ALL docs for staleness, completeness, and formatting issues. Checks internal links, code examples, and renamed references. |
 | **Dependency** | Sonnet (Opus for migrations) | Both CVE/version patches and major-version migrations. Detects ecosystem (npm, Maven, Gradle, pip, cargo, etc.), checks if the package is affected, updates, verifies build/tests, commits. For migrations (opus, migration block on) it researches guides, runs ecosystem tools (OpenRewrite, Rector, codemods), and refactors breaking changes. |
 
@@ -602,7 +602,8 @@ fast_lane: always
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `design_model` | `opus` | Model for exploration steps (seeds, sketches, builds, critiques) |
+| `sketch_model` | `sonnet` | Model for cheap exploration steps (seeds, sketches, cull) |
+| `design_model` | `opus` | Model for builds, refines and critiques |
 | `mockup_model` | `sonnet` | Model for mockups |
 | `design_sketches` | `10` | Number of sketches per exploration |
 | `design_pick` | `ask` | `ask` = you pick which sketches to build, `auto` = take the critic's top 3 |

@@ -26,7 +26,7 @@ capture needs playwright-core in `~/.cache/devline/capture`. If it's missing, as
 
 ## Settings
 Read `.claude/devline.local.md` (repo), then `~/.claude/devline.local.md` (user); the repo wins. All keys optional:
-- `design_model` (default `opus`), `mockup_model` (default `sonnet`)
+- `sketch_model` (default `sonnet`) for seeds, sketch and cull; `design_model` (default `opus`) for build, refine and critique; `mockup_model` (default `sonnet`)
 - `design_sketches` (default 10), `design_pick`: `ask` (default) | `auto`
 - `design_mode`: `auto` (default) | `m3e-strict` | `default`
 
@@ -48,7 +48,7 @@ Read `.claude/devline.local.md` (repo), then `~/.claude/devline.local.md` (user)
 6. **Build**: one launch per pick, in parallel, `Step: build` → `final/<k>.html`, plus `final/<k>.demo.json` for app UIs and widgets: the full working prototype.
 7. **Capture** each (web: `--sheet --frames --video scroll`; app UI: `--narrow 420 --video script --demo final/<k>.demo.json`) + slop scan into `captures/final/<k>/`.
 8. **Critique**: one fresh launch per design, `Step: critique` → `critique-<round>-<k>.md` with Wow and Craft scores and the next verb(s) or `done`.
-9. **Refine**: `Step: refine` with the critic's verb(s), same output path; then 7-8 again. Stop per design at `done` (both scores ≥ 8, nothing high), after 3 refine rounds, or when neither score moved in two rounds.
+9. **Refine**: `Step: refine` with the critic's verb(s), same output path; then 7-8 again. Stop per design at `done` (both scores ≥ 8, nothing high), after 2 refine rounds, or when neither score moved in two rounds.
 10. **Report**: rebuild the gallery over `final/` (`gallery.py .devline/design final captures/final "Final"`). Per design: path, Wow/Craft, the screenshot-worthy moment, assumptions, and in strict mode the decisions taken where the spec allowed. Ask with AskUserQuestion which one to take forward unless the request already said; record the answer and feedback verbatim in `.devline/design/feedback.md`. On approval, write `docs/design-system/MASTER.md` from the chosen design per `design-system.md`.
 
 ## Mockup flow
@@ -66,4 +66,4 @@ Seed: <k>          Input: <file>   Verbs: <refine>   Critique file: <refine>
 Captures: <folder(s)>   Request: <verbatim, mockup>   Project: <root, mockup>
 Output: <path>
 ```
-Launch the designer with `model:` from settings: `design_model` for exploration steps, `mockup_model` for mockups.
+Launch the designer with `model:` from settings: `sketch_model` for seeds, sketch and cull; `design_model` for build, refine and critique; `mockup_model` for mockups.
