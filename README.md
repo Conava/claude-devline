@@ -107,6 +107,7 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline:plan <spec>` | Create a TDD implementation plan |
 | `/devline:implement` | Implement tasks from an existing plan |
 | `/devline:quick <task>` | Fast lane -- implement, review, and commit a small change |
+| `/devline:git [commit\|push\|pr]` | Commit with a Conventional Commit message, push, or write a PR body to an editable file and open the PR |
 | `/devline:review` | Code review of recent changes |
 | `/devline:debug <error>` | Systematic root cause analysis |
 | `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
@@ -159,7 +160,7 @@ flowchart LR
 <details>
 <summary><strong>Stage 0: Branch Setup</strong> (automatic)</summary>
 
-Reads branching config from `.claude/devline.local.md`. If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and adds it to `.gitignore`.
+Reads branching config from `.claude/devline.local.md`. If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and, if git does not already ignore it, adds it to `.git/info/exclude` so no tracked file changes.
 
 If a previous pipeline left artifacts behind, it detects them and asks whether to resume or start fresh.
 
@@ -342,6 +343,7 @@ claude-devline/
 |   |   |-- SKILL.md
 |   |   +-- references/      # Implementation protocol, worktree protocol, agent health
 |   |-- setup/               # /devline:setup
+|   |-- git/                 # /devline:git (commit, push, PR body)
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
 |   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
@@ -526,6 +528,20 @@ All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google
 
 ---
 
+## Commits, Pushes and Pull Requests
+
+`/devline:git` handles the final commit, push and PR at the end of a pipeline or fast lane, or whenever you ask. Each mode includes the one before it, and the default is `commit`.
+
+- **`commit`** -- stages the files that belong to the change and writes a Conventional Commit.
+- **`push`** -- commits anything pending, then pushes the current branch.
+- **`pr`** -- commits, pushes, and writes the PR body to `.devline/pr-body.md`. It stops there so you can edit the file, and runs `gh pr create --body-file` only when you say to post.
+
+Messages follow the `writing` skill. The body says why the change was needed and what it does at a level the code doesn't show, and never restates the diff. The PR body follows the repo's PR template when there is one. Otherwise it has a short `## Description` (what and why: intended effect, use case, issue), then the technical details (how it works, trade-offs, notable effects, closed issues), screenshots for UI changes, and a short `## Verification` only when it is needed.
+
+The skill never pushes to a protected branch without asking and never force-pushes on its own. It uses `--force-with-lease` only when you ask. It never merges. New branch names follow `branch_format` and `branch_kinds` (see [Branching strategy](#branching-strategy)).
+
+---
+
 ## Writing and Content
 
 The `/writing` skill takes a draft and strips the AI slop out of it — negative parallelism, tricolon abuse, uniform sentence length, sycophantic filler — while catching mistakes, so the text reads like a person wrote it. It can write from scratch too, but its best use is on writing you've already drafted: **write it yourself, then run `/writing` to clean it up and find mistakes.** It detects the purpose first and applies purpose-specific rules; for scientific writing it enforces a strict citation contract before returning anything (see below).
@@ -604,7 +620,7 @@ fast_lane: always
 |---------|---------|-------------|
 | `branch_format` | `"{kind}/{title}"` | Branch naming (`{kind}`, `{title}` placeholders) |
 | `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds |
-| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of |
+| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of, and branches `/devline:git` will not push to without asking |
 
 #### Framework overrides
 

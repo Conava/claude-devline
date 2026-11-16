@@ -32,9 +32,9 @@ A single task, run in place — no worktrees, no waves, no gates.
 1. **Branch setup** (Stage 0).
 2. **Implement** — one implementer agent, TDD at the right level (unit for pure logic, integration for persistence/endpoints; see `kb-tdd-workflow`).
 3. **ONE `reviewer` (scope=task)** — the standard per-task review. Run a fix cycle if it returns blocking findings.
-4. **Commit.** Then auto-proceed and ask only merge-or-not.
+4. **Commit** with the `git` skill (commit mode). Then auto-proceed and ask only: merge, open a PR (`git` pr mode), or leave it.
 
-The fast lane SKIPS: brainstorm + its approval gate; design-system (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge).
+The fast lane SKIPS: brainstorm + its approval gate; design-system (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge or open a PR).
 
 ## Progress Tracking
 
@@ -77,7 +77,7 @@ Read `.claude/devline.local.md` (if it exists):
 1. Read branching settings from `.claude/devline.local.md` (`branch_format`, `branch_kinds`, `protected_branches`)
 2. **Active pipeline detection:** If `.devline/state.md` exists, this is a resume scenario (new conversation or post-compaction). Run the recovery protocol (`references/recovery.md`) and ask the user whether to resume or start fresh. If resuming, skip to the recovered stage.
 3. If on a protected branch (default: main, master, develop, release, production, staging): create a branch using `branch_format` (default: `{kind}/{title}`). The `{kind}` must be one of `branch_kinds` (default: feat, fix, refactor, docs, chore, test, ci).
-4. Create `.devline/` directory and add to `.gitignore` if needed
+4. Create `.devline/`; if git does not already ignore it, add it to `.git/info/exclude` (local, no tracked-file change)
 5. **CLAUDE.md check:** If `CLAUDE.md` does not exist in the project root, warn the user: "No CLAUDE.md found. Run `/devline:setup` to create one — it stores project conventions that improve pipeline quality across runs." Continue without it (not blocking).
 6. **Stale artifact check:** If `.devline/plan.md` or any `.devline/plan-phase-*.md` files already exist, read the `**Branch:**` header from `plan.md` (or `plan-phase-1.md` if only phase plans exist). If it references a different branch or the `**Status:**` is `completed`, delete all `.devline/` artifacts (including `plan-phase-*.md`) and inform user. If it matches current branch with `active` status, ask user whether to resume or start fresh.
 
@@ -163,8 +163,9 @@ When deep review approves:
 2. Report summary (what was built, files, test results)
 3. Ask user via AskUserQuestion:
    - "I found a mistake / want to add something" → route to debugger (runtime bugs) or planner (everything else), restart from Stage 2
-   - "Merge to main and exit" → commit, squash merge (confirm target branch first), cleanup
-   - "Commit and exit" → commit, cleanup
+   - "Merge to main and exit" → commit with the `git` skill, then `git merge --squash` into the target branch (confirm it first) and write the single commit's message per the git skill's Commit message rules; the branch guard does not apply because the user confirmed the target. Then cleanup
+   - "Commit and exit" → commit with the `git` skill, cleanup
+   - "Open a PR and exit" → `git` pr mode; run cleanup only after the PR is posted or the user declines (cleanup deletes `.devline/pr-body.md`)
    - "Exit" → cleanup
 
 **Exit cleanup sequence** (all foreground, in order):
@@ -177,8 +178,8 @@ When deep review approves:
    ```bash
    git branch --list 'worktree-agent-*' | xargs -r git branch -D 2>/dev/null
    ```
-3. Clean `.devline/` contents (keep the directory): `find .devline/ -mindepth 1 -exec rm -rf {} + 2>/dev/null`
-4. Output final summary and stop immediately.
+3. Clean `.devline/` contents (keep the directory), but keep `.devline/pr-assets/` when it exists so screenshots can still be uploaded: `find .devline/ -mindepth 1 -not -path '.devline/pr-assets' -not -path '.devline/pr-assets/*' -exec rm -rf {} + 2>/dev/null`
+4. Output final summary (say that `.devline/pr-assets/` was kept, if it was) and stop immediately.
 
 ## General Rules
 
