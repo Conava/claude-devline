@@ -2,7 +2,7 @@
 name: kb-dependency-management
 description: Domain logic for dependency management — injected into the dependency agent. Provides ecosystem detection, version update mechanics, build/test verification, and commit/push workflows across all major package managers. Not invoked directly.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Dependency Management

@@ -2,7 +2,7 @@
 name: kb-design
 description: Design intelligence for UI/UX — injected into the frontend-planner agent. Provides BM25-searchable database of 67 styles, 161 color palettes, 57 font pairings, 160 animated component patterns, 161 industry rules, plus framework-agnostic design guidelines. Not invoked directly.
 user-invocable: false
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Frontend Development
