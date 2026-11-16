@@ -64,7 +64,8 @@ Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project con
 
 - Claude Code with plugin support
 - `jq`, `git`, [`gh`](https://cli.github.com/)
-- Recommended: `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000` in your shell profile. The frontend designer and other agents produce large outputs (HTML previews, design systems). The default 32K limit will cut them off.
+- For design captures (optional): Node.js and `playwright-core` with Chromium in `~/.cache/devline/capture` (`npm i --prefix ~/.cache/devline/capture playwright-core && node ~/.cache/devline/capture/node_modules/playwright-core/cli.js install chromium`, about 150 MB). `/devline:design` asks before installing it; without it the critic judges from the HTML only.
+- Recommended: `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000` in your shell profile. The designer and other agents produce large outputs (HTML prototypes, design systems). The default 32K limit will cut them off.
 
 ### Permissions
 
@@ -111,7 +112,7 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline:debug <error>` | Systematic root cause analysis |
 | `/devline:deep-review` | Final merge-readiness audit (runs the reviewer at `scope: branch`) |
 | `/devline:deps [--migrate] <CVEs \| package>` | Patch CVEs, or migrate a major version with `--migrate` |
-| `/devline:design` | Standalone component or theme design |
+| `/devline:design [mockup] <what>` | Explore new designs (sketch, critique, refine) or build an interactive mockup |
 | `/writing` | Clean AI slop and catch mistakes in your writing (write yourself, polish here); strict citation enforcement for scientific text |
 | `/brand` | Brand voice, visual identity, messaging |
 | `/graphic-design` | Logos, icons, banners, slides, corporate identity |
@@ -131,7 +132,7 @@ flowchart LR
 
     triage -->|feature| s0["Stage 0\nBranch setup"]
     s0 --> s1["Stage 1\nBrainstorm"]
-    s1 -. "UI only" .-> s15["Stage 1.5\nDesign system"]
+    s1 -. "UI only" .-> s15["Stage 1.5\nDesign"]
     s15 --> s2["Stage 2\nPlan every phase"]
     s1 --> s2
     s2 -->|multi-phase| s2
@@ -177,25 +178,18 @@ You approve the spec before anything else happens.
 </details>
 
 <details>
-<summary><strong>Stage 1.5: Design System</strong> (interactive, conditional)</summary>
+<summary><strong>Stage 1.5: Design</strong> (interactive, conditional)</summary>
 
-Triggers only when the brainstorm identifies UI impact. The frontend-planner searches a curated database (not LLM generation -- actual CSV data with BM25 ranking) and generates HTML previews you can open in a browser to compare directions.
+Triggers only when the brainstorm identifies design-level UI work (new pages, components, a redesign). Runs the design skill's exploration loop: cheap sketches from deliberately different seeds, a fresh critic culls the weak ones, you pick from a gallery of screenshots, only your picks become full prototypes, and each is refined against rendered captures until a critic that didn't build it scores it 8+ on both wow and craft. If you already have a mockup (for example from `/devline:design mockup`), it becomes the design input instead.
 
-The database:
-- 67 visual styles (glassmorphism, brutalism, material design, etc.)
-- 161 color palettes matched to industries
-- 57 font pairings with Google Fonts imports
-- 161 industry rules with do/don't patterns
-- 160 animated component patterns
-
-After you pick a direction, it writes `.devline/design-system.md` with color tokens, typography scale, animation timing, and accessibility checklist.
+When you approve a design, it is written down as `docs/design-system/MASTER.md`: tokens, components, rules, an acceptance checklist and an append-only Corrections log. Planner, implementer and reviewer treat it as binding: tokens only, no literal colours or sizes.
 
 </details>
 
 <details>
 <summary><strong>Stage 2: Plan</strong> (interactive)</summary>
 
-The planner reads the brainstorm and design system, traces execution paths through your codebase, and produces a TDD plan with:
+The planner reads the brainstorm and the design system (if any), traces execution paths through your codebase, and produces a TDD plan with:
 
 - **Parallel tasks with file-based isolation.** Each task owns specific files. No merge conflicts between same-wave tasks.
 - **Dependency graph.** Wave 1 tasks run in parallel. Wave 2 waits for Wave 1 to finish. And so on.
@@ -281,12 +275,12 @@ flowchart TB
     subgraph opus["Opus — complex reasoning"]
         planner["Planner\nArchitecture, TDD task design"]
         debugger["Debugger\nScientific root cause analysis"]
+        designer["Designer\nSketch, critique, refine, mockups"]
     end
 
     subgraph sonnet["Sonnet — fast execution"]
         implementer["Implementer\nTDD impl, build/CI/Docker/IaC"]
         reviewer["Reviewer\nPer-task + scope:branch deep review"]
-        frontend["Frontend Planner\nDesign system, HTML previews"]
         docskeeper["Docs Keeper\nREADME, docs/ sweep"]
         dependency["Dependency\nCVE patches + migrations"]
     end
@@ -294,8 +288,8 @@ flowchart TB
     classDef opusNode fill:#fce7f3,stroke:#db2777,color:#831843
     classDef sonnetNode fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
 
-    class planner,debugger opusNode
-    class implementer,reviewer,frontend,docskeeper,dependency sonnetNode
+    class planner,debugger,designer opusNode
+    class implementer,reviewer,docskeeper,dependency sonnetNode
 ```
 
 <details>
@@ -307,7 +301,7 @@ flowchart TB
 | **Implementer** | Sonnet | One task, one agent, strict TDD. Runs in a git worktree. Also handles build systems, CI/CD, Docker, and infrastructure-as-code tasks. Validates spec against actual codebase before writing code. Commits only specific files -- never `git add .` |
 | **Reviewer** | Sonnet (Opus for `scope: branch`) | Per-task review (`scope: task`): correctness, spec compliance, integration contracts, security (OWASP + multi-tenant), performance, code quality, plan compliance, test assertion quality, stale artifacts, mandatory test run. As the final gate (`scope: branch`, Opus) it builds and tests first (any failure = HAS_FINDINGS), then runs the cross-task integration sweep, feature-goal trace, regression check, and branch-level architecture review. |
 | **Debugger** | Opus | Six-phase scientific method: check known patterns, reproduce, gather evidence, hypothesize (2-3 ranked), test hypotheses, verify and prevent. Can operate standalone or as a pipeline planner for failed review loops. |
-| **Frontend Planner** | Sonnet | Six modes: pipeline (brainstorm-to-design-system), showcase (N HTML variations), component (single piece), extend (add to system), harmonize (match project theme), brand (persistent identity). Searches curated CSV database with BM25, not LLM generation. |
+| **Designer** | Opus (`design_model`; mockups Sonnet, `mockup_model`) | One design step per launch: seeds, sketch, cull, build, refine, critique, mockup. Builds self-contained HTML from real content; critiques only from rendered captures (stills, recordings, frame diffs, slop scan) of work it didn't build. |
 | **Docs Keeper** | Sonnet | Proactive documentation sweep. Reads `git diff` and plan, scans ALL docs for staleness, completeness, and formatting issues. Checks internal links, code examples, and renamed references. |
 | **Dependency** | Sonnet (Opus for migrations) | Both CVE/version patches and major-version migrations. Detects ecosystem (npm, Maven, Gradle, pip, cargo, etc.), checks if the package is affected, updates, verifies build/tests, commits. For migrations (opus, migration block on) it researches guides, runs ecosystem tools (OpenRewrite, Rector, codemods), and refactors breaking changes. |
 
@@ -330,12 +324,11 @@ claude-devline/
 |   |-- implementer.md       # also handles build/CI/Docker/IaC tasks
 |   |-- reviewer.md          # per-task review + scope:branch deep review
 |   |-- debugger.md
-|   |-- frontend-planner.md
+|   |-- designer.md          # design exploration + mockups
 |   |-- docs-keeper.md
 |   |-- dependency.md        # CVE patches + major-version migrations
 |   +-- references/          # Shared agent templates
-|       |-- plan-format.md
-|       +-- frontend-output-templates.md
+|       +-- plan-format.md
 |
 |-- skills/                  # User-invocable commands and knowledge bases
 |   |-- devline/             # Main orchestrator (/devline)
@@ -343,6 +336,7 @@ claude-devline/
 |   |   +-- references/      # Implementation protocol, worktree protocol, agent health
 |   |-- setup/               # /devline:setup
 |   |-- find-docs/           # Context7 doc lookup (used by agents)
+|   |-- design/              # /devline:design (references, capture + slop-scan scripts)
 |   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
 |   +-- ...                  # More skills and knowledge bases
@@ -366,7 +360,6 @@ Agents don't start from scratch. Knowledge bases (the `kb-*` skills) get injecte
 |----------------|---------------|-----------------|
 | `kb-tdd-workflow` | Implementer, Debugger | Test level selection (unit vs integration vs E2E), Red-Green-Refactor cycle, framework detection, what NOT to test |
 | `kb-blast-radius` | Planner, Reviewer | Reverse dependency tracing -- "if I change file X, what breaks?" Grep-based import analysis across 12 languages |
-| `kb-design` | Frontend Planner | 67 styles, 161 palettes, 57 fonts, 160 animations, 161 industry rules, token architecture, accessibility priorities |
 | `kb-dependency-management` | Dependency | Ecosystem detection for 10+ package managers, version update mechanics, verification commands |
 | `find-docs` | All agents | Context7 integration for live library documentation lookup |
 
@@ -432,7 +425,7 @@ Long pipelines survive context compaction. All mutable state lives on disk.
 | `.devline/plan-phase-N.md` | Per-phase plans for multi-phase pipelines |
 | `.devline/fix-task-N.md` | Blocking findings for a specific task's fix cycle |
 | `.devline/brainstorm.md` | Approved feature spec |
-| `.devline/design-system.md` | Design tokens, palette, typography (if UI) |
+| `.devline/design/` | Design exploration: seeds, sketches, captures, critiques, finals, gallery (if UI) |
 
 A **PreCompact hook** turns every compaction summary into a handoff, in any session: the goal and next step, every file, log location, URL and screenshot the user pointed to and why, the user's decisions and corrections, failed attempts and why they failed, and the working state. While a pipeline is active, a **SessionStart hook** (matcher `compact`) then re-injects `state.md`. The orchestrator picks up where it left off. Absolute timestamps in `state.md` let health monitoring compute correct elapsed times after recovery.
 
@@ -491,38 +484,18 @@ Three tiers. **Deny** is for what is catastrophic or exposes secrets. **Ask** is
 
 ---
 
-## Design Intelligence
+## Design
 
-The frontend-planner's design recommendations come from a curated CSV database, not LLM generation. BM25 ranking matches your project's needs against researched data.
-
-<details>
-<summary><strong>Database contents</strong></summary>
-
-| Domain | Records | Examples |
-|--------|---------|---------|
-| Visual styles | 67 | Glassmorphism, brutalism, neomorphism, material design |
-| Color palettes | 161 | Industry-matched with mood, contrast ratios, dark mode variants |
-| Font pairings | 57 | Google Fonts with mood, weights, CSS imports |
-| Industry rules | 161 | SaaS, fintech, healthcare, e-commerce -- with anti-patterns |
-| Animated components | 160 | Text, scroll, cursor, background, card, navigation, hero, 3D |
-| UX guidelines | 99 | Do/Don't with code examples |
-| Google Fonts | 1,924 | Full catalog with classifications and variable axes |
-| Stack guidelines | 13 | React, Vue, Flutter, SwiftUI, Jetpack Compose, and more |
-
-</details>
-
-Six design modes:
+`/devline:design` has two modes, run by the designer agent one step per launch. Nobody scores their own work: every critique is a fresh launch that sees only captures.
 
 | Mode | Use case |
 |------|----------|
-| **Pipeline** | Full brainstorm-to-design-system flow (Stage 1.5) |
-| **Showcase** | Generate N HTML variations to compare directions |
-| **Component** | Design a single piece (button, card, color theme) |
-| **Extend** | Add a new element to an existing design system |
-| **Harmonize** | Design something that fits your project's existing theme |
-| **Brand** | Create or extend a persistent brand identity |
+| **Exploration** (default) | New looks for a page, site or app. 10 cheap sketches (a finished first screen + a storyboard of the signature motion), a critic culls to 4-8, you pick 2-4, those become full prototypes and are refined until they score 8+. At least one sketch is an ambitious interactive or 3D piece. |
+| **Mockup** (`/devline:design mockup <what>`) | One cheap, interactive HTML mockup of exactly the surface a change touches: a page, an app screen, a desktop widget, a dialog. Uses the project's tokens, fonts, icons and wording; a separate control section holds only the inputs you can't change inside the mock. Change requests edit it in place, with a feedback log so later rounds don't undo earlier decisions. |
 
-All modes output self-contained HTML previews -- inlined CSS, vanilla JS, Google Fonts only. Responsive from 375px to 1440px. Open them in a browser, screenshot them, share them with your team.
+**Material 3 Expressive strict mode** turns on when the project uses M3E (or you ask for it): every value comes from the spec, decisions only where the spec leaves room, and the critic fails anything off-spec. It needs the `kb-m3e` skill and stops if it's missing. Otherwise the default mode applies.
+
+Captures (stills, scroll or scripted recordings, frame-change report, page errors) come from `skills/design/scripts/capture.mjs`, which needs `playwright-core` (see [Requirements](#requirements)). `slop-scan.mjs` flags common AI-look patterns. Third-party sources are listed in `skills/design/CREDITS.md`.
 
 ---
 
@@ -625,6 +598,18 @@ fast_lane: always
 | `dep_verify_build` | `true` | Run build check |
 | `dep_verify_tests` | `true` | Run test suite |
 
+#### Design
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `design_model` | `opus` | Model for exploration steps (seeds, sketches, builds, critiques) |
+| `mockup_model` | `sonnet` | Model for mockups |
+| `design_sketches` | `10` | Number of sketches per exploration |
+| `design_pick` | `ask` | `ask` = you pick which sketches to build, `auto` = take the critic's top 3 |
+| `design_mode` | `auto` | `auto` = M3E strict when the project uses M3E, `m3e-strict`, or `default` |
+
+A number or "you pick" in the request always wins over these settings. Design settings are read from `.claude/devline.local.md`, then `~/.claude/devline.local.md`.
+
 The `deps` skill (patch mode) also honors `cve_`-prefixed overrides (e.g. `cve_verify_build`), which take priority over the generic `dep_` keys. Migrate mode always runs build and test verification (not configurable).
 
 </details>
@@ -678,13 +663,14 @@ Researches the official migration guide, finds available tooling (OpenRewrite re
 </details>
 
 <details>
-<summary><strong>Design a component</strong></summary>
+<summary><strong>Design a page or mock up a change</strong></summary>
 
 ```
-/devline:design a dark theme for our dashboard with data visualization focus
+/devline:design the homepage for our bakery, from docs/facts.md
+/devline:design mockup the new edit mode for desktop widgets
 ```
 
-Searches the curated database for dark color palettes suited to data-heavy interfaces, picks font pairings optimized for number readability, generates HTML previews you can open in your browser, and outputs a component spec with CSS variables and accessibility notes.
+The first runs the exploration loop and ends with a gallery of refined prototypes and their scores. The second builds one interactive mockup of just the desktop, its context menu and the edit mode, in the project's own look, ready to iterate on.
 
 </details>
 
@@ -720,4 +706,4 @@ Agents use [Context7](https://context7.com) via `npx ctx7@latest` to fetch curre
 
 ## License
 
-MIT
+MIT. The design skill adapts third-party material under its own licences; see `skills/design/CREDITS.md`.

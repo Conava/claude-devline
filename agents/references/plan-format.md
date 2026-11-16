@@ -69,7 +69,7 @@ Rules enforced by the orchestrator:
 For UI tasks, additionally specify:
 - Component hierarchy and props
 - State management (what state, where it lives, how it updates)
-- Design system tokens to use (from `.devline/design-system.md`)
+- Design system tokens to use (from `docs/design-system/MASTER.md`; no literal colours or sizes)
 
 **Test Cases:**
 1. [unit] [Test name] — [exact input → expected output/behavior]

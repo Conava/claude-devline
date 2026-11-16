@@ -42,6 +42,7 @@ The launcher passes one of two scopes:
 5. **Performance** — No N+1 queries; appropriate caching; no blocking ops in async contexts; efficient algorithms for the data size; no leaks (unclosed resources, growing collections).
 
 6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear.
+   - **UI:** if `docs/design-system/MASTER.md` exists, the change follows it and its Corrections; any literal colour, size, radius, shadow or duration instead of a token is a finding.
 
 7. **Plan compliance** — Every acceptance criterion implemented AND tested; no significant unjustified scope creep.
 

@@ -34,14 +34,14 @@ A single task, run in place — no worktrees, no waves, no gates.
 3. **ONE `reviewer` (scope=task)** — the standard per-task review. Run a fix cycle if it returns blocking findings.
 4. **Commit.** Then auto-proceed and ask only merge-or-not.
 
-The fast lane SKIPS: brainstorm + its approval gate; design-system (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge).
+The fast lane SKIPS: brainstorm + its approval gate; design (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge).
 
 ## Progress Tracking
 
 Before starting any work, create these tasks using TaskCreate:
 
 1. "Brainstorm — Refine idea into feature spec" (activeForm: "Brainstorming feature idea")
-2. "Design System — Generate UI design recommendations" (activeForm: "Generating design system") — only if UI impact detected
+2. "Design — Explore and pick the UI design" (activeForm: "Designing the UI") — only if UI impact detected
 3. "Plan — Design architecture and tasks" (activeForm: "Planning implementation")
 4. "Implement — Build and review tasks" (activeForm: "Implementing tasks")
 5. "Documentation — Update project docs" (activeForm: "Updating documentation")
@@ -91,19 +91,20 @@ Focus on the grand scheme — what we're building, architecture, and scope.
 
 **Approval gate:** Present brainstorm with AskUserQuestion (Approve / Needs changes / Stop here / Other). Only proceed on explicit approval or `auto_approve_brainstorm: true`.
 
-### Stage 1.5: Design System (Interactive — foreground, conditional)
+### Stage 1.5: Design (Interactive — foreground, conditional)
 
 **Trigger:** `.devline/brainstorm.md` shows "UI touched: yes" AND the changes are design-level (new pages, components, visual redesign). Skip for cosmetic tweaks (spacing, single color, alignment) and non-UI features.
 
-Launch **frontend-planner** in foreground (pipeline mode). It reads `.devline/brainstorm.md`, searches the design database, and generates HTML previews.
+Read the design skill (`<this skill's base>/../design/SKILL.md`) and run it from here; it launches **designer** agents and runs the capture scripts. Facts and taste come from `.devline/brainstorm.md` and the project; `docs/design-system/MASTER.md`, if present, is binding.
 
-**Interactive loop:** The frontend-planner may return `STATUS: NEEDS_INPUT` with design questions, conflicts, or preview selection. Present to user via AskUserQuestion, resume the agent with answers. Repeat until complete.
+- **Existing mockup:** if the user points to a mockup (e.g. one made with `/devline:design mockup`, usually `.devline/mockups/*.html`) or the brainstorm names one, confirm via AskUserQuestion that it is the design input and skip exploration.
+- **Otherwise the exploration loop** (seeds, sketches, cull, pick, build, refine). At the pick step, show the gallery serve command and ask via AskUserQuestion (multi-select, the culled sketches as options) unless the request or `design_pick: auto` delegates the choice. At the report, ask via AskUserQuestion which final to take forward.
 
-Output: `.devline/design-system.md`. Inform user and proceed to Stage 2.
+**On approval** of the chosen design or mockup: write `docs/design-system/MASTER.md` from it (format in the design skill's `references/design-system.md`; extend the existing one instead of replacing it). Output: MASTER.md plus the chosen HTML file. Inform user and proceed to Stage 2.
 
 ### Stage 2: Plan and Implement (Phase-Aware)
 
-After Stage 1 (brainstorm approval) and Stage 1.5 (design system, if applicable), detect whether the pipeline is single-phase or multi-phase before launching the planner.
+After Stage 1 (brainstorm approval) and Stage 1.5 (design, if applicable), detect whether the pipeline is single-phase or multi-phase before launching the planner.
 
 #### Phase Detection
 
@@ -114,7 +115,7 @@ Read the approved `.devline/brainstorm.md` and check for a `## Phases` heading (
 
 #### Single-Phase Path (no `## Phases` in brainstorm)
 
-Launch **planner** in foreground. It reads `.devline/brainstorm.md` and `.devline/design-system.md` (if exists).
+Launch **planner** in foreground. It reads `.devline/brainstorm.md` and `docs/design-system/MASTER.md` (if exists) with the chosen design file from Stage 1.5.
 
 **Interactive loop:** The planner may return `STATUS: NEEDS_INPUT` with design questions, code issues, and proactive improvements the planner is unsure about including. Present all sections via AskUserQuestion (recommendations marked "(Recommended)", code issues and improvements as include/skip choices). Resume with answers. Repeat until complete.
 
@@ -122,7 +123,7 @@ Output: `.devline/plan.md` + summary in conversation.
 
 **Approval gate:** Present plan with AskUserQuestion (Approve / Needs changes / Stop here / Other). Only proceed on explicit approval or `auto_approve_plan: true`.
 
-- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/plan-phase-*.md`, `.devline/brainstorm.md`, `.devline/design-system.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/previews/` (if present), then end the pipeline gracefully.
+- If the user selects "Stop here", delete `.devline/plan.md`, `.devline/plan-phase-*.md`, `.devline/brainstorm.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/design/` (if present), then end the pipeline gracefully.
 
 After approval, proceed to Stage 3 (Implement) with `.devline/plan.md` as the plan file. Then continue to Stage 4 (Documentation) and Stage 5 (Deep Review) as normal.
 

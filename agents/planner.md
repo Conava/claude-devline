@@ -18,7 +18,7 @@ Before designing anything, understand what you're working with at execution-path
 
 **Mandatory reads:**
 - **`.devline/brainstorm.md`** — your primary input: feature spec, architecture impact, scope boundaries
-- **`.devline/design-system.md`** — if it exists, use as design constraints for UI tasks
+- **`docs/design-system/MASTER.md`** and the design chosen in Stage 1.5 — if they exist, binding design constraints for UI tasks (tokens only, Corrections section included)
 - **Existing codebase** — architecture, patterns, conventions, naming, test style
 - Use the find-docs skill (`npx ctx7@latest`) for library/framework best practices
 
