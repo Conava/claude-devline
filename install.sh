@@ -4,30 +4,29 @@ set -euo pipefail
 # devline one-command installer.
 #
 # Installs Claude Code (if missing), the devline plugin, and the recommended
-# companions (RTK, Ponytail, Basic Memory). Cross-platform: Linux (apt, pacman,
-# dnf, zypper, apk), macOS (Homebrew), and Windows via WSL or Git Bash.
+# companions (RTK, Ponytail). Cross-platform: Linux (apt, pacman, dnf, zypper,
+# apk), macOS (Homebrew), and Windows via WSL or Git Bash.
 #
 # Safe to re-run — every step checks first, and optional steps warn-and-continue
-# instead of aborting. Missing UNDERLYING tools (a package manager, uv, node, jq,
-# git, gh, Claude Code) are offered before installing; the devline plugin and the
+# instead of aborting. Missing UNDERLYING tools (a package manager, node, jq, git,
+# gh, Claude Code) are offered before installing; the devline plugin and the
 # companions install by default (gate them with --minimal / --skip-*).
 #
 # Review this script before running it. Usage:
 #   bash install.sh                 # everything (prompts before installing missing tools)
 #   bash install.sh --yes           # assume "yes" to every prompt (non-interactive / CI)
 #   bash install.sh --minimal       # devline only, no companions
-#   bash install.sh --skip-rtk --skip-ponytail --skip-memory   # skip specific companions
+#   bash install.sh --skip-rtk --skip-ponytail   # skip specific companions
 #
 # On Windows: run inside WSL (recommended) or Git Bash. No native PowerShell installer.
 
 # ---- flags ------------------------------------------------------------------
-MINIMAL=0; SKIP_RTK=0; SKIP_PONYTAIL=0; SKIP_MEMORY=0; ASSUME_YES=0
+MINIMAL=0; SKIP_RTK=0; SKIP_PONYTAIL=0; ASSUME_YES=0
 for arg in "$@"; do
   case "$arg" in
     --minimal)       MINIMAL=1 ;;
     --skip-rtk)      SKIP_RTK=1 ;;
     --skip-ponytail) SKIP_PONYTAIL=1 ;;
-    --skip-memory)   SKIP_MEMORY=1 ;;
     -y|--yes)        ASSUME_YES=1 ;;
     -h|--help)       grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "[devline] unknown option: $arg (ignored)" ;;
@@ -86,7 +85,7 @@ pkg_install() {
     zypper)  case "$pkg" in node) m=nodejs;; esac; $SUDO zypper --non-interactive install "$m" ;;
     apk)     case "$pkg" in node) m=nodejs;; gh) m=github-cli;; esac; $SUDO apk add "$m" ;;
     brew)    case "$pkg" in node) m=node;; esac; brew install "$m" ;;
-    winget)  case "$pkg" in git) m=Git.Git;; jq) m=jqlang.jq;; gh) m=GitHub.cli;; node) m=OpenJS.NodeJS;; uv) m=astral-sh.uv;; curl) m=cURL.cURL;; *) m="$pkg";; esac
+    winget)  case "$pkg" in git) m=Git.Git;; jq) m=jqlang.jq;; gh) m=GitHub.cli;; node) m=OpenJS.NodeJS;; curl) m=cURL.cURL;; *) m="$pkg";; esac
              winget install -e --id "$m" --accept-source-agreements --accept-package-agreements ;;
     scoop)   scoop install "$pkg" ;;
     choco)   choco install -y "$pkg" ;;
@@ -101,21 +100,6 @@ ensure_tool() {
   [ -n "$PM" ] || { warn "$human missing and no package manager detected — install it manually."; return 1; }
   if confirm "$human is needed and missing. Install via $PM?"; then
     step "install $human" pkg_install "$cmd"; command -v "$cmd" >/dev/null 2>&1
-  else
-    return 1
-  fi
-}
-
-# uv — package manager first (widely packaged), official astral installer as fallback.
-ensure_uv() {
-  command -v uv >/dev/null 2>&1 && { log "present: uv"; return 0; }
-  if [ -n "$PM" ] && confirm "uv (Python tool, needed for Basic Memory) is missing. Install via $PM?"; then
-    if step "install uv ($PM)" pkg_install uv && command -v uv >/dev/null 2>&1; then return 0; fi
-    warn "uv not available via $PM — falling back to the official installer."
-  fi
-  if confirm "Install uv via the official astral.sh installer?"; then
-    step "install uv (astral)" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-    export PATH="$HOME/.local/bin:$PATH"; command -v uv >/dev/null 2>&1
   else
     return 1
   fi
@@ -177,50 +161,6 @@ else
   log "skipping Ponytail"
 fi
 
-# ---- Basic Memory (installs by default; offers uv if missing) --------------
-if [ "$MINIMAL" -eq 0 ] && [ "$SKIP_MEMORY" -eq 0 ]; then
-  log "installing Basic Memory"
-  if ensure_uv; then
-    export PATH="$HOME/.local/bin:$PATH"
-    step "uv tool install basic-memory" uv tool install basic-memory
-    # Per-session MCP wrapper — quoted heredoc so nothing expands at write time.
-    mkdir -p "$HOME/.claude/mcp"
-    cat > "$HOME/.claude/mcp/basic-memory-cwd.sh" <<'WRAPPER'
-#!/usr/bin/env bash
-# Per-session Basic Memory MCP server, bound to the current repo's project —
-# or, when not inside a git repo, to the current directory. One stdio server
-# per Claude session (in that session's cwd) pins to its own project via
-# --project, so parallel sessions never clobber a shared "active project",
-# and a non-git root (e.g. a container of nested repos) still gets its own
-# isolated project instead of dumping into the shared default.
-export PATH="$HOME/.local/bin:$PATH"
-root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-if [ -n "$root" ]; then
-  name=$(basename "$root")
-  if ! basic-memory project list 2>/dev/null | grep -qw "$name"; then
-    mkdir -p "$root/memory"
-    basic-memory project add "$name" "$root/memory" >/dev/null 2>&1 || true
-  fi
-  exec basic-memory mcp --project "$name"
-fi
-exec basic-memory mcp
-WRAPPER
-    chmod +x "$HOME/.claude/mcp/basic-memory-cwd.sh"
-    log "wrote $HOME/.claude/mcp/basic-memory-cwd.sh"
-    if have_claude; then
-      claude mcp remove basic-memory >/dev/null 2>&1 || true
-      step "register basic-memory MCP" claude mcp add --scope user basic-memory -- bash "$HOME/.claude/mcp/basic-memory-cwd.sh"
-      claude plugin marketplace add basicmachines-co/basic-memory-plugins || true
-      claude plugin install basic-memory@basicmachines-co || true
-    fi
-    INSTALLED+=("Basic Memory (per-session MCP wrapper)")
-  else
-    warn "uv unavailable — skipped Basic Memory. Install uv, then re-run."
-  fi
-else
-  log "skipping Basic Memory"
-fi
-
 # ---- summary ----------------------------------------------------------------
 echo
 log "===== install summary ====="
@@ -232,7 +172,7 @@ fi
 echo
 log "Next steps:"
 [ "$CLAUDE_JUST_INSTALLED" -eq 1 ] && log "  1. Run 'claude' once to authenticate (browser login)."
-log "  * Restart Claude Code so new MCP servers and plugins load."
+log "  * Restart Claude Code so new plugins load."
 log "  * Run '/devline:setup' inside each project to configure it."
 case "$OS" in MINGW*|MSYS*|CYGWIN*) log "  * On Windows, WSL gives the smoothest experience if anything above failed." ;; esac
 for note in "${NOTES[@]-}"; do [ -n "$note" ] && log "  note: $note"; done
