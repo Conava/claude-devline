@@ -13,7 +13,7 @@ Before writing infra code, detect what the project uses:
 5. `cdk.json` / `Pulumi.yaml` → CDK/Pulumi
 6. `.github/workflows/` → GitHub Actions
 7. `Jenkinsfile`, `.gitlab-ci.yml`, `azure-pipelines.yml` → other CI/CD
-8. `.claude/devline.local.md` `cloud_provider` override
+8. `cloud_provider` in the devline config (`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`) overrides detection
 
 Apply TDD to infra too: write a validation script or smoke test before the change (e.g., a test that the Docker image builds and starts before writing the Dockerfile).
 

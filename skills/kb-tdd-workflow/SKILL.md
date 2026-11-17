@@ -9,6 +9,13 @@ disable-model-invocation: false
 
 Test-driven development produces better-designed, more maintainable code by writing tests before implementation. The critical skill is choosing the right test level — not defaulting to unit tests with mocks.
 
+## Defaults
+
+The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
+
+- `test_depth`: `auto` (`auto`, `deep`, `focused`).
+- `test_framework`: auto-detect.
+
 ## Core Philosophy: Right Level, Real Dependencies
 
 1. **Default to the highest useful level.** If a test can run against real infrastructure in under 5 seconds, it should. Don't mock what you can test for real.
@@ -46,7 +53,7 @@ E2E tests are defined at the **feature level** by the planner (see Feature-Goal 
 
 ## Test Depth
 
-A per-feature dial (from `.claude/devline.local.md` `test_depth`, or inferred during brainstorm). Two levels:
+A per-feature dial (`test_depth`, see Defaults; `auto` means inferred during brainstorm). Two levels:
 
 - **deep** — exhaustive: a unit test per method plus edge cases and all configs, plus integration and E2E. This is the current default thoroughness.
 - **focused** — big behavior tests over whole classes/workflows plus targeted tests for genuinely hard logic; integration/E2E for real journeys; SKIP exhaustive per-method unit tests for trivial code (getters, passthroughs, obvious branches).
@@ -152,7 +159,7 @@ Check the project for existing test infrastructure before creating tests:
 4. Look for E2E test setup (`playwright.config`, `cypress.config`, `e2e/`, `tests/e2e/`)
 5. Match existing patterns — naming conventions, directory structure, assertion style
 
-If `.claude/devline.local.md` exists, check for `test_framework` override.
+A `test_framework` set in the config (see Defaults) overrides detection.
 
 ## Parallel Task Testing
 

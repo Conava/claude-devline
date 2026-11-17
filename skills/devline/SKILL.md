@@ -19,7 +19,7 @@ That's it. Do NOT read source files to understand errors. Do NOT run a second bu
 
 ## Change Classification (before Stage 1)
 
-Read `fast_lane` from `.claude/devline.local.md` (default `auto`; values `auto|always|off`). Classify the request before starting Stage 1:
+Resolve `fast_lane` from the config (see Defaults). Classify the request before starting Stage 1:
 
 - **Bug/fix/debug** (bug fix, compile error, test failure, stack trace — not a new feature): skip Stages 1-2 (brainstorm/plan), run the build once, then launch a **debugger** agent, followed by a **reviewer**.
 - **SMALL → Fast Lane.** Classify SMALL when ANY of: the user invoked `/devline:quick`, OR `fast_lane: always`, OR it's a bugfix/typo/small tweak, OR the change is ≲1 file / ≲30 lines with **no new component, no schema/migration, no new endpoint, and no new UI surface**. Ambiguous? Ask ONE AskUserQuestion — "This looks small — fast lane or full pipeline?" (default: fast lane). Skip the question when `fast_lane: always` (force fast) or `fast_lane: off` (never fast — run the full pipeline).
@@ -64,9 +64,10 @@ Mark each `in_progress` when starting and `completed` when done. **Do not render
 
 Persist all mutable state to files — conversation context is disposable summaries only. During Stage 3, state files (`.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`) are written per `references/implementation-protocol.md`. On resume-after-crash (or any uncertain pipeline state), read `references/recovery.md` for the state-file schemas and the recovery protocol.
 
-## Configuration
+## Defaults
 
-Read `.claude/devline.local.md` (if it exists):
+The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
+
 - **`auto_approve_brainstorm`** (default: `false`) — Skip brainstorm approval gate
 - **`auto_approve_plan`** (default: `false`) — Skip plan approval gate
 - **`fast_lane`** (default: `auto`; `auto|always|off`) — Controls fast-lane detection for small changes (see Change Classification above)
@@ -74,7 +75,7 @@ Read `.claude/devline.local.md` (if it exists):
 ## Pipeline Stages
 
 ### Stage 0: Branch Setup (Automatic)
-1. Read branching settings from `.claude/devline.local.md` (`branch_format`, `branch_kinds`, `protected_branches`)
+1. Resolve the branching settings (`branch_format`, `branch_kinds`, `protected_branches`) from the config, falling back to the git skill's Defaults
 2. **Active pipeline detection:** If `.devline/state.md` exists, this is a resume scenario (new conversation or post-compaction). Run the recovery protocol (`references/recovery.md`) and ask the user whether to resume or start fresh. If resuming, skip to the recovered stage.
 3. If on a protected branch (default: main, master, develop, release, production, staging): create a branch using `branch_format` (default: `{kind}/{title}`). The `{kind}` must be one of `branch_kinds` (default: feat, fix, refactor, docs, chore, test, ci).
 4. Create `.devline/`; if git does not already ignore it, add it to `.git/info/exclude` (local, no tracked-file change)

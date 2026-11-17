@@ -33,6 +33,8 @@ class ReferencedFilesTests(unittest.TestCase):
         for doc in (SKILL, AGENT):
             # kb-m3e ships separately; strict mode checks for it at run time.
             text = read(doc).replace("kb-m3e/references", "")
+            # Plugin-root paths point outside this skill (e.g. the shared config reference).
+            text = re.sub(r"\$\{CLAUDE_PLUGIN_ROOT\}/\S+", "", text)
             paths = set(PATH.findall(text))
             self.assertTrue(paths, f"{doc.name}: no references/ or scripts/ paths found")
             for p in paths:

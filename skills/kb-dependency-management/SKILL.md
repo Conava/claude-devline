@@ -114,9 +114,9 @@ Check for custom test commands in `package.json` scripts, `Makefile`, or CI conf
 - If the failure is a straightforward compatibility issue (import path changed, method renamed, type signature updated), fix it as part of the update
 - If the failure is complex or touches significant application logic, do not commit — report the issue with details (error output, affected files) and let the user decide
 
-## Settings
+## Defaults
 
-Read `.claude/devline.local.md` YAML frontmatter in each repo for these settings. All are optional — defaults shown:
+Resolve these from the devline config in each repo; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
 
 | Setting | Default | Description |
 |---------|---------|-------------|

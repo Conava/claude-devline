@@ -42,7 +42,7 @@ If you find discrepancies: implement the *intent* of the spec using the *reality
 
 ### 4. Set Up Test Infrastructure
 - Check for existing test framework configuration
-- If `.claude/devline.local.md` exists, check for `test_framework` override
+- A `test_framework` set in the devline config (`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`) overrides detection
 - Create test files following existing conventions
 - Verify tests can be discovered and run
 

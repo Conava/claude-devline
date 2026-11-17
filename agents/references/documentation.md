@@ -4,7 +4,7 @@ On-demand guidance for the docs-keeper: separate documentation files (README, AP
 
 ## Documentation Detection
 
-Before writing, check what exists: `docs/`, `README.md`, `CHANGELOG.md`; doc generators (`typedoc.json`, `mkdocs.yml`, `docusaurus.config.js`, `.readthedocs.yml`, javadoc); `.claude/devline.local.md` `doc_format` override. Match the existing format, style, and structure.
+Before writing, check what exists: `docs/`, `README.md`, `CHANGELOG.md`; doc generators (`typedoc.json`, `mkdocs.yml`, `docusaurus.config.js`, `.readthedocs.yml`, javadoc); `doc_format` in the devline config (`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`) overrides detection. Match the existing format, style, and structure.
 
 ## Writing Standards
 
