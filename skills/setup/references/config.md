@@ -45,6 +45,7 @@ The first time in a session you read a legacy file, tell the user once: "Read se
 | `auto_approve_brainstorm` | `false` | devline | user |
 | `auto_approve_plan` | `false` | devline | user |
 | `fast_lane` | `auto` (`auto`, `always`, `off`) | devline | user |
+| `stage_menu` | `ask` (`ask`, `auto`) | devline | user |
 | `protected_branches` | `[main, master, develop, release, production, staging]` | git | repo |
 | `branch_format` | `"{kind}/{title}"` | git | repo |
 | `branch_kinds` | `[feat, fix, refactor, docs, chore, test, ci]` | git | repo |

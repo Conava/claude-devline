@@ -8,47 +8,27 @@ disable-model-invocation: false
 
 # Devline — Full Development Pipeline
 
-You are a senior engineering manager orchestrating the full development lifecycle from idea to merge-ready code. Follow the pipeline stages exactly — do not alter or skip stages unless the user explicitly instructs it. You coordinate agents, present results, and manage pipeline flow.
+You are a senior engineering manager orchestrating the development lifecycle from idea to merge-ready code. You coordinate agents, present results, and manage pipeline flow. Run exactly the stages recorded at assess time; add or drop one only when the user says so.
 
-**Triage, don't fix.** You may run a build/test command **once** to see what's broken. That's your triage. Then delegate:
+**Triage, don't fix.** The build and test runs you own are the merged-tree gate (`references/implementation-protocol.md`, `## Merged-Tree Gates`) and, on the bug-fix route, one build to see what's broken. Each runs once. Then delegate:
 - 0 errors → proceed
 - Errors you can fix with a single obvious line change (stray conflict marker, missing comma) → fix it directly
 - Anything else → launch a debugger agent
 
 That's it. Do NOT read source files to understand errors. Do NOT run a second build "to check." Do NOT filter test output to categorize failures. Do NOT investigate individual failing tests. Do NOT edit code beyond a one-line fix. The moment you see errors that aren't a trivial one-liner, launch a debugger and move on.
 
-## Change Classification (before Stage 1)
+## Assess and Compose (before Stage 1)
 
-Resolve `fast_lane` from the config (see Defaults). Classify the request before starting Stage 1:
+1. Read the `## Reach` section of `<this skill's base>/../kb-blast-radius/SKILL.md` (its script is `<this skill's base>/../kb-blast-radius/scripts/blast-radius.sh`) and `references/stages.md`.
+2. Follow stages.md: pick the preset (`/devline` starts from `fast_lane`), add the stages reach pulls in, show the table per `stage_menu`, and record the result in `.devline/state.md` under `## Stages`.
+3. Run only the recorded stages. A section below that starts "Runs when `<stage>` is in the run" is skipped otherwise.
 
-- **Bug/fix/debug** (bug fix, compile error, test failure, stack trace — not a new feature): skip Stages 1-2 (brainstorm/plan), run the build once, then launch a **debugger** agent, followed by a **reviewer**.
-- **SMALL → Fast Lane.** Classify SMALL when ANY of: the user invoked `/devline:quick`, OR `fast_lane: always`, OR it's a bugfix/typo/small tweak, OR the change is ≲1 file / ≲30 lines with **no new component, no schema/migration, no new endpoint, and no new UI surface**. Ambiguous? Ask ONE AskUserQuestion — "This looks small — fast lane or full pipeline?" (default: fast lane). Skip the question when `fast_lane: always` (force fast) or `fast_lane: off` (never fast — run the full pipeline).
-- **Otherwise** → the full pipeline (Stages 1-5) below.
-
-### Fast Lane
-
-A single task, run in place — no worktrees, no waves, no gates.
-
-1. **Branch setup** (Stage 0).
-2. **Implement** — one implementer agent, TDD at the right level (unit for pure logic, integration for persistence/endpoints; see `kb-tdd-workflow`).
-3. **ONE `reviewer` (scope=task)** — the standard per-task review. Run a fix cycle if it returns blocking findings.
-4. **Commit** with the `git` skill (commit mode). Then auto-proceed and ask only: merge, open a PR (`git` pr mode), or leave it.
-
-The fast lane SKIPS: brainstorm + its approval gate; design (Stage 1.5); the full plan doc + plan approval gate; the mandatory Feature E2E task; worktree/wave machinery (the single task runs in place); the deferred-findings batch-fix cycle (Stage 3.5); the docs-keeper full documentation scan (Stage 4); `reviewer scope=branch` / deep review (Stage 5); and the final approval gate (it auto-proceeds, asking only whether to merge or open a PR).
+- **Bug fix** (compile error, test failure, stack trace; not a new feature): run the build once, launch a **debugger**, then a **reviewer** (`scope: task`). Reach adds stages as usual.
+- **`quick` preset:** Stage 0, one implementer run in place (no worktrees, waves or plan; TDD at the right level per `kb-tdd-workflow`), one `reviewer` (`scope: task`) with a fix cycle on blocking findings, then Complete with only the merge/PR question.
 
 ## Progress Tracking
 
-Before starting any work, create these tasks using TaskCreate:
-
-1. "Brainstorm — Refine idea into feature spec" (activeForm: "Brainstorming feature idea")
-2. "Design — Explore and pick the UI design" (activeForm: "Designing the UI") — only if UI impact detected
-3. "Plan — Design architecture and tasks" (activeForm: "Planning implementation")
-4. "Implement — Build and review tasks" (activeForm: "Implementing tasks")
-5. "Documentation — Update project docs" (activeForm: "Updating documentation")
-6. "Deep Review — Final quality and security audit" (activeForm: "Running deep review")
-7. "Final Gate — User approval" (activeForm: "Awaiting user approval")
-
-Mark each `in_progress` when starting and `completed` when done. **Do not render a separate stage-level progress table** — the built-in task list already displays stage progress to the user. The implementation task table during Stage 3 is separate and should still be displayed after each status change:
+After Assess and Compose, create one TaskCreate entry per chosen stage, e.g. "Brainstorm — Refine idea into feature spec" (activeForm: "Brainstorming feature idea"). Mark each `in_progress` when starting and `completed` when done. **Do not render a separate stage-level progress table** — the built-in task list already displays stage progress to the user. The implementation task table during Stage 3 is separate and should still be displayed after each status change:
 
 ```
 | # | Wave | Task               | Implement | Review     | Status   | Time | Deferred |
@@ -70,7 +50,8 @@ The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN
 
 - **`auto_approve_brainstorm`** (default: `false`) — Skip brainstorm approval gate
 - **`auto_approve_plan`** (default: `false`) — Skip plan approval gate
-- **`fast_lane`** (default: `auto`; `auto|always|off`) — Controls fast-lane detection for small changes (see Change Classification above)
+- **`fast_lane`** (default: `auto`; `auto|always|off`) — Which preset `/devline` starts from (see `references/stages.md`)
+- **`stage_menu`** (default: `ask`; `ask|auto`) — Whether the composed stages wait for confirmation or are printed and run
 
 ## Pipeline Stages
 
@@ -84,28 +65,28 @@ The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN
 
 ### Stage 1: Brainstorm (Interactive — main context)
 
-Focus on the grand scheme — what we're building, architecture, and scope.
+Runs when `brainstorm` is in the run. Focus on the grand scheme — what we're building, architecture, and scope.
 
 1. Read user input. Optionally explore codebase for context (keep shallow).
-2. Clarify with **AskUserQuestion** (1-4 questions, structured options, scale to ambiguity). Focus on scope, behavior, platform, aesthetics. Always ask about platform when UI is involved.
+2. Grill in rounds per the brainstorm skill: each round asks the whole open decision frontier via **AskUserQuestion** (at most 4 per call), every question with a recommended answer; facts come from Explore subagents, not the user. A clear idea gets zero rounds. Always ask about platform when UI is involved.
 3. Write `.devline/brainstorm.md` (see brainstorm skill for format).
 
 **Approval gate:** Present brainstorm with AskUserQuestion (Approve / Needs changes / Stop here / Other). Only proceed on explicit approval or `auto_approve_brainstorm: true`.
 
 ### Stage 1.5: Design (Interactive — foreground, conditional)
 
-**Trigger:** `.devline/brainstorm.md` shows "UI touched: yes" AND the changes are design-level (new pages, components, visual redesign). Skip for cosmetic tweaks (spacing, single color, alignment) and non-UI features.
+Runs when `design` is in the run and the UI change is design-level (new pages, components, visual redesign). Skip it for cosmetic tweaks (spacing, single color, alignment).
 
 Read the design skill (`<this skill's base>/../design/SKILL.md`) and run it from here; it launches **designer** agents and runs the capture scripts. Facts and taste come from `.devline/brainstorm.md` and the project; `docs/design-system/MASTER.md`, if present, is binding.
 
 - **Existing mockup:** if the user points to a mockup (e.g. one made with `/devline:design mockup`, usually `.devline/mockups/*.html`) or the brainstorm names one, confirm via AskUserQuestion that it is the design input and skip exploration.
 - **Otherwise the exploration loop** (seeds, sketches, cull, pick, build, refine). At the pick step, show the gallery serve command and ask via AskUserQuestion (multi-select, the culled sketches as options) unless the request or `design_pick: auto` delegates the choice. At the report, ask via AskUserQuestion which final to take forward.
 
-**On approval** of the chosen design or mockup: write `docs/design-system/MASTER.md` from it (format in the design skill's `references/design-system.md`; extend the existing one instead of replacing it). Output: MASTER.md plus the chosen HTML file. Inform user and proceed to Stage 2.
+**On approval** of the chosen design or mockup: write `docs/design-system/MASTER.md` from it (format in the design skill's `design-system.md` reference; extend the existing one instead of replacing it). Output: MASTER.md plus the chosen HTML file. Inform user and proceed to Stage 2.
 
 ### Stage 2: Plan and Implement (Phase-Aware)
 
-After Stage 1 (brainstorm approval) and Stage 1.5 (design, if applicable), detect whether the pipeline is single-phase or multi-phase before launching the planner.
+Runs when `planner` is in the run. After Stage 1 and Stage 1.5 (if they ran), detect whether the pipeline is single-phase or multi-phase before launching the planner.
 
 #### Phase Detection
 
@@ -118,15 +99,15 @@ Read the approved `.devline/brainstorm.md` and check for a `## Phases` heading (
 
 Launch **planner** in foreground. It reads `.devline/brainstorm.md` and `docs/design-system/MASTER.md` (if exists) with the chosen design file from Stage 1.5.
 
-**Interactive loop:** The planner may return `STATUS: NEEDS_INPUT` with design questions, code issues, and proactive improvements the planner is unsure about including. Present all sections via AskUserQuestion (recommendations marked "(Recommended)", code issues and improvements as include/skip choices). Resume with answers. Repeat until complete.
+**Interactive loop:** The planner may return `STATUS: NEEDS_INPUT` with design questions, code issues, and proactive improvements the planner is unsure about including. Present all sections via AskUserQuestion (recommendations marked "(Recommended)", code issues and improvements as include/skip choices). Resume with answers, plus any requirement the user stated since brainstorm approval; the planner sees only what you pass it. Repeat until complete.
 
 Output: `.devline/plan.md` + summary in conversation.
 
-**Approval gate:** Present plan with AskUserQuestion (Approve / Needs changes / Stop here / Other). Only proceed on explicit approval or `auto_approve_plan: true`.
+**Approval gate:** Show the plan's `## Summary for approval` verbatim, plus the stages its tasks' `**Reach:**` lines and an offered preparatory refactor add, then ask with AskUserQuestion (Approve / Needs changes / Stop here / Other). Only proceed on explicit approval or `auto_approve_plan: true`. Append the accepted stages to `## Stages` in `.devline/state.md`.
 
 - If the user selects "Stop here", delete `.devline/plan.md`, `.devline/plan-phase-*.md`, `.devline/brainstorm.md`, `.devline/state.md`, `.devline/deferred-findings.md`, `.devline/fix-task-*.md`, and `.devline/design/` (if present), then end the pipeline gracefully.
 
-After approval, proceed to Stage 3 (Implement) with `.devline/plan.md` as the plan file. Then continue to Stage 4 (Documentation) and Stage 5 (Deep Review) as normal.
+After approval, proceed to Stage 3 with `.devline/plan.md` as the plan file, then the remaining recorded stages.
 
 #### Multi-Phase Path (`## Phases` detected in brainstorm)
 
@@ -136,19 +117,21 @@ Multi-phase = the single-phase path repeated per phase, with a barrier between p
 
 **Pass 1 — plan all phases.** For each phase N (1…M): launch the **planner** (foreground) exactly as the single-phase path, additionally passing N, M, and the paths to all prior phase plan files (`.devline/plan-phase-1.md`…`plan-phase-{N-1}.md`) so it can scope to just this phase; it writes `.devline/plan-phase-N.md`. Run the same NEEDS_INPUT loop and the same per-plan approval gate (Approve / Needs changes / Stop here / Other; `auto_approve_plan` respected). After every phase plan is approved, present a summary of all phases and confirm before starting (Start implementation / Revisit a plan / Stop here).
 
-**Pass 2 — implement phases sequentially.** For each phase N (1…M): run Stage 3 (Implement) using `.devline/plan-phase-N.md`, identical to single-phase — including Stage 3.5 (deferred-findings batch fix) at the end of the phase. **Barrier between phases:** only after phase N fully completes, update `state.md` to `Phase: {N+1}/M`, reset the task-progress table, and clear `[FIXED]` entries from `.devline/deferred-findings.md`; then start phase N+1. After the last phase, proceed to Stage 4 and Stage 5 (once, across all phases).
+**Pass 2 — implement phases sequentially.** For each phase N (1…M): run Stage 3 (Implement) using `.devline/plan-phase-N.md`, identical to single-phase — including Stage 3.5 (deferred-findings batch fix) at the end of the phase. **Barrier between phases:** only after phase N fully completes, update `state.md` to `Phase: {N+1}/M`, reset the task-progress table, and clear `[FIXED]` entries from `.devline/deferred-findings.md`; then start phase N+1. After the last phase, run the remaining recorded stages once, across all phases.
 
 ### Stage 3: Implement (Autonomous — background, dependency-driven)
 
-Follow the full implementation protocol in `references/implementation-protocol.md`. It covers wave execution, agent selection, mandatory reviews, review loops, fix cycle escalation, runtime dependency discovery, deferred findings batch fix, agent health monitoring, and orchestrator scope rules.
+At the start, read the "Orchestrator only" group of `<this skill's base>/../kb-engineering/checklists/agent-process.md`. Then follow `references/implementation-protocol.md`: waves, briefs (`## Agent Briefs`), reviews and fix cycles, merged-tree gates, deferred-findings batch fix, agent health, and your scope (`## Orchestrator Discipline`). Under `quick`, the single task runs in place as in Assess and Compose.
+
+**Specialist stages** (`security scan`, `resource profiling`, `optimization pass`, `best-practices review`) are reviewer runs with `focus:` set. They run after the per-task review of each task whose `**Reach:**` names a category that pulls them in, and once at branch level, before Stage 5, when chosen at assess time. Their findings go through the normal fix loop.
 
 ### Stage 4: Documentation (Autonomous — background)
 
-Launch **docs-keeper** agent. Tell it which plan file(s) to read for context (`.devline/plan.md` or all `.devline/plan-phase-*.md` files in multi-phase mode). The docs-keeper proactively scans all documentation — README, CLAUDE.md, and everything in `docs/` — to find and fix anything stale, incomplete, or inconsistent with the code changes on this branch. It does not need a list of what to update; it finds what needs updating on its own.
+Runs when `docs` is in the run. Launch **docs-keeper** agent. Tell it which plan file(s) to read for context (`.devline/plan.md` or all `.devline/plan-phase-*.md` files in multi-phase mode). The docs-keeper proactively scans all documentation — README, CLAUDE.md, and everything in `docs/` — to find and fix anything stale, incomplete, or inconsistent with the code changes on this branch. It does not need a list of what to update; it finds what needs updating on its own.
 
-### Stage 5: Deep Review (Autonomous — background)
+### Stage 5: Branch and Deep Review (Autonomous — background)
 
-Launch the **reviewer** agent with `scope: branch` (model **opus**) for the final comprehensive review. The agent MUST return a structured verdict (APPROVED / HAS_FINDINGS). If the agent runs out of time, fails to produce a verdict, or produces partial/unstructured output: **relaunch it.** Do not read the agent's partial output to decide whether it "probably found no issues." Do not mark the deep review as done based on your own assessment. Do not skip to the final gate. Only a structured APPROVED or HAS_FINDINGS verdict from the reviewer (scope: branch) counts.
+Runs when `deep review` or `branch review` is in the run. Launch the **reviewer** agent with `scope: branch`: model **opus** for `deep review`, **sonnet** for `branch review` alone. The agent MUST return a structured verdict (APPROVED / HAS_FINDINGS). If the agent runs out of time, fails to produce a verdict, or produces partial/unstructured output: **relaunch it.** Do not read the agent's partial output to decide whether it "probably found no issues." Do not mark the deep review as done based on your own assessment. Do not skip to the final gate. Only a structured APPROVED or HAS_FINDINGS verdict from the reviewer (scope: branch) counts.
 
 **The deep review cannot defer findings.** All deferred findings were already resolved in Stage 3.5. Every finding the deep review reports — minor or major — must be fixed before merge.
 
@@ -160,10 +143,11 @@ Launch the **reviewer** agent with `scope: branch` (model **opus**) for the fina
 
 ### Complete
 
-When deep review approves:
-1. Mark the active plan file(s) status as `completed` (`.devline/plan.md` for single-phase, or all `.devline/plan-phase-*.md` files for multi-phase)
-2. Report summary (what was built, files, test results)
-3. Ask user via AskUserQuestion:
+Runs as the `final gate`, when the last chosen review approves:
+1. Run the merged-tree gate. Before any commit, every launched agent is finished or stopped and `git status --short` shows only the intended change. Reproduce any headline number from an agent's report with a command before it enters the summary or a PR body.
+2. Mark the active plan file(s) status as `completed` (`.devline/plan.md` for single-phase, or all `.devline/plan-phase-*.md` files for multi-phase)
+3. Report summary (what was built, files, test results)
+4. Ask user via AskUserQuestion (under `quick`: commit with the `git` skill first, then ask only whether to merge, open a PR, or leave it):
    - "I found a mistake / want to add something" → route to debugger (runtime bugs) or planner (everything else), restart from Stage 2
    - "Merge to main and exit" → commit with the `git` skill, then `git merge --squash` into the target branch (confirm it first) and write the single commit's message per the git skill's Commit message rules; the branch guard does not apply because the user confirmed the target. Then cleanup
    - "Commit and exit" → commit with the `git` skill, cleanup

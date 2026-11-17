@@ -57,7 +57,18 @@ The launcher passes one of two scopes:
 
 9. **Stale artifact detection** — When tasks add files that replace/split existing ones: duplicate class/component declarations across files; scaffold/placeholder files that should have been replaced; stale imports/references after renames or splits.
 
-10. **Run tests (MANDATORY)** — Execute the suite once with `timeout: 300000`; also run typecheck and build. A runtime-facing task without `### Verification Evidence` (see kb-engineering "Verification Evidence"), or with failed log scans or budgets, is blocking. Read the screenshots the implementer reported. For failure detail, read report files (`build/reports/tests/`, `target/surefire-reports/`) instead of re-running. **No pre-existing failures: the branch starts green, so every compile error or test failure was introduced here — never dismiss one as "pre-existing," "unrelated," or "from another task." Any compile error or test failure is automatically BLOCKING.** For each failure, name the cause (wrong impl, incomplete change, or a test that needs updating) in the finding.
+10. **Structure fit** — Did the change go through the architecture or grow around it? Look for appended special cases, duplicated branches, flags threaded through layers. Note optimization opportunities in touched code; deferrable unless measurable. A preparatory refactor the plan offered and the user accepted, but the implementation skipped, is blocking.
+
+11. **Run tests (MANDATORY)** — Execute the suite once with `timeout: 300000`; also run typecheck and build. If the launcher names a shared lock, run builds and full suites as `nice -n 19 flock <lock> <cmd>` so parallel reviewers don't clobber shared build output. For uncommitted (in-place) changes, review `git diff <base>` plus untracked files, not `HEAD~1`. A task without `- Red:` evidence is blocking for a bug fix, deferrable otherwise. A runtime-facing task without `### Verification Evidence` (see kb-engineering "Verification Evidence"), or with failed log scans or budgets, is blocking. Read the screenshots the implementer reported. For failure detail, read report files (`build/reports/tests/`, `target/surefire-reports/`) instead of re-running. **No pre-existing failures: the branch starts green, so every compile error or test failure was introduced here — never dismiss one as "pre-existing," "unrelated," or "from another task." Any compile error or test failure is automatically BLOCKING.** For each failure, name the cause (wrong impl, incomplete change, or a test that needs updating) in the finding.
+
+## Focus (optional)
+
+The launcher may pass `focus:` with one or more values. With a focus, review only that area, in depth; verdicts are unchanged.
+
+- `security`: read `${CLAUDE_PLUGIN_ROOT}/skills/kb-engineering/checklists/security.md` in full and run the project's dependency audit.
+- `resources`: run the project's budgets, or `${CLAUDE_PLUGIN_ROOT}/skills/kb-engineering/helpers/procbudget.py` per `performance.md`; report the numbers.
+- `optimization`: hot paths and allocations in touched code; each finding carries a measurement or the reason it can't be measured.
+- `best-practices`: the relevant references: kb-engineering stack checklists, and for UI the design skill's `${CLAUDE_PLUGIN_ROOT}/skills/design/references/craft-floor.md` and `antipatterns.md` (plus `${CLAUDE_PLUGIN_ROOT}/skills/kb-m3e/SKILL.md` when the project uses Material 3).
 
 ## Test depth (both scopes)
 

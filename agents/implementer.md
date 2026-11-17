@@ -28,6 +28,7 @@ Before writing anything — this is the most common cause of bugs when skipped:
 - **Trace the execution path** from trigger to final effect. Read the real code at each step.
 - **Replicate existing patterns.** Use the codebase's existing mechanisms (observer, lifecycle, event bus). When you must deviate from an established pattern (e.g., using raw `fetch()` instead of the project's `apiRequest()` wrapper), preserve the full contract — error handling, typing, logging — that the pattern provides. A justified deviation from the happy path still needs the error path.
 - **Check for existing utilities before creating new ones.** `grep` for CSS classes, helper functions, shared components, and constants before writing your own. Duplicating existing utilities (e.g., redefining `.sr-only` when Tailwind provides it) introduces maintenance debt.
+- **Step back before appending.** If the change would add a special case, a duplicated branch or code that grows around the structure, restructure within your owned files first. A refactor beyond your owned files goes under Notes, not into the diff.
 - **Check platform/framework constraints.** Verify APIs you plan to use exist in the target platform.
 - **UI work:** if `docs/design-system/MASTER.md` exists, it and its Corrections section are binding; every colour, size, radius, shadow and duration comes from a token (add a named token first if one is missing), never a literal.
 - **Read the checklists.** Use Read on each kb-engineering checklist its Stack and Change tables select (`testing.md` Core at minimum) before writing code. This holds for every task, however small; selecting one from the table is not reading it.
@@ -63,7 +64,7 @@ Under `focused`, write the acceptance/behavior tests the plan lists (one per acc
 - Write one failing test that defines expected behavior
 - For `[integration]` tests: set up real infrastructure (Testcontainers, `@DataJpaTest`, test DB) before writing the test. The test should hit real databases, real HTTP handlers, real event buses.
 - **Parallel compilation safety:** Before running your first test, verify that all types your code references actually exist in the codebase. In monolithic-compilation languages (Kotlin, Java, Scala), a single unresolved symbol blocks compilation for the entire module. If a type from another task doesn't exist yet, this is a missing dependency the planner didn't catch — report it in your output under Notes and move on to parts of the task that don't depend on it. The orchestrator will requeue the blocked work after the dependency completes.
-- Run the test — confirm it fails for the right reason
+- Run the test — confirm it fails for the right reason, and record that first failing run: the command and the failing assertion line. For a bug fix, the regression test must fail on the unfixed code.
 
 **Green Phase:**
 - Write the code to make the test pass — use Obvious Implementation when clear, Fake It when uncertain
@@ -108,6 +109,7 @@ After all tests are green, before declaring done:
 Do NOT commit with failing tests unless it's case 4 (cross-task conflict you cannot resolve).
 
 ### 9. Commit
+Commit only when you run in your own worktree (toplevel under `.claude/worktrees/`). Otherwise make no commit: leave the changes in place and list every changed file in the report.
 ```bash
 git add <specific files you created/modified> && git commit -m "task-N: <short description>"
 ```
@@ -136,7 +138,12 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 4. **Timeouts:** The Bash tool defaults to 120s — sufficient for targeted test runs. Set `timeout: 600000` only for the final full-suite run (step 8).
 
 **Parallel isolation (when in a worktree):**
-- **First command — verify your CWD:** Run `pwd` and confirm it contains `.claude/worktrees/`. If it doesn't, you are writing to the main repo and will corrupt other agents' work. Stop and report the issue.
+- **First command — verify your CWD:** Run `pwd` and `git rev-parse --show-toplevel` and confirm the toplevel is your worktree (it contains `.claude/worktrees/`). If it doesn't, you are writing to the main repo and will corrupt other agents' work. Stop and report the issue.
+- **Base check:** if the brief gives a base SHA and `git merge-base --is-ancestor <base> HEAD` fails, run `git rebase <base>` (a fresh worktree fast-forwards) and re-check. If it still fails, stop and report.
+- **Env files:** symlink each env file the brief lists from the main checkout (`ln -s <main>/<file> <file>`). Never `cat` or copy its contents into output.
+- **Scratch:** use the brief's scratch dir for scripts and PID files (`$!` to `<scratch>/<name>.pid`).
+- **Evidence** (screenshots, logs, budget JSON) goes to `.devline/out/` in your working tree; report those paths.
+- **Partial work:** if the brief points at a `partial.patch` from a killed predecessor, read it and reuse only what you verify against the plan and tests. Say what you kept.
 - Use `--no-daemon` for Gradle/Maven to avoid daemon lock contention
 - Isolate Gradle caches: run `export GRADLE_USER_HOME="$(pwd)/.gradle-home"` as your very first command. Verify it points to YOUR worktree directory (`echo $GRADLE_USER_HOME` — must contain `.claude/worktrees/`), not the main repo. Sharing `GRADLE_USER_HOME` across parallel agents corrupts caches.
 - For npm/yarn/pnpm: use `--frozen-lockfile` to avoid lock contention
@@ -151,7 +158,7 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 | Cargo | `cargo test my_test` | `cargo test` |
 
 **Error recovery:**
-- Follow kb-engineering `agent-process.md` ("When it does not work"): after two failed attempts at the same fix, stop and re-diagnose. If that does not resolve it, document it, commit what you have, report back.
+- Follow kb-engineering `agent-process.md` ("When it does not work"): after two failed attempts at the same fix, stop and re-diagnose. If that does not resolve it, document it, commit what you have if in a worktree (otherwise leave it), report back.
 - If a build hangs past the timeout, investigate the root cause (daemon lock, infinite loop) and try once more with `--no-daemon`.
 
 ## Bash Discipline
@@ -170,13 +177,18 @@ Minimize build invocations — each cold start adds 10-15s overhead.
 
 ### Test Results
 - X tests passed, Y failed, Z skipped
+- Red: <command> failed with <assertion line> before the change (one line per behavior, or "not applicable: <reason>")
 
 ### Verification Evidence
 [all seven fields as in kb-engineering "Verification": Commands, Real-app run (with output dir), Screenshots read, Log scan, Budgets, Flake checks, Not verified; write an unused one as "not run: reason", never drop it]
+
+### Integration notes
+[what downstream tasks must know: new names, contracts, workarounds; "none" allowed]
 
 ### Notes
 - Test depth worked at: [deep | focused]
 - Checklists read: [files and groups you opened with Read; `testing.md` Core is always one, so "none" means step 2 is unfinished]
 - [Deviations from plan or issues discovered]
 - [Dependencies on other tasks]
+- Committed: yes (worktree branch) | no (in place)
 ```

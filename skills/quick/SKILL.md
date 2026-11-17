@@ -1,22 +1,19 @@
 ---
 name: quick
-description: Fast-lane a small change — branch, implement (TDD), one review, commit. Skips brainstorm, planning, design-system, deep review, and all approval gates. Use for bugfixes, typos, tweaks, or any change that touches ~1 file / ≲30 lines with no new component, schema, endpoint, or UI surface.
+description: The small-change preset — branch, implement, per-task review, commit, without brainstorm, planning or approval gates. Use for bugfixes, typos, tweaks and other small changes. Reach (what the change can affect) can still add stages.
 argument-hint: "<small task description>"
 user-invocable: true
 disable-model-invocation: false
 ---
 
-# Quick — Devline Fast Lane
+# Quick — Small-Change Preset
 
-Force the devline **fast lane** for the given task, regardless of `fast_lane` config. This is the same fast lane described in the `devline` skill — skip the classification step and run it directly.
+Run preset `quick` from [stages.md](../devline/references/stages.md). The command picks the preset, so there is no lane question and the task never moves to another pipeline.
 
-Steps (single task, run in place — no worktrees, no waves, no gates):
+1. **Branch setup** — Stage 0 of the `devline` skill.
+2. **Assess and Compose** — as in the `devline` skill, starting from preset `quick`. Reach can add stages (for example a security scan); it never removes any.
+3. **Implement** — launch ONE **implementer** agent in place, with a brief per `## Agent Briefs` in [implementation-protocol.md](../devline/references/implementation-protocol.md). Pass the task text as the user wrote it plus the brief's facts; no "Report:" or "Verify:" lines, no TDD steps and no design choices of your own. The implementer does not commit.
+4. **Review** — per-task review, plus any specialist reviews that reach added. Run a fix cycle on blocking findings.
+5. **Commit** — once the agent has stopped, the main session commits with the `git` skill (commit mode), then asks whether to merge, open a PR (`git` pr mode), or leave it.
 
-1. **Branch setup** — Stage 0 of the `devline` skill (branch off protected branches, create `.devline/`).
-2. **Implement** — launch ONE **implementer** agent with the task. It writes tests first (TDD at the right level: unit for pure logic, integration for persistence/endpoints — see `kb-tdd-workflow`), then implements. The fast lane runs at `focused` depth — small changes don't warrant deep, so skip exhaustive per-method units for trivial code; cover behavior plus any genuinely hard logic.
-3. **Review** — launch ONE **reviewer** agent (scope=task). Run a fix cycle if it returns blocking findings.
-4. **Commit** with the `git` skill (commit mode), then ask only whether to merge, open a PR (`git` pr mode), or leave it (auto-proceed otherwise).
-
-Explicitly SKIP: brainstorm + its gate, design-system, the full plan doc + plan gate, the Feature E2E task, worktree/wave machinery, the deferred-findings batch-fix cycle, the docs-keeper full scan, `reviewer scope=branch` (deep review), and the final approval gate.
-
-If the task turns out to be larger than a fast-lane change (new component, schema/migration, new endpoint, UI surface, or clearly multi-file), stop and hand off to the full `/devline` pipeline instead.
+Skipped: brainstorm, design, planner, worktrees and waves, branch and deep review, docs, and approval gates, unless reach added them.

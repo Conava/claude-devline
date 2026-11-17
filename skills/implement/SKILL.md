@@ -6,9 +6,9 @@ user-invocable: true
 disable-model-invocation: false
 ---
 
-# Implement — TDD Implementation
+# Implement — Implementation Preset
 
-Launch **implementer** agents to execute tasks using test-driven development.
+Run preset `implement` from [stages.md](../devline/references/stages.md): implementers from an existing plan, per-task review, docs. Reach can add stages.
 
 ## Progress Tracking
 
@@ -26,15 +26,14 @@ The plan file may be either `.devline/plan.md` (single-phase) or `.devline/plan-
 
 1. **Validate the plan first:** Read the plan file (`.devline/plan.md` or the specified `.devline/plan-phase-N.md`) and check the `**Branch:**` and `**Status:**` headers. If the branch doesn't match the current git branch or the status is `completed`, warn the user and ask whether to proceed — do not silently implement a stale plan.
 2. Parse the tasks and their dependency graph
-3. **Pre-launch checklist:** Before launching agents, verify you are in the main repo root (not inside a worktree), on the correct branch, with no uncommitted changes. See `references/worktree-protocol.md` for the full checklist. Launch implementer agents for all tasks that can run in parallel, each with `isolation: "worktree"`. **Exception:** if inside a worktree, launch **one at a time without isolation** — wait for each to complete and commit before launching the next. Never run non-isolated agents in parallel.
-4. When each worktree agent completes: squash-merge with `git merge --squash <branch>`, then `git commit -m "task-N: <short description>"`. This keeps a linear history — one commit per task, no merge commits. **If conflicts:** `git merge --abort`, clean up, relaunch without isolation. **If nothing staged:** agent didn't commit in its worktree — clean up, relaunch. **After commit:** clean up (`git worktree remove <path> --force`, then `git branch -D <branch>` as separate commands — force delete needed after squash).
-5. Wait for dependent tasks to complete before launching their dependents
-6. Each implementer follows strict TDD: write tests → implement → verify
+3. Run the tasks as `implementation-protocol.md` and `worktree-protocol.md` describe (links below): pre-launch checklist, parallel worktree agents or one at a time inside a worktree, briefs, merging, and merged-tree gates.
+4. Wait for dependent tasks to complete before launching their dependents.
+
+Rules live in [implementation-protocol.md](../devline/references/implementation-protocol.md) (`## Agent Briefs`, `## Merged-Tree Gates`) and [worktree-protocol.md](../devline/references/worktree-protocol.md). Implementers don't commit in place; the main session commits.
 
 ## Without a Plan (Single Task)
 If the user provides a single task description:
-1. Launch one implementer agent with the task
-2. The implementer will write tests first, then implement
+1. Launch one implementer agent with a brief per `## Agent Briefs`, passing the task text
 
 ## After Implementation
 For each completed task:
