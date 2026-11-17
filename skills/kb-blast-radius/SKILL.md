@@ -1,6 +1,6 @@
 ---
 name: kb-blast-radius
-description: Grep-based reverse dependency analysis — injected into the planner and reviewer agents. Computes which files are affected by changes to a set of seed files. Not invoked directly.
+description: Grep-based reverse dependency analysis plus reach classification — injected into the planner and reviewer agents and read by the devline orchestrator before Stage 1. Computes which files are affected by changes to a set of seed files and which kinds of risk (reach) a change has, which decides the stages a run gets. Not invoked directly.
 user-invocable: false
 disable-model-invocation: false
 ---
@@ -14,6 +14,7 @@ Lightweight, zero-dependency reverse dependency analysis using grep-based import
 - **Planner:** Before task decomposition — identify coupled files so tasks have correct boundaries and file ownership.
 - **Reviewer:** After implementation — verify the implementer considered all dependents of changed files.
 - **Reviewer (scope: branch):** During the cross-task integration sweep — structurally validate that all dependents were covered across the full changeset.
+- **Orchestrator:** before Stage 1, to compose the run (see devline references/stages.md)
 
 ## How It Works
 
@@ -25,6 +26,32 @@ Lightweight, zero-dependency reverse dependency analysis using grep-based import
 6. Matches seed files and dependents to test files by naming convention
 
 Supports: TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, Ruby, PHP, C/C++, Vue, Svelte.
+
+## Reach
+
+Reach is what a change can affect beyond the lines it touches. Each category pulls stages into the run (mapping in devline `references/stages.md`). A one-line change can have reach; a large change can have none.
+
+### Before code exists
+
+1. Guess seed files from the request: `git grep -l -i '<term>'` for the nouns it names (feature, endpoint, flag, table, component).
+2. Run `--target` on them (`--depth 1` is enough here).
+3. Check the request text, the seeds and their dependents against the signals below. Every category with a match applies; name the matching signal as the reason.
+
+After implementation, the reviewer can repeat step 3 on `--changed` output.
+
+### Categories
+
+| Category | Signals in the request | Signals in seeds and dependents | Related reference |
+|---|---|---|---|
+| Security surface | auth, login, token, permission, password, secret, upload, input validation, shell out, URL fetch | paths or imports with `auth`, `session`, `crypto`, `acl`; request handlers that read input; `exec`/`subprocess`/`spawn`; file path handling; dependency manifest changes | kb-engineering `security.md` |
+| Resource use | slow, memory, CPU, large files, batch, cache, startup, polling | loops over I/O, queries in loops, caches, workers, schedulers, long-running processes, new dependencies | kb-engineering `performance.md` |
+| Public contract | API, endpoint, CLI flag, config key, file format, rename, deprecate | exported symbols with many dependents, route definitions, argument parsers, config loaders, serializers, OpenAPI/proto/schema files | kb-engineering `backend.md` (and the stack checklist) |
+| Persisted data | schema, migration, column, table, stored format, backup | `migrations/`, ORM models, SQL files, on-disk formats, serialization of saved state | kb-engineering `reliability.md` |
+| UI | page, screen, component, layout, theme, style, accessibility | component and style files, templates, design tokens, assets | kb-engineering `web.md` or `desktop.md`; the design skill's references; `kb-m3e` for Material 3 |
+| Concurrency / shared state | parallel, async, race, lock, queue, retry, cache invalidation | threads, goroutines, async tasks, locks, global or module state, shared files, message brokers | kb-engineering `reliability.md`, `distributed.md` |
+| Build / release / CI | build, deploy, release, CI, package, version, Docker | build and CI config (`.github/workflows/`, `Dockerfile`, `package.json` scripts, `Makefile`), lockfiles, version files | kb-engineering stack checklist `## Verify it` |
+
+No match in any category means no reach: the preset's stages are enough.
 
 ## Running the Script
 
