@@ -17,7 +17,7 @@ Execution proceeds in **waves** as defined in the `## Dependency Graph` section 
 **Wave barrier validation (mandatory before launching any wave):** Before launching tasks for Wave N (where N > 1), read `.devline/state.md` and verify that EVERY task from waves 1 through N-1 has status `done`. If any prior-wave task is not `done`, do NOT launch Wave N — wait for the incomplete tasks to finish first. This is a programmatic check, not a judgment call.
 
 1. Launch all Wave 1 tasks in parallel (background, worktree isolation — see `references/worktree-protocol.md`)
-2. As each task completes: squash-merge its worktree branch (`git merge --squash` + `git commit -m "task-N: <desc>"`), launch reviewer
+2. As each task completes: merge it back per `references/worktree-protocol.md` (stop the agent first), append its `### Integration notes` to `.devline/integration-notes.md` under the task, launch reviewer
 3. **Wait until ALL Wave 1 tasks are done** (implemented + reviewed + merged). Do NOT launch any Wave 2 task early, even if its specific dependencies are met.
 4. Run the wave barrier validation, then launch all tasks in the next wave. Repeat.
 
@@ -40,6 +40,8 @@ Reviewer returns one of:
 - **DEFERRED_ONLY** — append findings to deferred file, mark done, check for newly unblocked tasks
 - **HAS_BLOCKING** — append any deferrable findings, write blocking findings to `.devline/fix-task-{N}.md`, launch implementer to fix
 
+Specialist reviews: after per-task review is CLEAN or DEFERRED_ONLY, a task whose `**Reach:**` names categories also gets the matching `focus:` reviewer (`security scan` → `security`, `resource profiling` → `resources`, `optimization pass` → `optimization`, `best-practices review` → `best-practices`). Which categories pull in which stages is defined in `references/stages.md`. The task is done after the specialist verdicts too; their findings follow the same loop.
+
 Fix cycle escalation:
 1. **Attempt 1-2:** implementer fixes → reviewer re-reviews
 2. **Attempt 3:** escalate to **planner** (foreground) with all findings and attempts — it rewrites the task approach
@@ -59,27 +61,49 @@ After ALL waves are complete (every task implemented + reviewed + merged) for th
 
 The deep review is the final quality gate — it cannot defer findings. All deferrable work must be resolved before it runs.
 
+## Agent Briefs
+
+The agent's own definition owns how it works and what it reports. A brief carries facts only:
+
+- plan path and task name (for quick, the task text)
+- base SHA the worktree was created from
+- owned files, and files owned by other tasks in the same wave
+- env files to symlink into the worktree
+- scratch directory `<scratchpad>/task-N/`
+- the build lock command from `references/worktree-protocol.md`
+- integration notes from the tasks it depends on, copied from `.devline/integration-notes.md`
+- the path of `.devline/tasks/N/partial.patch`, if a killed predecessor left one
+- for a specialist review, `focus: <name>`
+
+A brief never prescribes TDD steps, a report format or "report X and Y": the agent's own output format stands. Fix briefs (`fix-task-N.md`) for UI tasks also name the reduced-motion, no-JS and keyboard-focus paths to recheck.
+
+A workaround added mid-wave (a shim, a changed helper, a renamed file) is sent to every running agent it affects.
+
+## Merged-Tree Gates
+
+After a wave's merges and before the final commit, the main session runs typecheck, build and the full suite once on the merged tree, through the build lock. Red: launch a debugger; do not run a second build or diagnose yourself. Record the results in `.devline/state.md`.
+
 ## Agent Health Monitoring
 
 See `references/agent-health.md`. Key rule: hard kill at 45 minutes, salvage work, relaunch fresh.
 
-## Orchestrator Scope — What You Do and Don't Do
+## Orchestrator Discipline
 
-The orchestrator's job is: launch agents, merge worktree branches, launch reviewers, track state, and communicate with the user. That's it.
-- **DO:** run the pre-launch checklist (see `references/worktree-protocol.md`), squash-merge worktree branches (`git merge --squash` + `git commit`), clean up worktrees, launch reviewer after merge, update state.md, relaunch failed agents
-- **DON'T:** The following are violations — if you catch yourself doing any of these, stop and launch the appropriate agent instead:
-  - **Assign multiple tasks to one agent** — never "complete 2.6 + 2.7 + 2.9" or "fix the remaining gaps." One agent, one task.
-  - **Investigate errors beyond one build** — run the build once to see what's broken. Do NOT run a second build, filter output, run individual tests, or read source files to diagnose. Launch a debugger.
-  - **Multi-line code changes** — if the fix is more than one line, delegate it.
-  - **Commit on behalf of agents** — if the agent didn't commit, it failed. Relaunch it.
-  - **Batch-commit mixed agent work** — if multiple agents left uncommitted changes, do NOT `git add -A && git commit`. Stash the mess, relaunch agents one at a time.
-  - **Use `git add -A` or `git add .`** — always stage specific files. Broad staging commits build caches and artifacts.
-  - **Resolve merge conflicts** — no `checkout --ours`, no `checkout --theirs`, no editing conflict markers. Reset the squash-merge state (`git reset HEAD -- . && git checkout -- .` — note: `git merge --abort` does not work after `git merge --squash`), clean up the worktree, and relaunch the agent without isolation so it works against the current branch state (which now includes the conflicting task's code). A merge conflict between two same-wave tasks means the dependency graph has a shared-resource file overlap (usually translation files, global CSS, or route configs). After relaunching, flag this to the user so the plan can be corrected for future runs.
-  - **Inspect diffs to extract/apply fixes** — if the worktree is on the wrong base, the agent's work is invalid. Clean up and relaunch.
-  - **Run `git diff` to "check what the agent did"** — the reviewer does this, not you.
-  - **Run tests to "verify" a merge** — the reviewer does this. Not you. Not "just a quick check." Launch the reviewer.
-  - **Run non-isolated agents in parallel** — agents without worktree isolation write to the same directory. They MUST run one at a time: launch, wait for commit, then launch the next. See `references/worktree-protocol.md` for details.
-  - **Skip reviews** — every task gets a reviewer, no exceptions. A task is not "done" until the reviewer returns a verdict. Do not rationalize skipping reviews for "trivial" tasks, "clean" implementations, or tasks that "obviously" work because tests passed during implementation.
+The orchestrator launches agents, merges worktree branches, launches reviewers, tracks state and talks to the user.
+- **DO:** run the pre-launch checklist and merge-back per `references/worktree-protocol.md`, run the merged-tree gates, launch reviewers after each merge, update state.md, relaunch failed agents
+- **DON'T:** each of these is a violation; stop and launch the appropriate agent instead:
+  - **Assign multiple tasks to one agent.** One agent, one task.
+  - **Diagnose errors yourself.** A red gate goes to a debugger, not to a second build, filtered output, single tests or source reading.
+  - **Make multi-line code changes.** More than one line: delegate.
+  - **Commit for a worktree agent.** One that left no commit failed: relaunch it. Agents running in place never commit; the main session commits after review, once every launched agent has stopped.
+  - **Commit while an agent may still be running.** Every agent is finished or stopped, and `git status --short` shows only the intended change, immediately before a commit. Run `git status --short` in the main checkout after each agent too.
+  - **Batch-commit mixed agent work or use `git add -A` / `git add .`.** Stage specific files; stash mixed leftovers and relaunch agents one at a time.
+  - **Resolve merge conflicts.** Follow the conflict step in `references/worktree-protocol.md` and flag the shared-resource overlap to the user so the plan can be corrected.
+  - **Inspect diffs to extract or apply fixes.** If the worktree is on the wrong base, its work is invalid: clean up and relaunch.
+  - **Run `git diff` to see what an agent did.** The reviewer does that.
+  - **Review code yourself or skip reviews.** The reviewer reviews; the merged-tree gates are a separate, required check.
+  - **Run non-isolated agents in parallel.** They run one at a time; see `references/worktree-protocol.md`.
+  - **Publish an agent's claim unchecked.** A count or "this test does X" from a report is reproduced by a command in the main session before it enters a summary or PR body.
 
 ## Bash Discipline
 
