@@ -101,8 +101,9 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 | `/devline <idea>` | Full pipeline -- brainstorm through deep review |
 | `/devline:brainstorm <idea>` | Refine an idea into a feature spec |
 | `/devline:plan <spec>` | Create a TDD implementation plan |
-| `/devline:implement` | Implement tasks from an existing plan |
-| `/devline:quick <task>` | Fast lane -- implement, review, and commit a small change |
+| `/devline:implement` | Implementation preset -- run the tasks of an existing plan |
+| `/devline:quick <task>` | Small-change preset -- implement, review, and commit, plus any stages the change's reach adds |
+| `/devline:handoff [focus]` | Write `.devline/handoff.md` and print the line that starts a fresh session from it |
 | `/devline:git [commit\|push\|pr]` | Commit with a Conventional Commit message, push, or write a PR body to an editable file and open the PR |
 | `/devline:review` | Code review of recent changes |
 | `/devline:debug <error>` | Systematic root cause analysis |
@@ -120,13 +121,13 @@ Optional, but they make devline leaner and more capable — `/devline:setup` off
 
 ## How the Pipeline Works
 
-Stage 0 through Stage 5, plus a final gate. You approve twice — after brainstorm and after plan — then make the final merge-or-iterate call; the rest runs autonomously. Small changes take the fast lane straight to implement → review → commit.
+Stage 0 through Stage 5, plus a final gate. You approve twice — after brainstorm and after plan — then make the final merge-or-iterate call; the rest runs autonomously. Before Stage 1 it assesses the change's reach (security surface, resource use, public contract, persisted data, UI, concurrency, build/release) and composes the run from a stage menu: a preset (`quick`, `implement` or `full`) plus the stages reach pulls in, such as a security scan or deep review. It shows the stages with a reason each and, with `stage_menu: ask` (the default), lets you add or remove some. A small change runs the quick preset: implement → review → commit.
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
-    start(["/devline"]) --> triage{"Classify\nchange"}
-    triage -->|small| fast["Fast lane\nimplement · review · commit"]
+    start(["/devline"]) --> triage{"Assess reach\ncompose stages"}
+    triage -->|quick preset| fast["Quick\nimplement · review · commit"]
     fast --> done(["Done"])
 
     triage -->|feature| s0["Stage 0\nBranch setup"]
@@ -168,11 +169,11 @@ If a previous pipeline left artifacts behind, it detects them and asks whether t
 <details>
 <summary><strong>Stage 1: Brainstorm</strong> (interactive)</summary>
 
-Focuses on what you're building and where it fits -- not implementation details. Asks 1-4 structured questions with selectable options (scope, behavior, platform, aesthetics), then writes `.devline/brainstorm.md` capturing scope, architecture impact, UI impact, and key decisions.
+Focuses on what you're building and where it fits -- not implementation details. Grills you in rounds: each round asks every open decision whose prerequisites are settled, each with a recommended answer, and looks facts up in the code instead of asking. A clear idea gets zero rounds. Then it writes `.devline/brainstorm.md` capturing scope, architecture impact, UI impact, and key decisions.
 
 For larger features, the brainstorm detects natural phase boundaries and splits the work into sequential phases. Each phase gets its own plan later.
 
-You approve the spec before anything else happens.
+You approve the spec before anything else happens. The grilling rounds are adapted from Matt Pocock's [`grilling` skill](https://github.com/mattpocock/skills) (MIT).
 
 </details>
 
@@ -236,6 +237,8 @@ flowchart LR
 **Agent health monitoring** tracks elapsed time from launch. Nudge at 20 minutes, investigate at 30, hard kill at 45. Stuck agents get replaced, not nursed.
 
 **Deferred findings** (minor code quality issues) are collected across all tasks and batch-fixed by a single implementer after the last wave completes.
+
+**Merged-tree gates.** Agents commit only on their own worktree branch; run in place, they leave changes for the main session to commit. After each wave and before the final commit, the main session runs typecheck, build and the full suite once on the merged tree; a red run goes to a debugger.
 
 </details>
 
@@ -506,7 +509,7 @@ Captures (stills, scroll or scripted recordings, frame-change report, page error
 
 ## Commits, Pushes and Pull Requests
 
-`/devline:git` handles the final commit, push and PR at the end of a pipeline or fast lane, or whenever you ask. Each mode includes the one before it, and the default is `commit`.
+`/devline:git` handles the final commit, push and PR at the end of a pipeline or quick run, or whenever you ask. Each mode includes the one before it, and the default is `commit`.
 
 - **`commit`** -- stages the files that belong to the change and writes a Conventional Commit.
 - **`push`** -- commits anything pending, then pushes the current branch.
@@ -557,7 +560,7 @@ Every setting is optional; the defaults work out of the box. Two files can overr
 - **Repo:** `.claude/devline.md`, committed. Project rules: branch naming, git policy, testing approach, design mode.
 - **User:** `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/config.md`. Personal preferences across repos: models, voice, what AI may do.
 
-Each key comes from the first place that sets it: your request, then the repo file, then the user file, then the plugin default.
+Each key comes from the first place that sets it: your request, then the repo file, then the user file, then the plugin default. For example, `stage_menu: auto` runs the composed stages without asking, and `fast_lane` (`auto`, `always`, `off`) picks the preset `/devline` starts from.
 
 ```yaml
 ---
