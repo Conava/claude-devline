@@ -58,7 +58,7 @@ git clone https://github.com/Conava/claude-devline.git
 claude --plugin-dir ./claude-devline
 ```
 
-Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project context for agents) and a `.claude/devline.local.md` (pipeline settings) through an interactive walkthrough.
+Then run `/devline:setup` in your project. It creates a `CLAUDE.md` (project context for agents) and, if you want them, the [config files](#configuration) through an interactive walkthrough.
 
 ### Requirements
 
@@ -159,7 +159,7 @@ flowchart LR
 <details>
 <summary><strong>Stage 0: Branch Setup</strong> (automatic)</summary>
 
-Reads branching config from `.claude/devline.local.md`. If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and, if git does not already ignore it, adds it to `.git/info/exclude` so no tracked file changes.
+Reads the branching settings from your [config](#configuration). If you're on a protected branch (main, master, develop, release, production, staging), it creates a feature branch using your configured format (default: `feat/your-feature-name`). Sets up the `.devline/` working directory and, if git does not already ignore it, adds it to `.git/info/exclude` so no tracked file changes.
 
 If a previous pipeline left artifacts behind, it detects them and asks whether to resume or start fresh.
 
@@ -514,7 +514,7 @@ Captures (stills, scroll or scripted recordings, frame-change report, page error
 
 Messages follow the `writing` skill. The body says why the change was needed and what it does at a level the code doesn't show, and never restates the diff. The PR body follows the repo's PR template when there is one. Otherwise it has a short `## Description` (what and why: intended effect, use case, issue), then the technical details (how it works, trade-offs, notable effects, closed issues), screenshots for UI changes, and a short `## Verification` only when it is needed.
 
-The skill never pushes to a protected branch without asking and never force-pushes on its own. It uses `--force-with-lease` only when you ask. It never merges. New branch names follow `branch_format` and `branch_kinds` (see [Branching strategy](#branching-strategy)).
+The skill never pushes to a protected branch without asking and never force-pushes on its own. It uses `--force-with-lease` only when you ask. It never merges. New branch names follow `branch_format` and `branch_kinds` (see [Configuration](#configuration)).
 
 ---
 
@@ -552,87 +552,23 @@ The `/graphic-design` skill covers logo design (55 styles), corporate identity p
 
 ## Configuration
 
-Create `.claude/devline.local.md` with YAML frontmatter, or run `/devline:setup` for guided setup. Every setting is optional -- defaults work out of the box.
+Every setting is optional; the defaults work out of the box. Two files can override them, each with flat YAML frontmatter and optional prose below it for rules no key can say:
 
-### Quick examples
+- **Repo:** `.claude/devline.md`, committed. Project rules: branch naming, git policy, testing approach, design mode.
+- **User:** `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/config.md`. Personal preferences across repos: models, voice, what AI may do.
 
-**Auto-approve everything (for when you trust the pipeline):**
-```yaml
----
-auto_approve_brainstorm: true
-auto_approve_plan: true
----
-```
+Each key comes from the first place that sets it: your request, then the repo file, then the user file, then the plugin default.
 
-**Jira branch naming:**
 ```yaml
 ---
 branch_format: "PROJ-{ticket}/{title}"
-branch_kinds: "PROJ"
+test_depth: focused
 ---
+
+Squash-merge every PR. Open a PR for every change.
 ```
 
-**Always take the fast lane for small changes:**
-```yaml
----
-fast_lane: always
----
-```
-
-<details>
-<summary><strong>All settings</strong></summary>
-
-#### Pipeline gates
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `auto_approve_brainstorm` | `false` | Skip approval after brainstorming |
-| `auto_approve_plan` | `false` | Skip approval after planning |
-| `fast_lane` | `auto` | Fast-lane small changes to implement -> review -> commit. `auto` = detect, `always` = force, `off` = always run the full pipeline |
-
-#### Branching strategy
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `branch_format` | `"{kind}/{title}"` | Branch naming (`{kind}`, `{title}` placeholders) |
-| `branch_kinds` | `"feat\|fix\|refactor\|docs\|chore\|test\|ci"` | Allowed branch kinds |
-| `protected_branches` | `"(main\|master\|develop\|release\|production\|staging)"` | Branches the pipeline auto-creates a feature branch off of, and branches `/devline:git` will not push to without asking |
-
-#### Framework overrides
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `test_framework` | auto-detect | e.g., `"vitest"`, `"jest"`, `"pytest"` |
-| `frontend_framework` | auto-detect | e.g., `"react"`, `"vue"`, `"svelte"` |
-| `doc_format` | auto-detect | e.g., `"markdown"`, `"asciidoc"` |
-| `cloud_provider` | auto-detect | e.g., `"aws"`, `"gcp"`, `"azure"` |
-
-#### Dependency management
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `dep_branch_strategy` | `"main"` | `"main"` = default branch, `"branch"` = per-update branch |
-| `dep_auto_push` | `true` | Push after verification |
-| `dep_auto_commit` | `true` | Commit after verification |
-| `dep_verify_build` | `true` | Run build check |
-| `dep_verify_tests` | `true` | Run test suite |
-
-#### Design
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `sketch_model` | `sonnet` | Model for cheap exploration steps (seeds, sketches, cull) |
-| `design_model` | `opus` | Model for builds, refines and critiques |
-| `mockup_model` | `sonnet` | Model for mockups |
-| `design_sketches` | `10` | Number of sketches per exploration |
-| `design_pick` | `ask` | `ask` = you pick which sketches to build, `auto` = take the critic's top 3 |
-| `design_mode` | `auto` | `auto` = M3E strict when the project uses M3E, `m3e-strict`, or `default` |
-
-A number or "you pick" in the request always wins over these settings. Design settings are read from `.claude/devline.local.md`, then `~/.claude/devline.local.md`.
-
-The `deps` skill (patch mode) also honors `cve_`-prefixed overrides (e.g. `cve_verify_build`), which take priority over the generic `dep_` keys. Migrate mode always runs build and test verification (not configurable).
-
-</details>
+Run `/devline:setup` to write either file, or to move settings from an older devline version into place. Every key, its default and the skill that reads it are listed in [skills/setup/references/config.md](skills/setup/references/config.md).
 
 ---
 
