@@ -22,14 +22,14 @@ class GalleryTests(unittest.TestCase):
             (work / "sketches/s2.html").write_text("<p>two</p>")
             cap = work / "captures/s1"
             cap.mkdir(parents=True)
-            for f in ("desktop.png", "narrow.png", "demo-0.png", "demo-1.png", "recording.webm"):
+            for f in ("desktop.png", "narrow.png", "demo-0.png", "demo-1.png", "recording.webm", "phone-0.png", "phone-5.png"):
                 (cap / f).write_bytes(b"x")
             r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "gallery.py"), str(work), "sketches", "captures", "Sketches"],
                                capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
             index = (work / "gallery/index.html").read_text()
             for s in ("<title>Sketches</title>", 'href="sketches/s1.html"', "captures/s1/desktop.png",
-                      "captures/s1/narrow.png", "captures/s1/demo-1.png", "captures/s1/recording.webm",
+                      "captures/s1/narrow.png", "captures/s1/demo-1.png", "captures/s1/phone-5.png", "captures/s1/recording.webm",
                       "a &lt;dot&gt; becomes a line", "open live", "No captures."):
                 self.assertIn(s, index)
             for f in ("sketches/s1.html", "captures/s1/desktop.png", "captures/s1/recording.webm"):
@@ -84,9 +84,9 @@ class SlopScanTests(unittest.TestCase):
         self.assertEqual([f["sev"] for f in out["findings"] if f["id"] == "reflex-font"], ["med"])
 
 
-PAGE = """<!doctype html><meta charset="utf-8"><title>t</title>
+PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>t</title>
 <button id="b" onclick="document.getElementById('o').textContent='opened'">Open</button>
-<p id="o">closed</p><input id="i">"""
+<p id="o">closed</p><input id="i"><div style="height:4000px;background:linear-gradient(#fff,#000)"></div>"""
 
 
 @unittest.skipUnless(NODE and PLAYWRIGHT.is_dir(), "playwright-core not installed in ~/.cache/devline/capture")
@@ -109,12 +109,21 @@ class CaptureTests(unittest.TestCase):
                 self.assertTrue((out / f).is_file(), f)
             self.assertEqual(json.loads((out / "errors.json").read_text()), [])
 
+    def test_phone_sheet_and_video(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = self.run_capture(d, "--phone-sheet", "--video", "scroll", "--phone-video")
+            for f in ("phone.png", "phone-0.png", "phone-5.png", "recording.webm", "phone-recording.webm"):
+                self.assertTrue((out / f).is_file(), f)
+            self.assertNotEqual((out / "phone-0.png").read_bytes(), (out / "phone-5.png").read_bytes(), "touch scroll did not move")
+            self.assertEqual(json.loads((out / "errors.json").read_text()), [])
+
     def test_stills_only(self):
         with tempfile.TemporaryDirectory() as d:
             out = self.run_capture(d, "--stills-only")
             self.assertTrue((out / "desktop.png").is_file())
             self.assertTrue((out / "phone.png").is_file())
             self.assertFalse((out / "reduced.png").exists())
+            self.assertFalse((out / "phone-0.png").exists())
 
 
 if __name__ == "__main__":

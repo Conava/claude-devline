@@ -14,7 +14,7 @@ Sources: Impeccable craft floor + typeset (Apache-2.0), vercel web-interface-gui
 - One spacing scale (4px base). Tight inside groups, generous between them; more space above a heading than below.
 - At most ~3 dominant vertical alignment lines per breakpoint. Icons on a spine, text on an edge.
 - Radius by hierarchy, inner = outer - padding. One depth cue per surface.
-- Works at 375, ~1024 and 1440 wide: adapted, not shrunk. Check 1000-1100 px for overflow.
+- Works at 375, ~1024 and 1440 wide: adapted, not shrunk; the phone is its own composition (`phone.md`). Check 1000-1100 px for overflow.
 
 ## Color and contrast
 - Palette from the world: 4-6 named values. Neutrals tinted toward the world; one accent used rarely.
@@ -22,7 +22,7 @@ Sources: Impeccable craft floor + typeset (Apache-2.0), vercel web-interface-gui
 - Never convey state by color alone.
 
 ## Interaction and states
-- Hit targets ≥40px desktop, ≥44px touch (pseudo-element if the visual is smaller). Action links people must notice are real buttons: icon + label, one primary per section.
+- Hit targets ≥40px desktop, ≥44px touch with ≥8px between them (pseudo-element if the visual is smaller). Action links people must notice are real buttons: icon + label, one primary per section.
 - Visible `:focus-visible` ring, neutral, never clipped by `overflow`/masks; keyboard reaches everything in visual order.
 - Hover inside `@media (hover: hover)`, named properties, ~150ms, no layout change, no `transition: all`.
 - Press feedback `scale(.97)`; enter from `scale(.95)` + opacity, never from 0.

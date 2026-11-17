@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 // Capture a page for design review: stills, an optional recording, and a frame-diff report.
-// Usage: node capture.mjs <file.html|url> <outdir> [--stills-only] [--sheet] [--frames] [--narrow 420]
-//                         [--video scroll | --video script --demo <steps.json>]
+// Usage: node capture.mjs <file.html|url> <outdir> [--stills-only] [--sheet] [--phone-sheet] [--frames]
+//                         [--narrow 420] [--video scroll | --video script --demo <steps.json>] [--phone-video]
 //   stills: desktop.png (1440x900 first view), desktop-mid.png (scrolled 50%), phone.png (390x844;
 //           narrow.png when --narrow is not 390), reduced.png (1440x900, prefers-reduced-motion)
 //   --stills-only:  desktop.png and phone/narrow.png only (fast; for sketches)
 //   --sheet:        8 stills at 0..100% scroll (scroll-0..7.png), reached by wheel scrolling
+//   --phone-sheet:  6 stills at 0..100% scroll on a 390x844 touch phone (phone-0..5.png), reached by
+//                   touch drags
 //   --frames:       scroll in 40 steps, report per-step pixel change (pops = spikes, dead = ~0)
 //   --video scroll: 10 s webm of a slow scroll to the end and back (1440x900)
 //   --video script: webm of the --demo steps (1440x900), plus demo-<i>.png after each step.
 //                   Steps: {"click": sel, "button"?: "right"}, {"hover": sel}, {"press": key},
 //                   {"type": [sel, text]}, {"drag": [sel, dx, dy]}, {"scroll": px}, {"wait": ms};
 //                   sel is CSS or text=...
+//   --phone-video:  the same --video again on the 390x844 touch phone (phone-recording.webm,
+//                   phone-demo-<i>.png); scroll mode scrolls by touch
 // Writes errors.json (page errors, console errors, failed demo steps).
 import { createRequire } from 'node:module';
 import { mkdirSync, renameSync, writeFileSync, readdirSync, readFileSync } from 'node:fs';
@@ -22,7 +26,7 @@ import os from 'node:os';
 const require = createRequire(join(os.homedir(), '.cache/devline/capture/'));
 const { chromium } = require('playwright-core');
 
-const usage = 'usage: capture.mjs <file|url> <outdir> [--stills-only] [--sheet] [--frames] [--narrow W] [--video scroll | --video script --demo steps.json]';
+const usage = 'usage: capture.mjs <file|url> <outdir> [--stills-only] [--sheet] [--phone-sheet] [--frames] [--narrow W] [--video scroll | --video script --demo steps.json] [--phone-video]';
 const [src, outArg, ...rest] = process.argv.slice(2);
 if (!src || !outArg) { console.error(usage); process.exit(2); }
 const opt = (k, d) => { const i = rest.indexOf(k); return i < 0 ? d : (rest[i + 1] && !rest[i + 1].startsWith('--') ? rest[i + 1] : true); };
@@ -34,6 +38,8 @@ const video = stillsOnly ? null : opt('--video', null);
 if (video && !['scroll', 'script'].includes(video)) { console.error(usage); process.exit(2); }
 const demoPath = opt('--demo', null);
 if (video === 'script' && typeof demoPath !== 'string') { console.error('--video script needs --demo <steps.json>'); process.exit(2); }
+const phoneVideo = video && opt('--phone-video', false);
+const PHONE = [{ width: 390, height: 844 }, { isMobile: true, hasTouch: true }];
 const steps = video === 'script' ? JSON.parse(readFileSync(demoPath, 'utf8')) : [];
 const errors = [];
 
@@ -55,7 +61,25 @@ async function slowScroll(page, to, ms) {
   const from = await page.evaluate(() => scrollY), steps = Math.max(1, Math.round(ms / 50));
   for (let i = 1; i <= steps; i++) { await page.mouse.wheel(0, (to - from) / steps); await page.waitForTimeout(50); }
 }
-async function runStep(page, s) {
+// Touch drags from the lower to the upper screen (or back) until near the target; a still finger
+// before lifting stops the fling, so each drag scrolls about its own length.
+async function touchScroll(page, to) {
+  const cdp = await page.context().newCDPSession(page), x = 195, touch = (type, y) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: y == null ? [] : [{ x, y }] });
+  const at = () => page.evaluate(() => scrollY);
+  for (let n = 0; n < 40; n++) {
+    const from = await at(), d = Math.max(-500, Math.min(500, to - from));
+    if (Math.abs(d) < 8) break;
+    const y0 = d > 0 ? 680 : 160;
+    await touch('touchStart', y0);
+    for (let i = 1; i <= 10; i++) { await touch('touchMove', y0 - (d * i) / 10); await page.waitForTimeout(16); }
+    await page.waitForTimeout(120); await touch('touchEnd'); await page.waitForTimeout(80);
+    if (await at() === from) break; // at the end of the page
+  }
+  await cdp.detach();
+}
+const scrollBy = (page, to, ms, phone) => phone ? touchScroll(page, to) : slowScroll(page, to, ms);
+async function runStep(page, s, phone) {
   const el = sel => page.locator(sel).first();
   const t = { timeout: 5000 };
   if (s.click) await el(s.click).click({ button: s.button || 'left', ...t });
@@ -68,7 +92,7 @@ async function runStep(page, s) {
     const x = box.x + box.width / 2, y = box.y + box.height / 2;
     await page.mouse.move(x, y); await page.mouse.down();
     await page.mouse.move(x + dx, y + dy, { steps: 20 }); await page.mouse.up();
-  } else if (s.scroll) await slowScroll(page, (await page.evaluate(() => scrollY)) + s.scroll, 600);
+  } else if (s.scroll) await scrollBy(page, (await page.evaluate(() => scrollY)) + s.scroll, 600, phone);
   else if (s.wait) await page.waitForTimeout(s.wait);
   else throw new Error('unknown step');
 }
@@ -105,33 +129,42 @@ async function runStep(page, s) {
   await page.screenshot({ path: join(out, narrow === 390 ? 'phone.png' : 'narrow.png') });
   await ctx.close();
 }
+if (opt('--phone-sheet', false) && !stillsOnly) {
+  const { ctx, page } = await open(...PHONE);
+  const m = await maxScroll(page);
+  for (let i = 0; i <= 5; i++) { await touchScroll(page, (m * i) / 5); await page.waitForTimeout(500); await page.screenshot({ path: join(out, `phone-${i}.png`) }); }
+  await ctx.close();
+}
 if (!stillsOnly) {
   const { ctx, page } = await open({ width: 1440, height: 900 }, { reducedMotion: 'reduce' });
   await page.screenshot({ path: join(out, 'reduced.png') });
   await ctx.close();
 }
 // recording
-if (video) {
+async function record([vp, extra], prefix) {
+  const phone = !!extra.hasTouch;
   const vdir = join(out, '.video'); mkdirSync(vdir, { recursive: true });
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, recordVideo: { dir: vdir, size: { width: 1440, height: 900 } } });
+  const ctx = await browser.newContext({ viewport: vp, ...extra, recordVideo: { dir: vdir, size: vp } });
   const page = await ctx.newPage();
   watch(page);
   await page.goto(url, { waitUntil: 'load' }).catch(() => {});
   await page.waitForTimeout(1200);
   if (video === 'script') {
     for (const [i, s] of steps.entries()) {
-      await runStep(page, s).catch(e => errors.push(`demo step ${i} ${JSON.stringify(s)}: ${String(e.message).split('\n')[0].slice(0, 160)}`));
+      await runStep(page, s, phone).catch(e => errors.push(`${prefix}demo step ${i} ${JSON.stringify(s)}: ${String(e.message).split('\n')[0].slice(0, 160)}`));
       await page.waitForTimeout(300);
-      await page.screenshot({ path: join(out, `demo-${i}.png`) });
+      await page.screenshot({ path: join(out, `${prefix}demo-${i}.png`) });
     }
     await page.waitForTimeout(800);
   } else {
     const m = await maxScroll(page);
-    await slowScroll(page, m, 6500); await page.waitForTimeout(500); await slowScroll(page, 0, 1800);
+    await scrollBy(page, m, 6500, phone); await page.waitForTimeout(500); await scrollBy(page, 0, 1800, phone);
   }
   const v = page.video(); await ctx.close();
-  renameSync(await v.path(), join(out, 'recording.webm'));
+  renameSync(await v.path(), join(out, `${prefix}recording.webm`));
 }
+if (video) await record([{ width: 1440, height: 900 }, {}], '');
+if (phoneVideo) await record(PHONE, 'phone-');
 await browser.close();
 writeFileSync(join(out, 'errors.json'), JSON.stringify(errors, null, 1));
 console.log(`captured ${src} -> ${out} (${readdirSync(out).filter(f => !f.startsWith('.')).join(', ')}); page errors: ${errors.length}`);

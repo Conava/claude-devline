@@ -4,7 +4,7 @@
 Usage: python3 -I gallery.py <workdir> <items-subdir> <captures-subdir> "<title>" [--only <file>]
 --only shows just the listed items, in file order: lines that are a bare stem ("s3"), or cull.md
 lines "s3 | 8 | keep | ..." (drop lines are ignored).
-Captures for item X are read from <captures-subdir>/X/ (capture.mjs output). Items and captures
+Captures for item X are read from <captures-subdir>/X/ (capture.mjs output; phone-<i>.png show as a strip). Items and captures
 are copied into the gallery, so `python3 -m http.server` in the gallery dir serves everything.
 """
 import html
@@ -29,6 +29,7 @@ a{color:inherit}
 img,video{display:block;width:100%;border:1px solid var(--line);border-radius:4px}
 video{margin-top:8px}
 .demo{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-top:8px}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
 .demo figure{margin:0}.demo figcaption{font-size:12px;color:var(--mute)}
 pre{white-space:pre-wrap;font:13px/1.5 system-ui,sans-serif;color:var(--mute);margin:10px 0 0}
 .none{color:var(--mute);font-size:13px}
@@ -56,6 +57,10 @@ def card(item, items_sub, cap_sub, cap):
             if small:
                 parts.append(img(f"{base}/{small}", f"{name}, {small[:-4]}"))
             parts.append("</div>")
+        phones = sorted(cap.glob("phone-[0-9]*.png"), key=natural)
+        if phones:
+            parts.append('<div class="strip">' + "".join(
+                img(f"{base}/{f.name}", f"{name}, phone scroll {f.stem[6:]}") for f in phones) + "</div>")
         if (cap / "recording.webm").exists():
             parts.append(f'<video controls preload="none" src="{html.escape(base)}/recording.webm"></video>')
         demos = sorted(cap.glob("demo-*.png"), key=natural)

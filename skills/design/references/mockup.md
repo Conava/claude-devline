@@ -15,7 +15,7 @@ Write the scope as the first lines of `<slug>.feedback.md`: what's interactive, 
 - Tokens only: colours, sizes, radii, durations come from the project's tokens (declared once as CSS custom properties). A spec value with no token becomes one named property.
 - **Strict mode** (project uses M3E): every value from `M3E:`; decisions only where the spec allows.
 - **Outside a project:** facts and taste as given; ask briefly if neither says what it should look like.
-- Real sizes: a widget at its real size in its real context, a dialog at dialog size, a desktop app at 1440x900 and narrow.
+- Real sizes: a widget at its real size in its real context, a dialog at dialog size, a desktop app at 1440x900 and narrow. If the mocked thing runs on phones, mock it at phone size (390x844, touch per `phone.md`), and at desktop too when it runs on both.
 
 ## 3. Control section
 A clearly separated area (visually distinct, outside the mocked surface, e.g. a narrow strip at the edge) holding **only** the inputs that matter for this mockup and can't be changed inside the mocked thing itself:

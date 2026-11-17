@@ -25,6 +25,7 @@ Written for devline from studies of award-level scroll pieces and product reels;
 - It runs: the captures show it moving and changing with scroll or input, at 60 fps (frame list with no spikes where nothing should jump).
 - It carries content: the 3D or interactive piece pictures the section it sits in, not a spinning decoration beside it.
 - It degrades: a designed static fallback (no WebGL) and a reduced-motion state that shows the key frames.
+- It works on phones: adapted per `phone.md` (touch and scroll instead of cursor, lighter 3D, smooth on a mid-range phone). A signature that only works on desktop counts as half.
 - A static image, a looping decorative blob, a canvas that only reacts to the cursor, or a 3D scene that doesn't change with the content is **not** a signature.
 
 ## Craft checks for any signature
@@ -32,4 +33,5 @@ Written for devline from studies of award-level scroll pieces and product reels;
 - One light/shadow model, one easing family, one rhythm.
 - Every resting state has one small living detail.
 - Reduced motion and no-JS: the clean static page, fully readable.
+- Phone: the same moment, adapted, in the phone sheet.
 - Lightest tool first: CSS scroll-driven animations and View Transitions, then GSAP, then three.js (`motion.md` chooser).
