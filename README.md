@@ -345,6 +345,7 @@ claude-devline/
 |   |-- writing/             # /writing (purpose-aware: AI-slop cleanup + scientific citation enforcement)
 |   |-- kb-tdd-workflow/     # TDD methodology (injected into agents)
 |   |-- kb-engineering/      # Testing, reliability, performance, security checklists + router, setup recipe, procbudget.py helper
+|   |-- kb-m3e/              # Material 3 Expressive spec values + compliance checklist (design strict mode)
 |   |-- verify-setup/        # /devline:verify-setup
 |   +-- ...                  # More skills and knowledge bases
 |
@@ -369,6 +370,7 @@ Agents don't start from scratch. Knowledge bases (the `kb-*` skills) get injecte
 | `kb-blast-radius` | Planner, Reviewer | Reverse dependency tracing -- "if I change file X, what breaks?" Grep-based import analysis across 12 languages |
 | `kb-dependency-management` | Dependency | Ecosystem detection for 10+ package managers, version update mechanics, verification commands |
 | `kb-engineering` | Implementer, Reviewer | A router that picks checklists by stack and change type (testing, reliability, performance, security, web, backend, Java, desktop, distributed), always-on rules, the verification-evidence format, and an opt-in process budget sampler |
+| `kb-m3e` | Designer and critic in strict mode (passed as a path); any agent in an M3E project can load it | Material 3 Expressive token values (motion springs, shape, colour roles, type scale, components, layout, desktop input) and the strict-mode compliance checklist |
 | `find-docs` | All agents | Context7 integration for live library documentation lookup |
 
 </details>

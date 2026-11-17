@@ -41,5 +41,7 @@ jobs:
 
       - name: Test design skill (structure and scripts)
         run: python3 -m unittest discover -s skills/design/tests -v
+      - name: Test kb-m3e (structure)
+        run: python3 -m unittest discover -s skills/kb-m3e/tests -v
       - name: Test kb-engineering (structure and helper)
         run: python3 -m unittest discover -s skills/kb-engineering/tests -v
