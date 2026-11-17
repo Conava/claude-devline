@@ -28,18 +28,20 @@ Read the user's input. Briefly scan the existing codebase for context — just e
 
 Use explore subagents only if the idea is vague enough to need codebase context.
 
-### 2. Clarify with Structured Questions
+### 2. Grill in Rounds
 
-Use the **AskUserQuestion** tool with concrete selectable options.
+List the decisions this feature needs and how they depend on each other: a decision that only makes sense once another is answered sits below it. The frontier is every open decision whose prerequisites are settled.
 
-- Ask **1-4 questions in a single AskUserQuestion call**
-- **Scale questions to ambiguity:** Clear ideas need 0-1 questions. Vague ideas need 2-4. State obvious defaults as assumptions in the output.
-- Every question MUST have **2-4 concrete options** with labels and descriptions
-- Use `multiSelect: true` when choices aren't mutually exclusive
-- Add a recommended option first with "(Recommended)" when there's a clear best choice
-- **Always ask about platform** when the feature involves a UI
+Each round:
+- **Ask the whole frontier at once**, and nothing that depends on an open answer. Answers open the next frontier; repeat.
+- **Use AskUserQuestion**, at most 4 questions per call; use several calls when the frontier is larger. Give 2-4 concrete options with labels and descriptions (`multiSelect: true` when they aren't exclusive). Use a plain free-text question when no options fit.
+- **Recommend an answer for every question.** List it first, labeled "(Recommended)", worded so that accepting it is the default.
+- **Look up facts, don't ask for them.** If the code or environment can answer, send Explore subagents in parallel. Only the questions that depend on those facts wait.
+- **Never decide for the user.** Scope, behavior, platform and trade-offs are theirs to answer.
 
-**Focus questions on:** scope and boundaries, user-facing behavior, platform, aesthetic direction, integration points.
+Stop when the frontier is empty. A clear idea may have an empty frontier after reading the code: run zero rounds and state your assumptions in the output.
+
+Always put these on the frontier: **platform** when the feature involves a UI, and **test depth** (step 4). Questions that talking can't settle, such as how something looks or feels, go to the design stage, not to more rounds.
 
 ### 3. Evaluate Scope and Detect Phases
 
@@ -133,7 +135,7 @@ After receiving answers (or immediately if the idea is clear enough), write `.de
 Use AskUserQuestion:
 ```json
 {
-  "question": "Brainstorm written to .devline/brainstorm.md. Does this capture what you want?",
+  "question": "Brainstorm written to .devline/brainstorm.md. Do we now understand the same thing?",
   "header": "Confirm Brainstorm",
   "options": [
     {"label": "Looks good, proceed!", "description": "Hand off to the planner"},
@@ -143,13 +145,17 @@ Use AskUserQuestion:
 }
 ```
 
-If the user wants changes, update `.devline/brainstorm.md` and confirm again.
+This confirms shared understanding: the frontier is empty and the document says what the user means. If the user wants changes, update `.devline/brainstorm.md` and confirm again.
 
 ## Guidelines
 
 - Write `.devline/brainstorm.md` — this is the deliverable
 - Stay high-level — architecture and scope, not implementation
 - Be conversational and fast — the user wants momentum
-- Always use AskUserQuestion with structured options
+- Use AskUserQuestion with structured options, each with a recommended answer
 - Default to sensible assumptions and state them in the document
 - Always identify UI impact explicitly — the planner and design system stage depend on it
+
+## Credits
+
+The grilling rounds are adapted from Matt Pocock's `grilling` skill, used under the MIT license: https://github.com/mattpocock/skills
