@@ -47,3 +47,5 @@ jobs:
         run: python3 -m unittest discover -s skills/kb-engineering/tests -v
       - name: Test setup (config structure)
         run: python3 -m unittest discover -s skills/setup/tests -v
+      - name: Test devline pipeline (structure)
+        run: python3 -m unittest discover -s skills/devline/tests -v
