@@ -67,7 +67,14 @@ Present a migration plan and **wait for approval** before launching any agents:
 
 ## Step 4: Read Settings (patch mode)
 
-Check `.claude/devline.local.md` in each repo. Map CVE settings to the generic ones (prefixed wins): `cve_verify_build` → `dep_verify_build` (default `true`), `cve_verify_tests` → `dep_verify_tests` (default `true`). Git workflow is not configurable. For **migrate mode**, build + test verification is always on and cannot be disabled.
+Resolve the config for each repo; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md` (the repo layer is that repo's own `.claude/devline.md`). Git workflow is not configurable here.
+
+### Defaults
+
+- `cve_verify_build`: the value of `dep_verify_build` (default `true`); the prefixed key wins.
+- `cve_verify_tests`: the value of `dep_verify_tests` (default `true`); the prefixed key wins.
+
+For **migrate mode**, build + test verification is always on and cannot be disabled.
 
 ## Step 5: Launch dependency agents
 

@@ -25,13 +25,13 @@ python3 -I <base>/scripts/gallery.py <workdir> <items-subdir> <captures-subdir> 
 ```
 capture needs playwright-core in `~/.cache/devline/capture`. If it's missing, ask before installing (about 150 MB): `npm i --prefix ~/.cache/devline/capture playwright-core && node ~/.cache/devline/capture/node_modules/playwright-core/cli.js install chromium`. Without it, the critic judges from the HTML only and the report says so.
 
-## Settings
-Read `.claude/devline.local.md` (repo), then `~/.claude/devline.local.md` (user); the repo wins. All keys optional:
+## Defaults
+The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
 - `sketch_model` (default `sonnet`) for seeds, sketch and cull; `design_model` (default `opus`) for build, refine and critique; `mockup_model` (default `sonnet`)
 - `design_sketches` (default 10), `design_pick`: `ask` (default) | `auto`
 - `design_mode`: `auto` (default) | `m3e-strict` | `default`
 
-**Precedence for counts and who picks:** the user's request (a number, "you pick", "just build three") > settings > ask when it isn't obvious. Never override an explicit instruction in the request.
+**Precedence for counts and who picks:** the user's request (a number, "you pick", "just build three") > config > ask when it isn't obvious. Never override an explicit instruction in the request.
 
 ## Inputs (both modes)
 - **Facts**: the real content (files, a facts file, the project itself). Never invent content.

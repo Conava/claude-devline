@@ -1,20 +1,22 @@
 ---
 name: setup
-description: This skill should be used when the user runs "/setup", "setup my project", "initialize CLAUDE.md", "create CLAUDE.md", or wants to set up the devline clarification protocol for a project. Creates a CLAUDE.md with the clarification protocol and interactively generates a minimal devline.local.md with only non-default settings.
+description: This skill should be used when the user runs "/setup", "setup my project", "initialize CLAUDE.md", "create CLAUDE.md", or wants to set up the devline clarification protocol for a project. Creates a CLAUDE.md with the clarification protocol and interactively writes the devline config files (repo and user) with only non-default settings.
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # Setup
 
-Set up the devline pipeline for a project. Two files are created:
+Set up the devline pipeline for a project. Up to three files are created:
 
 1. **`CLAUDE.md`** in the project root — non-obvious project context + workflow orchestration for devline
-2. **`.claude/devline.local.md`** — pipeline settings (only non-default values)
+2. **`.claude/devline.md`** — repo config, committed (only non-default values)
+3. **`${CLAUDE_CONFIG_DIR:-~/.claude}/devline/config.md`** — user config for every repo (only non-default values)
 
 Assets:
 - **[assets/claude-md-template.md](assets/claude-md-template.md)** — CLAUDE.md template with 4 sections (header, workflow orchestration, core principles, project context)
-- **[assets/devline-local-template.md](assets/devline-local-template.md)** — All available pipeline settings organized in 4 batches with defaults
+- **[references/config.md](references/config.md)** — config layers, precedence, legacy files, and every key with its default and usual layer
+- **[assets/repo-config-template.md](assets/repo-config-template.md)** and **[assets/user-config-template.md](assets/user-config-template.md)** — the two config file skeletons
 
 ## Process
 
@@ -35,6 +37,8 @@ Missing prerequisites:
 
 Only show the missing ones. If `gh` is missing, note that it's needed for PR creation, issue management, and GitHub API workflows.
 
+Also check `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. If it is unset or below 128000, suggest adding `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000` to the user's shell profile: the designer and other agents produce large outputs, and the default 32K limit cuts them off.
+
 ### 1. CLAUDE.md
 
 Read `CLAUDE.md` in the working directory root.
@@ -47,23 +51,19 @@ Read the template from [assets/claude-md-template.md](assets/claude-md-template.
 
 After presenting all sections, show the assembled preview using **AskUserQuestion** and write only after confirmation.
 
-### 2. devline.local.md
+### 2. Config files
 
-Check if `.claude/devline.local.md` exists.
+Read [references/config.md](references/config.md) for the layers, the legacy file names and the key table.
 
-- **Exists** → inform the user, show current contents, ask: **skip**, **override** (replace), or **merge** (add missing settings from what they configure below).
-- **Does not exist** → proceed with interactive setup.
+**Legacy move.** For each layer whose new file is missing but whose legacy file exists (Legacy files in the reference), show the legacy file and offer to move it to the new path. The repo file becomes committed once moved, so point out any key or prose that looks personal (models, voice, what AI may do) and offer to put it in the user file instead. Move only on a yes; on a no, leave it (skills keep reading it and remind the user).
 
-Read the settings template from [assets/devline-local-template.md](assets/devline-local-template.md). Walk through all 4 batches. For each batch:
+**Which files.** Ask with AskUserQuestion: repo config, user config, both, or neither. For each chosen file:
 
-1. Show the batch name, list every setting with its default value
-2. Ask: "Do you want to change anything in this batch, or keep all defaults?"
-3. If they want changes, ask what they want — do not ask for each setting individually
-4. Record only the settings that differ from defaults
-
-After all batches, collect only the non-default settings. If no settings were changed, inform the user that defaults will be used and no file is needed — do **not** create an empty or all-defaults file.
-
-If there are non-default settings, assemble the file using the output format from the template. Show the preview using **AskUserQuestion** and write only after confirmation. Create `.claude/` directory if needed.
+1. If it exists, show its contents and ask: **skip**, **edit** (keep it and change what the user names), or **override**.
+2. List the keys whose Layer column matches the file, grouped by owner, each with its default. Ask what to change; do not ask key by key. A key from the other layer is fine if the user wants it here.
+3. Ask for prose rules no key can say: for the repo, git policy (squash merges, a PR for every change, commit size), testing approach, design system; for the user, voice and what AI may and may not do.
+4. Keep only values that differ from the defaults. If nothing differs and there is no prose, say the defaults apply and write no file.
+5. Fill the matching template ([repo](assets/repo-config-template.md), [user](assets/user-config-template.md)), drop the placeholder lines, show the preview with **AskUserQuestion**, and write only after confirmation. Create the directory if needed.
 
 ### 3. Recommended additions (optional)
 
@@ -94,6 +94,5 @@ Setup complete. A few tips:
 - Keep CLAUDE.md lean and accurate. Add clarifications when agents get stuck; remove stale entries.
 - Do not add information that can easily be derived from code, tests, or git history.
 - If you need to change agent or workflow behavior, consider cloning the devline plugin and editing agents/skills directly — CLAUDE.md should stay focused on project context.
-- devline.local.md only needs non-default settings. Full settings reference is in the devline README.
-- Restart Claude Code after editing devline.local.md.
+- The config files only need non-default settings: `.claude/devline.md` for project rules (commit it), `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/config.md` for personal preferences. The request beats the repo file, which beats the user file.
 ```

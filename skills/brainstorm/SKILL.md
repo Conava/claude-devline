@@ -65,7 +65,7 @@ Before writing the document, evaluate whether the feature warrants splitting int
 
 Decide how thorough the feature's tests should be — `deep` or `focused` — in this order:
 
-1. **Config wins silently.** If `.claude/devline.local.md` sets `test_depth` to `deep` or `focused`, use it and say nothing.
+1. **Config wins silently.** If the request or the devline config (`${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`) sets `test_depth` to `deep` or `focused`, use it and say nothing.
 2. **Infer from signals.** Otherwise read the repo's existing test style AND the user's prompt:
    - Repo: dense per-method unit tests on trivial code → lean `deep`; sparse, or integration/behavior-heavy → lean `focused`.
    - Prompt: "production-grade", "thorough", "exhaustive" → `deep`; "quick", "prototype", "just wire it up" → `focused`.

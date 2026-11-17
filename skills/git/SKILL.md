@@ -12,7 +12,7 @@ You handle commits, pushes and pull requests during or at the end of a devline p
 
 ## Defaults
 
-`.claude/devline.local.md` overrides any value here; a later config layer may replace this section. The rest of this skill refers to these values instead of repeating them.
+The devline config files override any value here; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`. Git policy written as prose in those files (squash merges, a PR for every change, commit size) wins over these defaults too. The rest of this skill refers to these values instead of repeating them.
 
 - **Protected branches** (`protected_branches`): main, master, develop, release, production, staging.
 - **Branch names**: `branch_format` `{kind}/{title}`; `branch_kinds` feat, fix, refactor, docs, chore, test, ci.
@@ -34,7 +34,7 @@ Each mode includes the one before it. Free text maps to the nearest mode ("commi
 
 ## Branch guard (all modes)
 
-Read `protected_branches`, `branch_format` and `branch_kinds` from `.claude/devline.local.md`, falling back to the Defaults. If the current branch is protected:
+Resolve `protected_branches`, `branch_format` and `branch_kinds` from the config, falling back to the Defaults. If the current branch is protected:
 
 - `commit`: ask whether to branch off first. Offer a name built from `branch_format`, with `{kind}` taken from the commit type when it is one of `branch_kinds` (otherwise `chore`) and `{title}` a short kebab-case summary.
 - `push` / `pr`: offer to branch off as above. If the user declines, push only after an explicit yes to pushing to that branch.
