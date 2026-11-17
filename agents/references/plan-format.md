@@ -9,6 +9,10 @@
 **Phase:** [N of M — or "single" for non-phased plans]
 **Test Depth:** [deep | focused — carried from the brainstorm]
 
+## Summary for approval
+
+[Only what a human must read before approving or asking for changes, at most 40 lines. Numbered decisions, each with your recommendation. Then: stages this plan adds beyond the preset, each with its reason; a preparatory refactor, if offered, with the reason; known conflicts with other branches. End with "Approve as is, or name the numbers to change."]
+
 ## Architecture Overview
 [High-level design: components, data flow, key abstractions. Component diagram if helpful.]
 
@@ -50,6 +54,7 @@ Rules enforced by the orchestrator:
 **Agent:** [implementer / debugger]
 **Model:** [sonnet (default) / opus — use opus for tasks requiring complex architectural reasoning, large refactors, or tricky logic]
 **UI:** [yes / no]
+**Reach:** [categories from kb-blast-radius Reach this task touches (security surface, resource use, public contract, persisted data, UI, concurrency, build/release), or none]
 **Files owned:** [exact list of files this task creates/modifies]
 
 **Context:**
@@ -90,6 +95,7 @@ The final wave SHOULD include a dedicated E2E task ONLY for features with a genu
 **Agent:** implementer
 **Model:** sonnet
 **UI:** no
+**Reach:** none
 **Files owned:** [E2E test files only]
 
 **Context:**

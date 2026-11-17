@@ -100,14 +100,19 @@ With the user's input incorporated:
 - Document design decisions: choice, rationale, alternatives considered
 - Challenge yourself aggressively — prefer the simplest design that works
 
-### 4. Proactive Improvements
+### 4. Refactor First and Proactive Improvements
 
-As you research, you will encounter code smells, latent bugs, inconsistencies.
+Make the change easy, then make the easy change. Check whether the structure of the code you will touch fits the change. Features get glued onto structures that don't fit (a second container kind while widgets still live inside the first).
 
-**How to handle them:**
+- **Structure doesn't fit, and the request is one of a family likely to grow** → plan a preparatory refactor as its own task in an earlier wave. Offer it in the Summary for approval with the reason; the user can decline it.
+- **Small local cleanup that makes the change smaller** (rename, extract a helper, remove a duplicate branch) in files a planned task already modifies → **bake it into that task** without asking.
+
+As you research you will also find code smells, latent bugs and inconsistencies:
 - Touches files a planned task already modifies → **bake it into that task**
 - Unrelated to any planned task's files → **create a standalone task**
 - Unclear whether worth including → **ask the user** via `STATUS: NEEDS_INPUT`
+
+**Owner requirements:** every requirement from the brainstorm, the NEEDS_INPUT answers or the orchestrator's brief must appear in plan text (a task spec or Design Decisions), never only in the conversation.
 
 ### 5. Define Tasks
 
@@ -118,6 +123,8 @@ Each task is a spec for one agent running in an isolated worktree.
 - **Implementer decides:** how to build it — internal implementation details, variable names, helper methods, code structure within the constraints
 
 The plan must be **complete** (the implementer has all the context to understand the goal and constraints) but not **prescriptive** (don't write pseudocode or step-by-step instructions). Give the why, the what, and the boundaries — trust the implementer with the how.
+
+**Reach per task:** set each task's `**Reach:**` to the categories from the Reach section of kb-blast-radius that its change touches, or `none`. The orchestrator adds a focused review for tasks with a reach category.
 
 **Agent and model selection per task:**
 - **implementer** — feature/application code (default); also handles build, CI/CD, Docker, infrastructure-as-code, and tooling (infra) tasks
@@ -150,7 +157,7 @@ The final wave must include a dedicated E2E test task (see `## Feature E2E Task`
 **Shared resource files (critical — the #1 cause of merge conflicts):**
 
 Shared resource files are files that multiple tasks need to modify but no single task "owns." Common examples:
-- **Translation/i18n files** (`en.json`, `de.json`, `messages/*.properties`) — every component task adds keys
+- **Translation/i18n files** (`en.json`, `de.json`, `messages/*.properties`) — every component task adds keys. A UI task either owns a key namespace or the plan lists every key it needs.
 - **Global CSS/theme files** (`globals.css`, `tokens.css`) — multiple tasks add styles
 - **Route/navigation configs** (`routes.ts`, `next.config.js`) — every page task adds routes
 - **Shared type definitions** (`types.ts`, `index.d.ts`) — multiple tasks add types
@@ -225,13 +232,10 @@ Write the full plan to `.devline/plan.md`. See `references/plan-format.md` for t
 ### 7. Return Summary
 
 After writing the plan, return only:
-- 2-3 sentence architecture overview
-- Task list (name, agent type, dependencies)
-- Key trade-offs or decisions made
-- Proactive improvements (baked in, standalone, or deferred to user)
+- The plan's `## Summary for approval` section, verbatim
 - Path: the plan file written (`.devline/plan.md` or `.devline/plan-phase-N.md` in phase mode)
 
-The orchestrator handles user approval.
+Each phase plan has its own Summary for approval. The orchestrator handles user approval.
 
 ### Iteration
 
