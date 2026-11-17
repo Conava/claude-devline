@@ -9,7 +9,7 @@ Elapsed time is computed from the absolute ISO 8601 timestamp in `state.md`'s Ta
 | < 20 min | Normal operation | — |
 | 20 min | `SendMessage` nudge: "Status check — progress and blockers?" | ⚠️ |
 | 30 min | Investigate: check written files, query via `SendMessage` for detailed status. If clearly progressing, let continue. | 🐌 |
-| 45 min | **Hard kill.** `TaskStop` immediately. Follow killed-agent recovery protocol (see worktree-protocol.md). Relaunch fresh agent with context from previous work. | 🔁 |
+| 45 min | **Hard kill.** `TaskStop` immediately. Save its partial work as `partial.patch` and relaunch a fresh agent per the killed-agent recovery protocol (worktree-protocol.md); the new brief points at the patch to evaluate, not trust. | 🔁 |
 
 If a task fails on its second relaunch (three total attempts): escalate to the user.
 

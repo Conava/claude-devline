@@ -18,12 +18,18 @@ Create when entering Stage 3. Update after every status change. Always end the f
 - **Active agents:** 3/10
 - **Pipeline started:** 2026-03-20T14:00:00
 
+## Stages
+| Stage | Reason | Added at |
+|-------|--------|----------|
+| security scan | touches auth | assess |
+| optimization pass | hot path in task 4 | plan |
+
 ## Task Progress
-| # | Status | Review Attempts | Notes |
-|---|--------|-----------------|-------|
-| 1 | done | 1 (CLEAN) | |
-| 2 | building | 0 | Launched 2026-03-20T14:28:00 |
-| 3 | blocked | 0 | Waiting on 1 |
+| # | Status | Agent | Worktree | Review Attempts | Notes |
+|---|--------|-------|----------|-----------------|-------|
+| 1 | done | implementer (sonnet) | | 1 (CLEAN) | |
+| 2 | building | implementer (sonnet) | .claude/worktrees/abc123 | 0 | Launched 2026-03-20T14:28:00 |
+| 3 | blocked | | | 0 | Waiting on 1 |
 
 ## Pending Fix Cycles
 | Task | Fix File | Created |
@@ -40,6 +46,8 @@ Create when entering Stage 3. Update after every status change. Always end the f
 Key schema rules:
 - **Active agents** counter tracks concurrency against the 10-agent limit
 - **Launched** timestamps are absolute ISO 8601 — they survive compaction and enable health monitoring to compute elapsed time after recovery
+- **Stages** lists the extra stages added beyond the preset and why; **Added at** is `assess` or `plan`
+- **Agent** and **Worktree** record who runs the task and where; no agent IDs (they go stale, see recovery step 6)
 - **Pending Fix Cycles** tracks orphaned fix-task files so recovery can resume them
 - Task **Status** values: `blocked`, `queued`, `building`, `reviewing`, `fixing`, `done`, `failed`
 
@@ -74,8 +82,8 @@ If unsure of pipeline state — after compaction, conversation resume, or starti
 4. **Read the active plan file** — `.devline/plan.md` for single-phase, or `.devline/plan-phase-N.md` (where N is the current phase from state.md) for multi-phase — restore task definitions, dependencies, acceptance criteria. Validate `**Branch:**` and `**Status:**` against current git state.
 5. **Cross-check git log against state.md** — run `git log --oneline` and grep for `task-N:` commits. If a task has a commit in git but state.md shows `building` or `reviewing`, the crash happened after commit but before state update — mark that task as `done` in state.md. This prevents relaunching already-completed tasks.
 6. **Check `TaskList`** — this is the ground truth for what agents are running (state.md agent IDs are conversation-scoped and may be stale after compaction).
-7. **Check for orphaned `.devline/fix-task-*.md` files** — each represents an interrupted fix cycle. Resume by launching an implementer for each.
-7. **Read `.devline/agent-log.md`** if it exists — the SubagentStop hook logs agent completions here. Cross-reference with state.md to identify agents that completed but weren't processed (e.g., due to compaction between completion and processing).
-8. **Recompute active agent count** from TaskList and update state.md.
-9. **Recompute elapsed times** from absolute timestamps in state.md's Task Progress table. Resume health monitoring escalation based on actual elapsed time.
-10. Resume orchestration from the recovered state.
+7. **Check for orphaned `.devline/fix-task-*.md` files** — each represents an interrupted fix cycle. Resume by launching an implementer for each. Also check `.devline/tasks/*/partial.patch`: a task with a patch and no running agent is relaunched fresh with the patch named in its brief.
+8. **Read `.devline/agent-log.md`** if it exists — the SubagentStop hook logs agent completions here. Cross-reference with state.md to identify agents that completed but weren't processed (e.g., due to compaction between completion and processing).
+9. **Recompute active agent count** from TaskList and update state.md.
+10. **Recompute elapsed times** from absolute timestamps in state.md's Task Progress table. Resume health monitoring escalation based on actual elapsed time.
+11. Resume orchestration from the recovered state.
