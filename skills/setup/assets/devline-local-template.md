@@ -12,7 +12,7 @@ Before presenting batches, check for `CLAUDE_CODE_MAX_OUTPUT_TOKENS`. If unset o
 export CLAUDE_CODE_MAX_OUTPUT_TOKENS=128000
 ```
 
-Explain: The frontend designer and other agents can produce large outputs. The default 32K limit will cause API errors. Recommend adding this to the user's shell profile (`~/.zshrc`, `~/.bashrc`, etc.).
+Explain: The designer and other agents can produce large outputs. The default 32K limit will cause API errors. Recommend adding this to the user's shell profile (`~/.zshrc`, `~/.bashrc`, etc.).
 
 ---
 
@@ -48,6 +48,12 @@ frontend_framework: auto-detect   — Override: "react", "vue", "svelte", etc.
 doc_format: auto-detect           — Override: "markdown", "asciidoc", etc.
 cloud_provider: auto-detect       — Override: "aws", "gcp", "azure", etc.
 test_depth: auto                  — auto = infer & ask if unclear | deep = exhaustive (every method/config) | focused = big workflow/class tests + hard logic, skip trivial-method units
+sketch_model: sonnet              — Model for design seeds, sketches, cull (/devline:design)
+design_model: opus                — Model for design builds, refines, critiques
+mockup_model: sonnet              — Model for design mockups
+design_sketches: 10               — Sketches per design exploration
+design_pick: ask                  — ask = you pick sketches to build | auto = critic's top 3
+design_mode: auto                 — auto = M3E strict when the project uses M3E | m3e-strict | default
 ```
 
 ---

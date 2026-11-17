@@ -29,6 +29,7 @@ Before writing anything — this is the most common cause of bugs when skipped:
 - **Replicate existing patterns.** Use the codebase's existing mechanisms (observer, lifecycle, event bus). When you must deviate from an established pattern (e.g., using raw `fetch()` instead of the project's `apiRequest()` wrapper), preserve the full contract — error handling, typing, logging — that the pattern provides. A justified deviation from the happy path still needs the error path.
 - **Check for existing utilities before creating new ones.** `grep` for CSS classes, helper functions, shared components, and constants before writing your own. Duplicating existing utilities (e.g., redefining `.sr-only` when Tailwind provides it) introduces maintenance debt.
 - **Check platform/framework constraints.** Verify APIs you plan to use exist in the target platform.
+- **UI work:** if `docs/design-system/MASTER.md` exists, it and its Corrections section are binding; every colour, size, radius, shadow and duration comes from a token (add a named token first if one is missing), never a literal.
 - **Read the checklists.** Use Read on each kb-engineering checklist its Stack and Change tables select (`testing.md` Core at minimum) before writing code. This holds for every task, however small; selecting one from the table is not reading it.
 
 ### 3. Validate Spec Against Reality

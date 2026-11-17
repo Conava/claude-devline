@@ -1,117 +1,70 @@
 ---
 name: design
-description: Standalone design skill for individual components, color themes, brand identity, or fitting within an existing project theme. Use when the user asks to "design a button", "create a color theme", "create a brand identity", "make this match our site", "show me 6 card styles", "add a modal to the brand", or any targeted UI design request. Also triggers on mood-based requests like "warm dark theme", "cool minimalist colors", "playful typography".
-argument-hint: "<what to design>"
+description: Design distinctive, crafted interfaces from real content instead of the default AI look, and build cheap interactive mockups of anything. Use when the user asks to design a page, site, app screen, widget or design system ("design the homepage", "explore directions for…", "redesign this UI"), or to mock something up ("mock up the new edit mode", "make a mockup of the battery widget").
+argument-hint: "[mockup] <what to design>"
 user-invocable: true
 disable-model-invocation: false
 ---
 
-# Design — Standalone UI Design
+# Design
 
-Launch the **frontend-planner** agent for targeted design work outside the full devline pipeline.
+Two modes, one **designer** agent that does one step per launch:
+- **Exploration** (default): new looks for a page, site or app. Many cheap sketches, a critic culls, the user picks, only the picks become full prototypes, then refine against rendered captures until they score 8+.
+- **Mockup** (`mockup <what>`, or any request that says "mockup"/"mock up"): one cheap, interactive HTML mockup of exactly the surface a change touches. See `references/mockup.md`.
 
-## What You Do
+Nobody scores their own work: every critique is a fresh designer launch that sees only captures.
 
-Parse the user's request, detect the right mode, and launch the frontend-planner agent with a clear prompt. You are a router, not a designer.
-
-## Mode Detection
-
-The frontend-planner has three modes. Route the request to one — and for `design-one`, also pick the token source:
-
-| Mode | Trigger | Example |
-|------|---------|---------|
-| **brand-init** | First-time persistent brand identity (no `design-system/BRAND.md` yet) | "create a brand identity", "set up our brand" |
-| **generate** | Multiple directions at once — a full design system, or N showcase variations | "create a design system for a fintech app", "show me 8 button styles" |
-| **design-one** | A single element from one token source (see below) | "design a button", "add a modal to the brand", "match our site" |
-
-**design-one — pick the token source:**
-
-| Token source | Trigger |
-|--------------|---------|
-| **brand** | `design-system/BRAND.md` exists + adding an element ("add a table to the brand") |
-| **project-theme** | Fit the project's existing theme ("match our site", "our current colors") |
-| **design-system** | `.devline/design-system.md` exists + new element ("add a modal that fits our system") |
-| **scratch** | Standalone piece, no existing system ("design a dark button", "warm earth palette") |
-
-**Priority order when ambiguous:**
-1. `design-system/BRAND.md` exists and the request adds a component → **design-one** (brand)
-2. "match", "fit", "our site", "current theme" → **design-one** (project-theme)
-3. "brand", "identity", "persistent" and no `BRAND.md` → **brand-init**
-4. A count ("8 buttons", "6 cards") → **generate** (showcase)
-5. "design system for [product]" → **generate** (pipeline)
-6. `.devline/design-system.md` exists → **design-one** (design-system)
-7. Default → **design-one** (scratch)
-
-## Execution
-
-Launch the **frontend-planner** agent with the mode — and for design-one, the token source.
-
-### brand-init:
+This skill's base directory (shown above as "Base directory for this skill") holds `references/` and `scripts/`. Pass the absolute `references/` path to every launch as `References:`. You run the scripts yourself:
+```bash
+node <base>/scripts/capture.mjs <file.html> <outdir> --sheet --phone-sheet --frames --video scroll --phone-video   # web page
+node <base>/scripts/capture.mjs <file.html> <outdir> --narrow 420 --video script --demo <steps.json>                # desktop-only app UI, widget, mockup
+node <base>/scripts/capture.mjs <file.html> <outdir> --video script --demo <steps.json> --phone-video                # same, runs on phones
+node <base>/scripts/capture.mjs <file.html> <outdir> --stills-only                                                 # sketch (desktop + phone first screen)
+node <base>/scripts/slop-scan.mjs <file.html> > <outdir>/slop.json
+python3 -I <base>/scripts/gallery.py <workdir> <items-subdir> <captures-subdir> "<title>" [--only <cull.md|stems file>]
 ```
-Mode: brand-init
+capture needs playwright-core in `~/.cache/devline/capture`. If it's missing, ask before installing (about 150 MB): `npm i --prefix ~/.cache/devline/capture playwright-core && node ~/.cache/devline/capture/node_modules/playwright-core/cli.js install chromium`. Without it, the critic judges from the HTML only and the report says so.
 
-Brand request: [user's request]
-Product context: [any product/mood/industry context]
-Platform: [if mentioned]
+## Settings
+Read `.claude/devline.local.md` (repo), then `~/.claude/devline.local.md` (user); the repo wins. All keys optional:
+- `sketch_model` (default `sonnet`) for seeds, sketch and cull; `design_model` (default `opus`) for build, refine and critique; `mockup_model` (default `sonnet`)
+- `design_sketches` (default 10), `design_pick`: `ask` (default) | `auto`
+- `design_mode`: `auto` (default) | `m3e-strict` | `default`
 
-Create the brand identity system at design-system/BRAND.md with initial component specs.
+**Precedence for counts and who picks:** the user's request (a number, "you pick", "just build three") > settings > ask when it isn't obvious. Never override an explicit instruction in the request.
+
+## Inputs (both modes)
+- **Facts**: the real content (files, a facts file, the project itself). Never invent content.
+- **Taste brief**: loves, dislikes, musts, references. Ask briefly if absent and not inferable.
+- **Target**: `web page` (always desktop and phone) | `app UI` (desktop window 1440x900, plus phone 390x844 when the product runs on phones per the facts, project or request; otherwise narrow ~420) | `component/widget` (real size, in its real context; on phone too if it runs there). Add `+ phone` to the launch's `Target:` when an app UI or widget runs on phones. Phone rules: `references/phone.md`.
+- **Mode**: `m3e-strict` when `design_mode` says so, the user asks for M3E, or the project uses Material 3 Expressive (M3E tokens or components in the code, an M3E theme, docs or a design system naming it). Strict mode needs the `kb-m3e` skill: pass its absolute `references/` path as `M3E:` (`<base>/../kb-m3e/references`). If that directory doesn't exist, stop and tell the user strict mode needs the kb-m3e skill; never fall back to remembered M3E values. Otherwise `default`.
+- **Design system**: if `docs/design-system/MASTER.md` exists, pass it; its Corrections section is binding. See `references/design-system.md`.
+
+## Exploration loop (work dir `.devline/design/`)
+1. **Seeds**: one launch, `Step: seeds` → `seeds.md` with `design_sketches` seeds per `seeds.md`.
+2. **Sketch**: one launch per seed, **all in one message**, `Step: sketch` → `sketches/s<k>.html` + `sketches/s<k>.story.md`. Cheap: a finished first screen (desktop, and for web pages and phone targets its phone first screen as its own composition) and a storyboard that also says how the signature works on the phone; no 3D or interaction code.
+3. **Capture** each sketch with `--stills-only` into `captures/s<k>/`.
+4. **Cull**: one fresh launch, `Step: cull`, all capture folders and story files → `cull.md`: drops weak, generic and sibling sketches, keeps 4-8 ranked (fewer only if fewer deserve it), each with the quality to protect.
+5. **Pick**: build the sketch gallery (`gallery.py .devline/design sketches captures "Sketches" --only .devline/design/cull.md`, so only the kept sketches appear, in cull rank order), give the user the serve command (`cd <abs>/.devline/design/gallery && python3 -m http.server 8092`) and ask which to build with AskUserQuestion (multi-select over the kept sketches, usually 2-4). With `design_pick: auto` or a request that delegates the choice, take the top 3 from `cull.md`.
+6. **Build**: one launch per pick, in parallel, `Step: build` → `final/<k>.html`, plus `final/<k>.demo.json` for app UIs and widgets: the full working prototype.
+7. **Capture** each (web: `--sheet --phone-sheet --frames --video scroll --phone-video`; app UI: `--narrow 420 --video script --demo final/<k>.demo.json`, or without `--narrow` and with `--phone-video` when it runs on phones) + slop scan into `captures/final/<k>/`.
+8. **Critique**: one fresh launch per design, `Step: critique` → `critique-<round>-<k>.md` with Wow and Craft scores and the next verb(s) or `done`.
+9. **Refine**: `Step: refine` with the critic's verb(s), same output path; then 7-8 again. Stop per design at `done` (both scores ≥ 8, nothing high), after 2 refine rounds, or when neither score moved in two rounds.
+10. **Report**: rebuild the gallery over `final/` (`gallery.py .devline/design final captures/final "Final"`). Per design: path, Wow/Craft, the screenshot-worthy moment, assumptions, and in strict mode the decisions taken where the spec allowed. Ask with AskUserQuestion which one to take forward unless the request already said; record the answer and feedback verbatim in `.devline/design/feedback.md`. On approval, write `docs/design-system/MASTER.md` from the chosen design per `design-system.md`.
+
+## Mockup flow
+1. `Step: mockup` launch (model `mockup_model`) with the request verbatim, the project root (if any), facts, taste, the M3E path in strict mode, and `Output:` (as the user gives it; else `.devline/mockups/<slug>.html`). It writes the mockup and `<slug>.demo.json`.
+2. Capture it (`--narrow 420 --video script --demo <slug>.demo.json`; pages: `--video scroll`; add `--phone-video` and drop `--narrow` when the mocked thing runs on phones) + slop scan. One `Step: mockup` fix pass for anything broken (page errors, a broken state, a high slop hit). A critique only if the user asked (`--critique`).
+3. Report the path, how to open it, and what works in it. Each later change request: `Step: mockup` with `Input:` = the same file and the request verbatim; the designer appends to `<slug>.feedback.md` and re-reads it before every edit.
+
+## Launch prompt
 ```
-
-### generate (pipeline — full design system):
+Step: seeds | sketch | cull | build | refine | critique | mockup
+References: <abs path>          M3E: <abs path, strict mode only>
+Mode: default | m3e-strict      Target: web page | app UI | component/widget [+ phone]
+Facts: <path(s)>   Taste: <path or inline>   Design system: <MASTER.md path or none>
+Seed: <k>          Input: <file>   Verbs: <refine>   Critique file: <refine>
+Captures: <folder(s)>   Request: <verbatim, mockup>   Project: <root, mockup>
+Output: <path>
 ```
-Mode: generate
-Variant: pipeline
-
-Product context: [user's description]
-Platform: [if mentioned, otherwise ask]
-
-No brainstorm file exists — use this description directly as the product context. Write the full design system to .devline/design-system.md.
-```
-
-### generate (showcase — N variations):
-```
-Mode: generate
-Variant: showcase
-
-Component: [what to showcase]
-Count: [N from request, default 8]
-Constraints: [any constraints mentioned]
-
-Output showcases to .devline/showcases/
-```
-
-### design-one:
-If the token source is `brand` or `design-system`, first verify `design-system/BRAND.md` / `.devline/design-system.md` exists. Then launch:
-```
-Mode: design-one
-Token source: [scratch | project-theme | design-system | brand]
-
-Design request: [user's request]
-Context: [product/mood/constraints — or the existing brand/system/theme to read tokens from]
-
-Read the token source first (if any), then output the spec to .devline/component-spec.md and preview to .devline/component-preview.html. For the brand source, add the component under design-system/ and update BRAND.md.
-```
-
-## After Agent Completes
-
-Report the result to the user:
-- **brand-init**: "Brand identity at `design-system/BRAND.md` with N component specs. Add more: `/design add [component] to the brand`"
-- **generate (pipeline)**: "Design system at `.devline/design-system.md`"
-- **generate (showcase)**: "N showcases at `.devline/showcases/`, open `index.html` for the gallery"
-- **design-one**: "Component spec at `.devline/component-spec.md`, preview at `.devline/component-preview.html`" (brand source: component added under `design-system/`, BRAND.md updated)
-
-## Rules
-
-- Do NOT run the full devline pipeline (no brainstorm, no plan, no implementation)
-- Do NOT ask unnecessary questions — if the user says "design a dark button", just design it
-- Do launch the frontend-planner agent — do not design anything yourself
-- If the user's request is ambiguous about mode, follow the priority order above
-- `brand-init` and `design-one` (brand source) outputs are PERSISTENT (in `design-system/`) — they survive pipeline cleanup
-- All other mode outputs are in `.devline/` and are temporary
-
-## Live Design System (`docs/design-system/`)
-
-Beyond the mode outputs above, the frontend-planner maintains one durable, corrections-aware design system per repo at `docs/design-system/` (`MASTER.md` + `pages/<page>.md`). It survives across sessions. The agent:
-- **Reads it first** — before designing, it checks `docs/design-system/MASTER.md` (and `pages/<page>.md` for the current page, which overrides MASTER) and works within it, including the `## Corrections & Decisions` log, so past mistakes aren't repeated.
-- **Persists on generate** — establishing or changing the shared system writes/regenerates `docs/design-system/` (via `search.py --design-system --persist --output-dir docs`).
-- **Persists on correction** — when you correct a design or a choice fails, it appends a dated bullet to `## Corrections & Decisions` (MASTER for global, the page file for page-specific) and updates the affected spec. Nothing is lost between sessions.
+Launch the designer with `model:` from settings: `sketch_model` for seeds, sketch and cull; `design_model` for build, refine and critique; `mockup_model` for mockups.
