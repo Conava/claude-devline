@@ -42,7 +42,7 @@ Examples: a one-line change to auth input validation is security surface, so it 
 
 ## Showing the run
 
-Show a short table, one line per chosen stage:
+Print a short table as text, one line per chosen stage, before launching any agent. Writing it only to state.md doesn't count:
 
 | Stage | Reason |
 |---|---|
@@ -51,7 +51,7 @@ Show a short table, one line per chosen stage:
 
 Then, by the devline config's `stage_menu` (lookup in `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`):
 
-- `ask` (default): AskUserQuestion with "Run as shown", "Change stages", "Stop". On "Change stages" the user names adds and removes in free text; apply them and show the table again.
+- `ask` (default): AskUserQuestion with "Run as shown", "Change stages", "Stop". On "Change stages" the user names adds and removes in free text; apply them and show the table again. If AskUserQuestion isn't available (a non-interactive run), ask the same question in plain text and end your turn; don't start the run.
 - `auto`: print the table and proceed.
 
 An explicit preset with no reach additions prints the table and proceeds, whatever `stage_menu` says.
