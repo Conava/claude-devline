@@ -22,17 +22,21 @@ const rules = [
   ['med', 'transition-all', /transition:\s*all\b/i, 'transition: all'],
   ['med', 'custom-cursor', /cursor:\s*none|mix-blend-mode:\s*difference/i, 'Custom cursor / cursor effect'],
   ['low', 'grain', /feTurbulence|noise\.(png|svg)/i, 'Grain/noise overlay (check it is not decoration)'],
+  ['med', 'side-stripe', /border-left:\s*(?!(0|1px|2px)\s)\S+\s+solid/i, 'Thick colored side stripe'],
+  ['med', 'pulse-dot', /animate-(ping|pulse)\b|@keyframes\s+[\w-]*(ping|pulse)/i, 'Pulsing status dot'],
+  ['low', 'conic', /conic-gradient/i, 'Conic gradient (border beam or shimmer?)'],
   ['low', 'bounce-ease', /cubic-bezier\(\s*[\d.]+\s*,\s*-?(1\.[1-9]|[2-9])|cubic-bezier\([^)]*,\s*-0?\.\d/i, 'Easing overshoots (bounce/elastic)'],
 ];
 const findings = [];
 lines.forEach((l, i) => { for (const [sev, id, re, why] of rules) if (re.test(l)) findings.push({ sev, id, line: i + 1, why, at: l.trim().slice(0, 120) }); });
 
 const textRules = [
-  ['med', 'middle-dot-meta', /\S+ · \S+ · \S+/, 'A · B · C meta string'],
+  ['med', 'middle-dot-meta', /\S+ · \S+/, 'Middle-dot separator'],
   ['med', 'arrow-glyph', /[→↗↘➜]/, 'Unicode arrow as icon'],
   ['high', 'emoji', /\p{Extended_Pictographic}/u, 'Emoji'],
   ['med', 'section-number', /(^|\s)0[1-9]\s*[\/—–-]/, 'Section number 01/02 (only for real sequences)'],
-  ['low', 'hype-word', /\b(seamless|robust|powerful|unlock|supercharge|revolutioni[sz]e|cutting-edge|effortless)\b/i, 'Hype word'],
+  ['low', 'hype-word', /\b(seamless|robust|powerful|unlock|supercharge|revolutioni[sz]e|cutting-edge|effortless|frictionless|holistic|reimagine|next-gen(eration)?|game-changing|enterprise-grade|AI-powered|10x)\b/i, 'Hype word'],
+  ['med', 'fake-proof', /\b(all systems operational|trusted by|join [\d,.]+k?\+? (teams|users|companies)|most popular|now live)\b/i, 'Status badge or social proof strip'],
 ];
 for (const [sev, id, re, why] of textRules) { const m = text.match(re); if (m) findings.push({ sev, id, why, at: m[0].slice(0, 80) }); }
 

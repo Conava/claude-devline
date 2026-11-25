@@ -9,15 +9,17 @@ Every item below is a default, not a choice: it appears whatever the subject is.
 2. Near-black ground with one acid-green, vermilion or neon accent, often with glow.
 3. Broadsheet: hairline rules everywhere, zero radius, dense newspaper columns.
 4. SaaS card kit: content chopped into identical rounded cards, one radius on everything, the same soft grey shadow, gradient washes.
-5. Template chrome: tracked ALL-CAPS eyebrow above every heading, `A · B · C` meta strings, `WORD — fragment` labels, #0B0B0B/#111 as black, monospace for small labels, `→` appended to buttons.
+5. Template chrome: tracked ALL-CAPS eyebrow above every heading, `A · B` middle-dot separators, `WORD — fragment` labels, #0B0B0B/#111 as black, monospace for small labels, `→` appended to buttons.
 
 ## Layout and structure
 | Default | Why it fails | Instead |
 |---|---|---|
 | Hero = big headline + subtext + two buttons, centered | Every template | Open with the most characteristic thing in the subject's world (an object, a live demo, a process, a scene) |
 | Hero metric block (huge number, small label, side stats, accent) | The commonest "data" costume | A number only where it is the point, with its denominator |
-| Three equal feature cards (icon + heading + text) | Lazy container, says nothing | Structure from the content: a sequence, a comparison, a map, a ledger |
-| Nested cards, border + wide shadow pairs, colored side stripes | Noise as hierarchy | One depth cue per surface; space shows grouping |
+| Three equal feature cards (tinted icon tile + heading + text) | Lazy container, says nothing | Structure from the content: a sequence, a comparison, a map, a ledger |
+| A plain list rebuilt as a grid of cards | The list was already the right form | Keep the list |
+| Nested cards, border + wide shadow pairs, thick colored left stripes on cards and callouts | Noise as hierarchy | One depth cue per surface; space shows grouping |
+| Items joined with middle dots (`author · date`, `host · OS · uptime`) | The reflex separator, as much a tell with two items as with five | Never the default. Separate by layout (spacing, columns, label and value) or drop what nobody reads. Use the dot only where it is a deliberate part of this design's language, and then consistently |
 | Section numbers 01/02/03 | Only true for real sequences | Number only a real sequence |
 | Eyebrow/kicker above a heading | Ban. The heading carries its weight | Delete it |
 | Everything centered | Template default | Left-aligned reading edge; center only short lines or a device frame |
@@ -33,6 +35,8 @@ Every item below is a default, not a choice: it appears whatever the subject is.
 | Grain/noise overlays, dot grids, line grids, aurora blobs, orbs, floating shapes | Filler that says nothing | A real material or a real object from the world, or nothing |
 | Pills (999px) on every button/tag | Uniformity, not design | Radius by hierarchy; inner = outer - padding |
 | Emoji or unicode glyphs as icons (✨ → ↗ ✓) | Cheap and inconsistent | One drawn SVG set, one stroke weight |
+| Pulsing status dots, "All systems operational", "Live", uptime and stat strips | A tell even when the number is real: it is rarely what this reader came for | Leave it out. Show a status only on a page whose job is that status (a dashboard, a status page) |
+| Badges and announcement pills (BETA, NEW, MOST POPULAR, AI-POWERED, "Introducing v2, now live") | Urgency as decoration | None by default; the content says what is new |
 | Shape-assembled fake illustrations, stock-photo stand-ins | Lies about the product | Real assets, honest diagrams, or rendered objects |
 | Light/dark picked by category ("tech = dark") | Not a decision | Pick from the use scene and the world |
 
@@ -40,7 +44,8 @@ Every item below is a default, not a choice: it appears whatever the subject is.
 | Default | Why | Instead |
 |---|---|---|
 | Inter, Roboto, Arial, system UI as display; Space Grotesk, DM Sans, Plus Jakarta, Instrument Sans/Serif, Geist, Fraunces, Playfair, Newsreader as reflex picks | The faces every model reaches for | Choose for the character; look past the first page of Google Fonts; one family or two clearly distinct ones |
-| Italic or colored accent on one word of a headline | Commonest typographic tell | Let the whole line carry it, or change the sentence |
+| Italic, colored or hand-drawn-underlined accent on one word of a headline | Commonest typographic tell | Let the whole line carry it, or change the sentence |
+| Body copy in low-contrast grey (slate-400 on near-black) | Looks refined, reads badly, often fails contrast | Body text at full reading contrast; grey only for really secondary text |
 | ALL-CAPS tracked labels, mono labels as "technical" costume | Template chrome | Sentence case; mono only for code, data, measurement |
 | 700-900 weight everywhere, tight tracking on small text | Shouting | Scale and color for hierarchy; tracking only on display sizes |
 
@@ -50,6 +55,7 @@ Every item below is a default, not a choice: it appears whatever the subject is.
 | Fade-and-slide-up on every section, staggered | The single most recognisable AI motion | One authored moment; most content is simply there |
 | Identical hover lift on every card | Says nothing | Hover only where it tells the user something, inside `@media (hover:hover)` |
 | 3D tilt cards, magnetic buttons, custom cursors, cursor trails, spotlight-follow | Toy effects | Motion that answers a question (where did this come from, what changed, what comes next) |
+| Rotating border beams, conic-gradient rings, shimmer sweeps on buttons, animated rainbow text | Constant motion that means nothing | Still surfaces; motion only on change |
 | Count-up numbers, typewriter, text scramble, glitch | Delays content for show | Show the number; animate only the delta when it changes |
 | Bounce/elastic easing, springs on everything | Wobble | One easing family; bounce only for physical, playful things |
 | Scroll progress that jumps station to station, timed animation triggered by scroll | Disconnects the hand from the screen | Scroll-linked progress is scrubbed and continuous |
@@ -58,6 +64,7 @@ Every item below is a default, not a choice: it appears whatever the subject is.
 
 ## Copy
 - No slogans, aphorisms, rule-of-three lists, "X. Not Y." rebuttals, punchline headings, hype words (seamless, robust, powerful, unlock, supercharge).
-- No invented numbers, testimonials or logos. Use only the facts given.
+- No invented numbers, testimonials or logos, and no "Trusted by" logo strips or marquees. Use only the facts given.
+- No emoji on headings, labels or sentence ends (✨ 🚀 ⚡).
 - Controls name their action; the same action keeps one name. Errors name the problem and the fix, never apologize.
 - Headings are plain topic titles unless the brief asks otherwise.
