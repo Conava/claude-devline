@@ -47,6 +47,8 @@ jobs:
         run: python3 -m unittest discover -s skills/kb-engineering/tests -v
       - name: Test hooks (wiring, voice injection, path resolution)
         run: python3 -m unittest discover -s hooks/tests -v
+      - name: Test voice (layers, public text, check-tells)
+        run: python3 -m unittest discover -s skills/voice/tests -v
       - name: Test setup (config structure)
         run: python3 -m unittest discover -s skills/setup/tests -v
       - name: Test devline pipeline (structure)

@@ -15,6 +15,10 @@ References:
 - Language-specific: [references/german.md](references/german.md)
 - Purpose-specific: [references/communication.md](references/communication.md), [references/project-content.md](references/project-content.md), [references/scientific.md](references/scientific.md), [references/creative.md](references/creative.md), [references/creative-de.md](references/creative-de.md)
 
+## Defaults
+The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
+- `voice_dir` (default `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice`): the personal voice layer. The session-start hook injects its `voice.md`; never used for fiction or scientific writing.
+
 ## Step 1 — Determine purpose (before anything else)
 
 Detect from context which purpose applies. **You must do this first**, because the Scientific purpose has a hard gate before you can write a single word.
@@ -29,6 +33,24 @@ Detect from context which purpose applies. **You must do this first**, because t
 All purposes apply to all languages. Purpose-specific references contain language-agnostic craft rules. Language-specific references (german.md, etc.) layer on top for any purpose. Creative writing in German additionally loads `creative-de.md` for German-language examples and craft guidance.
 
 If the purpose is unclear from context, ask. The purpose determines which reference to read and which rules to prioritize.
+
+### Voice layers
+
+The core voice is already in context: it is injected at session start. On top of it, read the layer for the purpose and language before you write. Layers override the guidance further down in this skill where the two disagree; the core voice's hard bans override both.
+
+| Text | English | German |
+|------|---------|--------|
+| Fiction | `layers/fiction.md` | `layers/fiction.md` + `layers/german.md` |
+| Email | core voice only | `layers/email.md` + `layers/german.md` |
+| Scientific | `layers/science.md` | `layers/science.md` |
+| PR, commit, technical text | `layers/pr.md` | `layers/pr.md` + `layers/german.md` |
+| Anything else in German | | `layers/german.md` |
+
+Paths are relative to `${CLAUDE_PLUGIN_ROOT}/skills/writing/`.
+
+If a personal voice layer was injected, it names its directory. For emails and PR or commit text, also read the matching file in its `contexts/` folder (`email.md`, `pr.md`). Never apply the personal layer to fiction or scientific writing.
+
+Before handing over the text, run the self-check from the core voice (`--de` for German, `--fiction` for stories).
 
 ### HARD GATE — Scientific purpose
 
@@ -212,7 +234,7 @@ After translating, run checks specific to the target language. For German:
 - Commas before subordinate clauses
 - Verb position in subordinate clauses
 - Number and date formatting
-- En-dashes with spaces (not em-dashes without)
+- No dashes as a pause, spaced or not; en dashes only in ranges (3–5)
 - No unnecessary Anglicisms where German words exist
 - Genitive case used correctly in formal text
 - No Partizip-I constructions that sound unnatural
