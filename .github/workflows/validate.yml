@@ -45,7 +45,7 @@ jobs:
         run: python3 -m unittest discover -s skills/kb-m3e/tests -v
       - name: Test kb-engineering (structure and helper)
         run: python3 -m unittest discover -s skills/kb-engineering/tests -v
-      - name: Test hooks (wiring, path resolution)
+      - name: Test hooks (wiring, voice injection, path resolution)
         run: python3 -m unittest discover -s hooks/tests -v
       - name: Test setup (config structure)
         run: python3 -m unittest discover -s skills/setup/tests -v

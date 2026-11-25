@@ -1,6 +1,6 @@
 ---
 name: devline
-description: This is the default skill for all development work. It orchestrates the entire development lifecycle from idea to merge-ready code, coordinating multiple agents for brainstorming, planning, implementation, review, documentation, and final approval. Use this for any development task that is non-trivial and could benefit from structured planning, parallel execution, and rigorous review or require more than 3 lines of code changed.
+description: This is the default skill for all development work. It orchestrates the entire development lifecycle from idea to merge-ready code, coordinating multiple agents for brainstorming, planning, implementation, review, documentation, and final approval. Use this for any development task that is non-trivial and could benefit from structured planning, parallel execution, and rigorous review or require more than 3 lines of code changed, including a list of feedback, review notes or bug reports on existing work ("here's my feedback", "a few things I noticed", "fix these").
 argument-hint: "<feature idea>"
 user-invocable: true
 disable-model-invocation: false

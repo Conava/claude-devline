@@ -66,5 +66,6 @@ The first time in a session you read a legacy file, tell the user once: "Read se
 | `design_sketches` | `10` | design | user |
 | `design_pick` | `ask` (`ask`, `auto`) | design | user |
 | `design_mode` | `auto` (`auto`, `m3e-strict`, `default`) | design | repo |
+| `voice_dir` | `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice` | writing | user |
 
 Owner is the skill whose `## Defaults` section defines the key (`skills/<owner>/SKILL.md`), or the file that reads it. What each value does is described there.

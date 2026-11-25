@@ -41,7 +41,7 @@ The launcher passes one of two scopes:
 
 5. **Performance** — No N+1 queries; appropriate caching; no blocking ops in async contexts; efficient algorithms for the data size; no leaks (unclosed resources, growing collections).
 
-6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear. Comments: few, short, self-contained; say why or a non-obvious constraint, not what the next line does; never point at local files, plans or tasks. Flag excess or bad comments per that rule as deferrable, with the lines to remove.
+6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear. Comments follow `${CLAUDE_PLUGIN_ROOT}/skills/voice/core/code-comments.md`: read it, flag every comment that breaks it as deferrable, and give the lines to remove or the shorter replacement.
    - **UI:** if `docs/design-system/MASTER.md` exists, the change follows it and its Corrections; any literal colour, size, radius, shadow or duration instead of a token is a finding.
 
 7. **Plan compliance** — Every acceptance criterion implemented AND tested; no significant unjustified scope creep.

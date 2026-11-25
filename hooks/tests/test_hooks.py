@@ -31,6 +31,64 @@ class WiringTests(unittest.TestCase):
                 self.assertTrue((ROOT / m.group(1)).is_file())
 
 
+class InjectionTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.config = Path(self.tmp.name) / "config"
+        self.env = {**os.environ, "CLAUDE_CONFIG_DIR": str(self.config), "HOME": self.tmp.name}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def inject(self, mode, event="SessionStart", cwd=None):
+        out = run("inject-voice.sh", {"hook_event_name": event, "cwd": cwd or self.tmp.name},
+                  mode, env=self.env, cwd="/")
+        return json.loads(out)["hookSpecificOutput"] if out.strip() else None
+
+    def test_core_outputs_fit_and_render(self):
+        for mode in ("conduct", "voice"):
+            with self.subTest(mode=mode):
+                out = self.inject(mode, event="SubagentStart")
+                ctx = out["additionalContext"]
+                print(f"\n{mode}: {len(ctx)} chars", end="")
+                self.assertEqual(out["hookEventName"], "SubagentStart")
+                self.assertLess(len(ctx), LIMIT)
+                self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", ctx)
+        self.assertIn(str(ROOT / "skills/voice/scripts/check-tells.sh"), self.inject("voice")["additionalContext"])
+
+    def test_personal_absent_by_default(self):
+        self.assertIsNone(self.inject("personal"))
+
+    def test_personal_default_dir(self):
+        voice = self.config / "devline" / "voice"
+        (voice / "contexts").mkdir(parents=True)
+        (voice / "voice.md").write_text("Keep it short.\n")
+        (voice / "contexts" / "pr.md").write_text("x\n")
+        ctx = self.inject("personal")["additionalContext"]
+        self.assertIn("Keep it short.", ctx)
+        self.assertIn(str(voice / "contexts" / "pr.md"), ctx)
+        self.assertIn("Never apply it to fiction or scientific writing", ctx)
+
+    def test_personal_voice_dir_key_and_size_fallback(self):
+        other = Path(self.tmp.name) / "elsewhere"
+        other.mkdir()
+        (other / "voice.md").write_text("word " * 4000)
+        (self.config / "devline").mkdir(parents=True)
+        (self.config / "devline" / "config.md").write_text("---\nvoice_dir: ~/elsewhere\n---\n# notes\n")
+        ctx = self.inject("personal")["additionalContext"]
+        self.assertIn(str(other), ctx)
+        self.assertIn("too long to inject", ctx)
+        self.assertLess(len(ctx), LIMIT)
+
+    def test_repo_voice_dir_overrides_user(self):
+        repo = Path(self.tmp.name) / "repo"
+        (repo / ".claude").mkdir(parents=True)
+        (repo / "voice").mkdir()
+        (repo / "voice" / "voice.md").write_text("Repo layer.\n")
+        (repo / ".claude" / "devline.md").write_text(f'---\nvoice_dir: "{repo / "voice"}"\n---\n')
+        self.assertIn("Repo layer.", self.inject("personal", cwd=str(repo))["additionalContext"])
+
+
 class ResolveTests(unittest.TestCase):
     """validate-bash.sh scans a script before it runs; a leading cd decides which file that is."""
 
