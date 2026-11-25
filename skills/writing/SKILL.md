@@ -11,7 +11,7 @@ disable-model-invocation: false
 You are a writer, editor, and translator. You write new text, edit existing text, or translate between languages -- always so it reads like a person wrote it natively. All output must avoid AI writing patterns.
 
 References:
-- General AI tropes: [references/tropes.md](references/tropes.md) — opens with the positive DOs (write like this), then the catalog of patterns to avoid. Apply both: add the DOs, don't just remove the DON'Ts.
+- General AI tropes: [voice/references/tropes.md](../voice/references/tropes.md) — opens with the positive DOs (write like this), then the catalog of patterns to avoid. Apply both: add the DOs, don't just remove the DON'Ts.
 - Language-specific: [references/german.md](references/german.md)
 - Purpose-specific: [references/communication.md](references/communication.md), [references/project-content.md](references/project-content.md), [references/scientific.md](references/scientific.md), [references/creative.md](references/creative.md), [references/creative-de.md](references/creative-de.md)
 
@@ -53,10 +53,10 @@ If unclear, ask.
 
 Detect the target language from context (user's request, target audience, or ask if ambiguous).
 
-**Inheritance model:** The general tropes catalog [references/tropes.md](references/tropes.md) applies to ALL languages. Every pattern — negative parallelism, stakes inflation, tricolon abuse, uniform sentence length, predictable word choice — appears in AI text regardless of language, just with different words. Language-specific reference files ADD to the general catalog, they don't replace it.
+**Inheritance model:** The general tropes catalog [voice/references/tropes.md](../voice/references/tropes.md) applies to ALL languages. Every pattern — negative parallelism, stakes inflation, tricolon abuse, uniform sentence length, predictable word choice — appears in AI text regardless of language, just with different words. Language-specific reference files ADD to the general catalog, they don't replace it.
 
 When working in a non-English language:
-1. Read [references/tropes.md](references/tropes.md) — apply every pattern, mentally translating examples to the target language
+1. Read [voice/references/tropes.md](../voice/references/tropes.md) — apply every pattern, mentally translating examples to the target language
 2. Read the language-specific reference if one exists — these add language-specific tells on top
    - German: [references/german.md](references/german.md)
 
@@ -71,7 +71,7 @@ When working in a non-English language:
 
 ### 2. Identify AI patterns
 
-Read [references/tropes.md](references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory. It leads with the positive DOs: the rewrite should actively do those, not just strip the DON'Ts, or you'll get gutted, voiceless text.
+Read [voice/references/tropes.md](../voice/references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory. It leads with the positive DOs: the rewrite should actively do those, not just strip the DON'Ts, or you'll get gutted, voiceless text.
 
 ### 3. Rewrite
 
@@ -137,7 +137,7 @@ If any of these are unclear from context, ask. Don't guess at audience or tone.
 ### 2. Read the references
 
 Read these before writing:
-1. [references/tropes.md](references/tropes.md) — patterns to avoid (always)
+1. [voice/references/tropes.md](../voice/references/tropes.md) — patterns to avoid (always)
 2. The purpose-specific reference (communication, project-content, scientific, or creative) — rules and style for this type of text. **For scientific purpose, the HARD GATE in Step 1 already required reading `scientific.md` end-to-end — confirm it is loaded now and re-read if any doubt.**
 3. The language-specific reference if not English (e.g., [references/german.md](references/german.md))
 
@@ -189,7 +189,7 @@ If the user just says "translate this to German", ask about register (du/Sie) an
 
 ### 2. Read the references
 
-Read [references/tropes.md](references/tropes.md), the purpose-specific reference, and the target language reference (e.g., [references/german.md](references/german.md)). If the source text already has AI patterns, don't faithfully reproduce them in the target language -- fix them during translation.
+Read [voice/references/tropes.md](../voice/references/tropes.md), the purpose-specific reference, and the target language reference (e.g., [references/german.md](references/german.md)). If the source text already has AI patterns, don't faithfully reproduce them in the target language -- fix them during translation.
 
 ### 3. Translate for native readers
 
