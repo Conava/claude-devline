@@ -74,6 +74,13 @@ resolve() {
   fi
 }
 
+# The hook's cwd is where the session started, so `cd /repo/worktree && bash
+# x.sh` would otherwise resolve x.sh in the wrong checkout.
+# ponytail: only a leading cd; a cd later in a chain is not followed.
+if [[ "$command" =~ ^[[:space:]]*cd[[:space:]]+([^[:space:]\;\|\&]+)[[:space:]]*(\&\&|\;) ]]; then
+  cwd=$(resolve "${BASH_REMATCH[1]}")
+fi
+
 # Deny if any pattern in CONTENT_PATTERNS appears in a file about to be run.
 # ponytail: one level deep — a script that invokes another script is not
 # followed. Upgrade path if that ever matters: recurse with a depth counter.
@@ -103,9 +110,11 @@ fi
 # home directory, or credentials. Every rm counts, not only -rf: deleting one
 # private key is as unrecoverable as deleting the directory. `git rm` only
 # touches the index.
-if printf '%s' "$command" | grep -qP '(?<!git\s)(?<![\w-])rm\s'; then
+# Heredoc bodies are script text, not commands: drop them before looking for rm.
+rm_command=$(printf '%s' "$command" | perl -0pe 's/(<<-?\s*([\x27"]?)(\w+)\2[^\n]*\n).*?\n[ \t]*\3[ \t]*(?=\n|$)/$1/gs')
+if printf '%s' "$rm_command" | grep -qP '(?<!git\s)(?<![\w-])rm\s'; then
   # Every target, not just the first: `rm -rf ./build /` must not pass on ./build
-  targets=$(printf '%s' "$command" | grep -oP '(?<!git\s)(?<![\w-])rm\s+\K[^;|&\n]+' || true)
+  targets=$(printf '%s' "$rm_command" | grep -oP '(?<!git\s)(?<![\w-])rm\s+\K[^;|&\n]+' || true)
 
   set -f
   for target in $targets; do
@@ -113,10 +122,18 @@ if printf '%s' "$command" | grep -qP '(?<!git\s)(?<![\w-])rm\s'; then
       continue
     fi
     abs_target=$(resolve "$target")
-    # A glob empties its directory, so judge the directory: `rm -rf ~/*` is ~.
+    # A glob is judged by its directory: `rm -rf ~/*` is ~. Only a bare `*`
+    # empties it; `rm *.png` removes some files, not the folder or repo.
+    some_files=0
     if [[ "$abs_target" == *[*?[]* ]]; then
+      [[ "$(basename -- "$abs_target")" =~ ^\.?\*$ ]] || some_files=1
       abs_target=$(dirname -- "${abs_target%%[*?[]*}x")
     fi
+    # The pipeline's own work (scratch, design dirs, worktrees, caches) can always go.
+    own=0
+    case "$abs_target" in
+      */.devline/*|*/.claude/worktrees/*|*.worktrees/*|/tmp/claude-*/*|"$HOME"/.cache/devline*/*) own=1 ;;
+    esac
 
     case "$abs_target" in
       /|/home|"$HOME"|/etc|/usr|/var|/root|/boot|/bin|/sbin|/lib|/lib64|/proc|/sys|/dev)
@@ -132,7 +149,9 @@ if printf '%s' "$command" | grep -qP '(?<!git\s)(?<![\w-])rm\s'; then
     if printf '%s' "$abs_target" | grep -qP "$CRED_PATHS"; then
       deny "rm of private keys or credentials ($abs_target). Not allowed."
     fi
-    if [[ -d "$abs_target" && "$abs_target" == "$HOME"/[!.]* && "$abs_target" != "$HOME"/*/* ]]; then
+    if (( own || some_files )); then
+      :
+    elif [[ -d "$abs_target" && "$abs_target" == "$HOME"/[!.]* && "$abs_target" != "$HOME"/*/* ]]; then
       ask "rm of the whole $abs_target folder."
     elif [[ -d "$abs_target/.git" ]]; then
       ask "rm of a whole git repository ($abs_target): unpushed work and untracked files are lost."
@@ -294,7 +313,7 @@ if printf '%s' "$command" | grep -qPi "${CMD}(passwd|chpasswd|chage)\b|${CMD}use
 fi
 
 # Commands whose job is to print a stored secret or token.
-if printf '%s' "$command" | grep -qPi "${CMD}(gh\s+auth\s+token|secret-tool\s+lookup|git\s+credential\s+fill|docker-credential-\S+\s+get|gcloud\s+auth\s+(application-default\s+)?print-(access|identity)-token|az\s+account\s+get-access-token|aws\s+configure\s+get\s+\S*(secret|key)|vault\s+(kv\s+get|read)|kubectl\s+get\s+secrets?\b[^;|&]*(-o|--output)|gpg\s+[^;|&]*(--decrypt|--export-secret)|pass(\s+show)?\s+(?!ls\b|find\b|--help\b)[\w./-]+)"; then
+if printf '%s' "$command" | grep -qPi "${CMD}(gh\s+auth\s+token|secret-tool\s+lookup|git\s+credential\s+fill|docker-credential-\S+\s+get|gcloud\s+auth\s+(application-default\s+)?print-(access|identity)-token|az\s+account\s+get-access-token|aws\s+configure\s+get\s+\S*(secret|key)|vault\s+(kv\s+get|read)|kubectl\s+get\s+secrets?\b[^;|&]*(-o|--output)|gpg\s+[^;|&]*(--decrypt|--export-secret))|${CMD_START}pass(\s+show)?\s+(?!ls\b|find\b|--help\b)[\w./-]+"; then
   deny "Printing a stored secret or token is not allowed. Use it in place (e.g. via an env var the tool reads) without displaying it."
 fi
 

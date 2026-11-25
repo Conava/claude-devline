@@ -6,6 +6,11 @@
 # Command position: not preceded by a word char, '=', '.', '/' or '-'.
 # Without this, 'git -c gpg.format=ssh' and '~/.ssh/id_x' match an 'ssh ' rule.
 CMD='(?<![\w=./-])'
+# Strict command position: start of the command or after ; & | ( or $(, with an
+# optional sudo. For verbs that are also everyday words ('pass'), which CMD would
+# match inside quoted prose like a commit message.
+# shellcheck disable=SC2034
+CMD_START='(?:^|[;&|(]|\$\()\s*(?:sudo\s+)?'
 
 # Verbs that print or copy file contents somewhere else.
 READERS='(cat|bat|tac|head|tail|less|more|nl|od|xxd|hexdump|strings|base64|grep|rg|ag|awk|sed|cut|tee|cp|scp|rsync|curl|wget|jq|python[0-9.]*|perl|ruby|node)'
