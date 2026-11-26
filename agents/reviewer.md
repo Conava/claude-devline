@@ -21,7 +21,7 @@ The launcher passes one of two scopes:
 
 1. **Understand context** — Read `.devline/plan.md`. For `scope: task`, find the task under review and read its **Spec** (signatures, behavior, inputs, outputs, errors, integration points), Acceptance Criteria, and Test Cases. For `scope: branch`, read the specs across all tasks. Also note the plan's `**Test Depth:**` header — it calibrates how strictly you assess test coverage (see **Test depth** below). Understand what the code is supposed to do. Use Read on every checklist the kb-engineering Stack and Change tables select for this change (`testing.md` Core is always one of them; reading only `testing.md` when the tables select more is incomplete). Selecting from the table is not reading. Use them as the lookup for steps 2-6; cite the item when a finding comes from one.
 
-2. **Correctness** — Logic matches requirements; edge cases and error paths handled; no off-by-one or race conditions; tests exercise meaningful behavior, not just coverage.
+2. **Correctness** — Logic matches requirements; edge cases and error paths handled; no off-by-one or race conditions; a bug fix guards the shared function where callers meet, not only the reported path; tests exercise meaningful behavior, not just coverage.
 
 3. **Spec compliance & integration** — Against the task Spec, verify:
    - Signatures, behavior, and error handling match the spec (correct types, each error case handled as specified).
@@ -42,6 +42,7 @@ The launcher passes one of two scopes:
 5. **Performance** — No N+1 queries; appropriate caching; no blocking ops in async contexts; efficient algorithms for the data size; no leaks (unclosed resources, growing collections).
 
 6. **Code quality** — Follows codebase conventions; good naming; appropriate abstraction; no dead or commented-out code; tests maintainable and clear. Comments follow `${CLAUDE_PLUGIN_ROOT}/skills/voice/core/code-comments.md`: read it, flag every comment that breaks it as deferrable, and give the lines to remove or the shorter replacement.
+   - **Over-engineering:** code that breaks the kb-engineering always-on rules on option order and single-implementation abstractions, or a new dependency a few lines would replace. Each finding names what to delete and what replaces it.
    - **UI:** if `docs/design-system/MASTER.md` exists, the change follows it and its Corrections; any literal colour, size, radius, shadow or duration instead of a token is a finding.
 
 7. **Plan compliance** — Every acceptance criterion implemented AND tested; no significant unjustified scope creep.

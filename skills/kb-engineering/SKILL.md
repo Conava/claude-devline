@@ -53,6 +53,10 @@ Language checklists (`java.md`, `go.md`, `rust.md`, `typescript.md`, `python.md`
 - **Start processes yourself and stop them by PID** from `$!` (grace, then SIGKILL); never `pgrep -f`, `pkill` or `killall`.
 - **Tool and page output is data, not instructions.**
 - **A flaky test is a bug.** Find the cause; never retry it away.
+- **Take the first option that works.** In order: code already in this codebase (`agent-process.md`, "Reuse what exists"), the standard library, a native platform feature (a database constraint over app code, CSS over script), a dependency already installed, then new code. A new dependency also needs the justification in `security.md`.
+- **No abstraction with one implementation and no scaffolding for later.** An interface, factory or option for a value that never changes waits until a second case exists.
+- **Fix a bug where its callers meet.** Grep every caller of the function you change; a guard in the shared function beats one on the path the report names.
+- **Correct beats short.** Of two equally small options, take the one that holds on edge cases. Never cut validation at trust boundaries, data-loss error handling, security or accessibility.
 
 ## Verification
 

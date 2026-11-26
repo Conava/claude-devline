@@ -98,7 +98,7 @@ You may return NEEDS_INPUT multiple times. Use as many rounds as needed.
 With the user's input incorporated:
 - Propose high-level architecture with rationale for every significant decision
 - Document design decisions: choice, rationale, alternatives considered
-- Challenge yourself aggressively — prefer the simplest design that works
+- Challenge yourself aggressively and prefer the simplest design that works. Before planning new code, ask whether it needs to exist at all (cut a speculative need and say so in one line of the plan) and whether the codebase already has it.
 
 ### 4. Refactor First and Proactive Improvements
 
