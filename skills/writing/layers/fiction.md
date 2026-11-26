@@ -30,3 +30,4 @@ Run the self-check with `--fiction`.
 - An attentive reader may guess roughly where it goes, but never easily and never how. Plant the payoff early and let it land where they didn't look.
 - Don't resolve every tension or explain what the brief leaves open. End on something the reader completes, not a summary, a moral or a receding view.
 - Avoid model-default images: a machine that "finds a voice", lights shrinking into the distance, kitchen similes for mechanical noise. Pick what only this character would notice.
+- Stock phrases to avoid, the most over-represented in model fiction: "voice barely a whisper", "took a deep breath", "couldn't help but feel", "heart pounding in her chest", "air thick with the scent of", "eyes widened", "brow furrowed", "casting long shadows". Use one concrete physical detail that belongs to this character and scene.

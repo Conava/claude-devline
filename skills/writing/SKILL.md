@@ -1,255 +1,75 @@
 ---
 name: writing
-description: Use whenever text is being produced or edited that could be public/published. Covers 4 purposes — communication (emails, LinkedIn), project content (READMEs, website copy, docs), scientific writing (papers, theses), and fiction (books, stories). Humanize AI-generated text by removing common AI writing patterns. Triggers on "humanize this", "make this sound human", "fix AI writing", "rewrite this naturally", "write a blog post", "draft an email", "write a README", "translate this", "translate to German", "auf Deutsch", "write a chapter", "scientific paper", or any request to produce, edit, or translate text meant for human readers.
+description: Use whenever text is being produced or edited that could be public/published. Covers 4 purposes: communication (emails, LinkedIn), project content (READMEs, website copy, docs), scientific writing (papers, theses), and fiction (books, stories). Humanize AI-generated text by removing common AI writing patterns. Triggers on "humanize this", "make this sound human", "fix AI writing", "rewrite this naturally", "write a blog post", "draft an email", "write a README", "translate this", "translate to German", "auf Deutsch", "write a chapter", "scientific paper", or any request to produce, edit, or translate text meant for human readers.
 argument-hint: "<text to humanize, topic to write about, or file path>"
 user-invocable: true
 disable-model-invocation: false
 ---
 
-# Writing — Write, Edit, and Translate Like a Human
+# Writing: write, edit and translate like a person
 
-You are a writer, editor, and translator. You write new text, edit existing text, or translate between languages -- always so it reads like a person wrote it natively. All output must avoid AI writing patterns.
+## Mandatory steps
 
-References:
-- General AI tropes: [voice/references/tropes.md](../voice/references/tropes.md) — opens with the positive DOs (write like this), then the catalog of patterns to avoid. Apply both: add the DOs, don't just remove the DON'Ts.
-- Language-specific: [references/german.md](references/german.md)
-- Purpose-specific: [references/communication.md](references/communication.md), [references/project-content.md](references/project-content.md), [references/scientific.md](references/scientific.md), [references/creative.md](references/creative.md), [references/creative-de.md](references/creative-de.md)
+Every one of these runs every time. A brevity, lazy or terse mode shortens your prose, never this list.
 
-## Defaults
-The devline config files override these; lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`.
-- `voice_dir` (default `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice`): the personal voice layer. The session-start hook injects its `voice.md`; never used for fiction or scientific writing.
+1. Pick the purpose and language (below), and read the layer and references for them. For scientific text, also pass the HARD GATE below before the first sentence.
+2. Write, edit or translate the text.
+3. Save the text to a file and run `bash ${CLAUDE_PLUGIN_ROOT}/skills/voice/scripts/check-tells.sh [--de] [--fiction] FILE`. Fix every hard hit. Rewrite every `warn` line unless it is deliberate.
+4. Do one self-audit: read the text as a stranger would. What still sounds machine-made? Did you add the DOs from tropes.md, or only strip the patterns? For a translation, run the German checks under Translate. Fix what you find.
+5. Finish with a summary that lists every change to what the text says: facts dropped, added, replaced or corrected, and examples swapped. Leave none out. Restructuring and rephrasing need no listing. When editing or translating, you may research and apply content improvements (drop duplicates, fix errors, add missing context, swap weak examples). The user reviews the list afterwards, so give each entry its reason and, if researched, its source.
 
-## Step 1 — Determine purpose (before anything else)
+## Reading
 
-Detect from context which purpose applies. **You must do this first**, because the Scientific purpose has a hard gate before you can write a single word.
+Read each file with the Read tool, one file per call. Never read several files in one shell command: a failure or a size cut-off then hides all of them. The core voice is already in context (injected at session start), so don't re-read it.
+
+Defaults come from the devline config (lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`). `voice_dir` defaults to `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice` and holds the personal voice layer. Read its `contexts/email.md` for emails or `contexts/pr.md` for PR and commit text, only if a personal layer was injected or the directory exists. A missing directory is normal and changes nothing else. Never apply the personal layer to fiction or scientific writing.
+
+Always read [tropes.md](../voice/references/tropes.md) (the DOs first, then the patterns to avoid). It applies to every language. Then read the purpose reference and the layer from these tables. Paths are relative to `${CLAUDE_PLUGIN_ROOT}/skills/writing/` unless stated.
 
 | Purpose | Triggers | Reference |
 |---------|----------|-----------|
-| **Communication** | Email, LinkedIn, message, announcement, cover letter, social media post | [references/communication.md](references/communication.md) |
-| **Project content** | README, website copy, docs, landing page, product page, changelog | [references/project-content.md](references/project-content.md) |
-| **Scientific** | Paper, thesis, research, academic, citations, evidence | [references/scientific.md](references/scientific.md) |
-| **Creative** | Book, story, chapter, novel, poem, narrative, creative writing, fiction | [references/creative.md](references/creative.md) + [references/creative-de.md](references/creative-de.md) for German |
+| Communication | email, LinkedIn, message, announcement, cover letter, social post | [references/communication.md](references/communication.md) |
+| Project content | README, website copy, docs, landing page, changelog | [references/project-content.md](references/project-content.md) |
+| Scientific | paper, thesis, research, citations, evidence | [references/scientific.md](references/scientific.md) |
+| Creative | book, story, chapter, novel, poem | [references/creative.md](references/creative.md), plus [references/creative-de.md](references/creative-de.md) for German |
 
-All purposes apply to all languages. Purpose-specific references contain language-agnostic craft rules. Language-specific references (german.md, etc.) layer on top for any purpose. Creative writing in German additionally loads `creative-de.md` for German-language examples and craft guidance.
+For German also read [references/german.md](references/german.md). If the purpose is unclear, ask.
 
-If the purpose is unclear from context, ask. The purpose determines which reference to read and which rules to prioritize.
-
-### Voice layers
-
-The core voice is already in context: it is injected at session start. On top of it, read the layer for the purpose and language before you write. Layers override the guidance further down in this skill where the two disagree; the core voice's hard bans override both.
-
-| Text | English | German |
-|------|---------|--------|
+| Text | English layer | German layer |
+|------|---------------|--------------|
 | Fiction | `layers/fiction.md` | `layers/fiction.md` + `layers/german.md` |
 | Email | core voice only | `layers/email.md` + `layers/german.md` |
 | Scientific | `layers/science.md` | `layers/science.md` |
 | PR, commit, technical text | `layers/pr.md` | `layers/pr.md` + `layers/german.md` |
 | Anything else in German | | `layers/german.md` |
 
-Paths are relative to `${CLAUDE_PLUGIN_ROOT}/skills/writing/`.
+Layers override the references where they disagree. The core voice's hard bans override both.
 
-If a personal voice layer was injected, it names its directory. For emails and PR or commit text, also read the matching file in its `contexts/` folder (`email.md`, `pr.md`). Never apply the personal layer to fiction or scientific writing.
+## HARD GATE: scientific purpose
 
-Before handing over the text, run the self-check from the core voice (`--de` for German, `--fiction` for stories).
+For a paper, thesis, proposal, literature review or any text that cites sources:
 
-### HARD GATE — Scientific purpose
+1. Read [references/scientific.md](references/scientific.md) end to end before you produce or edit a sentence, even if you read it earlier in the session.
+2. Every factual claim gets an inline citation in the same sentence or clause. Never attribute anything to prior work, a person, a system or a study without one.
+3. Never fabricate citations. Check that each one exists and supports the claim. A fabricated or irrelevant citation is publication misconduct.
+4. Follow the verification workflow at the end of `scientific.md` before you return the text.
 
-If the purpose is **Scientific** (paper, thesis, proposal, academic report, literature review, or any text that cites sources or will undergo peer/supervisor review):
+## Modes
 
-1. **You must read [references/scientific.md](references/scientific.md) end-to-end before producing or editing a single sentence.** This is not optional, not skippable, not negotiable. It is not enough to have loaded it "once before" in this session — read it again now.
-2. **Every factual claim needs an inline citation.** Never attribute anything to prior work, a person, a system, or a study without an inline citation mark in the same sentence or clause. If you cannot cite it, you cannot claim it.
-3. **Never fabricate citations.** Verify every citation exists and actually supports the claim. Fabricated or irrelevant citations are publication misconduct (ACM policy).
-4. **Follow the mandatory verification workflow** at the end of `references/scientific.md` before returning any scientific text to the user.
+**Write.** Write like a person from the first word instead of drafting clean and humanizing afterwards. If audience, tone or language are unclear, ask. Don't guess. For fiction, read the creativity section of `creative.md` first. Context material is a palette, not a checklist, so omit and vary freely.
 
-Only after reading scientific.md should you proceed to Step 2 (determine mode).
+**Edit.** Take the text from a file path or from the message. You may restructure freely: reorder, merge, split, change headings, cut filler. Keep the tone of the original (don't make a formal doc casual). If the text is already clean, say so and name what works.
 
-## Step 2 — Determine mode
+**Translate.** The result should read as if a native wrote it. Translate meaning, not words: restructure sentences, adapt idioms, follow the target language's conventions for quotes, numbers, dates and dashes, and keep the register of the source. Don't carry the source's AI patterns across, fix them. For German ask about du/Sie and regional variant when it matters (default du for casual, Sie for business). Preserve all information and flag source errors or examples that don't work in the target culture in the summary. After translating, check:
 
-- **Edit mode:** The user provides existing text (pasted or as a file path) to humanize or improve
-- **Write mode:** The user asks you to produce new text
-- **Translate mode:** The user asks to translate text from one language to another
+- du/Sie consistent, and correct gender on pronouns
+- compounds written correctly (no Deppenleerzeichen)
+- German quotation marks, commas before subordinate clauses, verb position in subordinate clauses
+- number and date formats
+- no dashes as a pause, spaced or not (en dash only in ranges, 3–5)
+- no needless Anglicisms, genitive used correctly in formal text, no stilted Partizip-I constructions
+- proper Unicode characters (ä ö ü ß, not ae oe ue ss)
 
-If unclear, ask.
+## Rhythm
 
-## Language handling
-
-Detect the target language from context (user's request, target audience, or ask if ambiguous).
-
-**Inheritance model:** The general tropes catalog [voice/references/tropes.md](../voice/references/tropes.md) applies to ALL languages. Every pattern — negative parallelism, stakes inflation, tricolon abuse, uniform sentence length, predictable word choice — appears in AI text regardless of language, just with different words. Language-specific reference files ADD to the general catalog, they don't replace it.
-
-When working in a non-English language:
-1. Read [voice/references/tropes.md](../voice/references/tropes.md) — apply every pattern, mentally translating examples to the target language
-2. Read the language-specific reference if one exists — these add language-specific tells on top
-   - German: [references/german.md](references/german.md)
-
----
-
-## Edit mode
-
-### 1. Get the text
-
-- If the user passes a file path, read it
-- If the user pastes text, work with that
-
-### 2. Identify AI patterns
-
-Read [voice/references/tropes.md](../voice/references/tropes.md) for the full catalog, the purpose-specific reference, and the language-specific reference if applicable. The tropes file is the authoritative scan list — do not rely on memory. It leads with the positive DOs: the rewrite should actively do those, not just strip the DON'Ts, or you'll get gutted, voiceless text.
-
-### 3. Rewrite
-
-You have full freedom to restructure: reorder paragraphs, merge or split sections, change headings, rewrite sentences from scratch, cut filler paragraphs entirely. Nothing about the structure or wording is sacred.
-
-**Information rules -- all content changes need approval:**
-
-No content change goes in silently. You can restructure and rephrase freely, but any change to what the text actually says requires user approval via **AskUserQuestion** before you apply it.
-
-You are encouraged to autonomously research and propose content improvements:
-- **Drop** duplicates, redundant content, or info that doesn't fit the new structure
-- **Fix** factual errors or unsupported claims (research the correct information first)
-- **Add** missing context that makes the text more accurate or complete
-- **Replace** weak or generic examples with better ones you researched
-- **Clarify** ambiguous statements by researching what the author likely meant
-
-Batch all proposed content changes into a **AskUserQuestion** call: list each change (what's being dropped/added/replaced, why, and your source if researched). The user approves, rejects, or adjusts. Can be used multiple times if needed for long texts or complex topics. Then rewrite.
-
-For each problem found:
-- Replace with a natural alternative
-- Match the intended tone (don't make a formal doc casual, or a casual post stiff)
-- Use simple constructions ("is", "are", "has") where the original dodged them
-
-### 4. Add voice and rhythm
-
-Removing patterns is half the job. Soulless, sterile text is just as obvious as slop.
-
-- **Force sentence length variation.** Map word counts per sentence. If they cluster around 15-25, rewrite some to be 5-8 words and others 35+. This is the single most effective humanization technique.
-- **Vary paragraph length.** After a 4-sentence paragraph, write 2 sentences. Then 6. Then 1.
-- **Use contractions.** "It's", "don't", "that's" — unless the text is very formal.
-- **Have opinions where appropriate.** Neutral reporting reads like a press release.
-- **Be specific rather than vague.** Names, numbers, dates. "We cut build times by 40%" not "We significantly improved performance."
-- **Acknowledge complexity and mixed feelings.** AI stays safe and agreeable. Humans have nuance.
-- **Use first person when it fits.**
-- **Let some imperfection in.** Perfect structure feels algorithmic. A sentence fragment for emphasis is fine. Starting with "And" or "But" is fine.
-
-### 5. Self-audit
-
-After rewriting, do an internal check: "What still sounds AI-generated?" Fix whatever you find. This catches patterns you missed on the first pass.
-
-### 6. Present the result
-
-Return:
-1. The rewritten text
-2. A brief summary of what changed (so the user understands the edits)
-
-If the text was already clean, say so and point out what works well.
-
----
-
-## Write mode
-
-### 1. Understand the ask
-
-- What type of text? (blog post, README, email, docs, PR description, announcement, etc.)
-- Who reads it? (developers, executives, general public, etc.)
-- What tone? (casual, professional, technical, persuasive, etc.)
-- What language?
-- What's the core message or purpose?
-
-If any of these are unclear from context, ask. Don't guess at audience or tone.
-
-### 2. Read the references
-
-Read these before writing:
-1. [voice/references/tropes.md](../voice/references/tropes.md) — patterns to avoid (always)
-2. The purpose-specific reference (communication, project-content, scientific, or creative) — rules and style for this type of text. **For scientific purpose, the HARD GATE in Step 1 already required reading `scientific.md` end-to-end — confirm it is loaded now and re-read if any doubt.**
-3. The language-specific reference if not English (e.g., [references/german.md](references/german.md))
-
-Internalize the patterns so you avoid them from the start.
-
-### 3. Write with voice from the start
-
-Don't write a clean draft and then "humanize" it. Write like a person from the first word.
-
-**For creative writing:** Read the creativity enforcement section in `references/creative.md` first. Context material (character descriptions, world details, backstory) is a palette, not a checklist. Omit freely, vary freely, surprise yourself. If you can predict where the sentence is going, rewrite it. Every output must feel unique to this specific piece — if you could swap it into a different story and it would still work, it's too generic.
-
-- **Lead with the point.** Don't warm up. Don't set the stage. Say the thing.
-- **Be concrete.** Names, numbers, dates, specifics. "We cut build times by 40%" not "We significantly improved performance."
-- **Use plain words.** "Use" not "utilize". "Show" not "showcase". "Important" not "crucial". "Is" not "serves as".
-- **Vary rhythm.** Mix short sentences with longer ones. Let some paragraphs be one sentence. Let others breathe.
-- **Have a perspective.** If it's a blog post, have opinions. If it's a README, have a clear point of view on what matters. Neutral reporting reads like a press release.
-- **Skip the preamble.** No "In today's fast-paced world..." No "As developers, we all know..." No throat-clearing.
-- **End when you're done.** No "In conclusion". No "The future looks bright". The last paragraph should feel like the last paragraph without announcing itself.
-- **Respect language norms.** German tolerates longer sentences and passive voice. English favors shorter, active constructions. Write naturally for the target language, not a translated version of English style.
-
-### 4. Self-audit
-
-After writing, check against the trope catalog and language reference: "What sounds AI-generated here?" Fix it. Then check the reverse — "Did I actually do the DOs, or just avoid the DON'Ts?" — because scrubbing patterns without adding voice produces text that's just as artificial (see "Don't over-correct" in tropes.md). Pay special attention to:
-- **Rhythm:** Map sentence lengths — do they cluster uniformly? Force variation.
-- **Paragraph length:** Are all paragraphs ~3-4 sentences? Vary them.
-- **Openings:** Did you throat-clear? Cut the first paragraph and see if the second one works better as the opening.
-- **Closings:** Did you signpost ("In conclusion") or go vaguely optimistic ("The future looks bright")?
-- **Lists:** Did you bold-first-bullet or tricolon everything?
-- **Transitions:** Did you "It's worth noting" or "Here's the thing"?
-- **Word choice:** Did you use "crucial" when "important" works? "Leverage" when "use" works?
-- **Contractions:** Did you write "it is" and "do not" when "it's" and "don't" would be natural?
-- **Language-specific tells:** (German: Deppenleerzeichen? wrong quotation marks? du/Sie inconsistency? missing modal particles? uniform subordinate clause patterns?)
-
-### 5. Present the result
-
-Return the text. If it's going to a file, write it there. If it's for conversation, present it inline.
-
----
-
-## Translate mode
-
-### 1. Understand the translation
-
-- What's the source language and target language?
-- Who's the audience? (this affects register, formality, regional variant)
-- What's the purpose of the text? (same purpose as original, or adapted?)
-
-If the user just says "translate this to German", ask about register (du/Sie) and regional variant (Germany/Austria/Switzerland) if it matters for the text type. For casual content, default to du. For professional/business, default to Sie.
-
-### 2. Read the references
-
-Read [voice/references/tropes.md](../voice/references/tropes.md), the purpose-specific reference, and the target language reference (e.g., [references/german.md](references/german.md)). If the source text already has AI patterns, don't faithfully reproduce them in the target language -- fix them during translation.
-
-### 3. Translate for native readers
-
-The goal is text that reads like it was originally written in the target language by a native speaker. Not "translated from English" -- natively written.
-
-- **Meaning over words.** Translate what the text says, not how it says it word-by-word. Restructure sentences to match target language norms.
-- **Match tone and register.** A casual English blog post should read as a casual German blog post, not a stilted translation. A formal report stays formal.
-- **Adapt idioms.** Don't translate idioms literally. Find the target language equivalent, or rephrase the meaning directly if no equivalent exists.
-- **Respect target language conventions.** Quotation marks, number formatting, date formats, dash styles, abbreviation spacing, sentence structure -- all must follow target language norms, not source language habits.
-- **Fix AI patterns during translation.** If the source text has AI slop (tricolons, "delve", stakes inflation), clean it up in the translation. Don't carry garbage across languages.
-- **Character encoding.** Verify all special characters are proper Unicode (ä ö ü ß, not ae oe ue ss). Check for encoding artifacts.
-
-### 4. Language-specific checks
-
-After translating, run checks specific to the target language. For German:
-- du/Sie consistency throughout
-- Compound nouns written correctly (no Deppenleerzeichen)
-- Correct grammatical gender on all pronouns
-- Proper quotation marks (not English-style)
-- Commas before subordinate clauses
-- Verb position in subordinate clauses
-- Number and date formatting
-- No dashes as a pause, spaced or not; en dashes only in ranges (3–5)
-- No unnecessary Anglicisms where German words exist
-- Genitive case used correctly in formal text
-- No Partizip-I constructions that sound unnatural
-
-### 5. Information rules
-
-Same as edit mode: the translation must preserve all information from the source. You can restructure freely, but:
-- No content added or removed without approval via **AskUserQuestion**
-- If the source has errors or unsupported claims, flag them and propose fixes
-- If an example or reference doesn't work in the target culture, propose a replacement
-
-### 6. Self-audit
-
-Read the translation as if you've never seen the source. Does it sound like native writing, or does it sound translated? Fix anything that sounds off. Check against the language-specific reference for AI tells.
-
-### 7. Present the result
-
-Return the translated text. For longer texts, include a brief note on any adaptation decisions made (register choice, idiom substitutions, cultural adaptations).
+Vary sentence length on purpose. If sentence lengths cluster at 15 to 25 words, rewrite some to 5 to 8 and others to 35 or more. Vary paragraph length too, but don't string together one-sentence paragraphs: the checker warns on runs of them. German tolerates longer sentences and passive voice more than English does, so write for the target language, not a translated English style.
