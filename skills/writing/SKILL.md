@@ -18,11 +18,17 @@ Every one of these runs every time. A brevity, lazy or terse mode shortens your 
 4. Do one self-audit: read the text as a stranger would. What still sounds machine-made? Did you add the DOs from tropes.md, or only strip the patterns? For a translation, run the German checks under Translate. Fix what you find.
 5. Finish with a summary that lists every change to what the text says: facts dropped, added, replaced or corrected, and examples swapped. Leave none out. Restructuring and rephrasing need no listing. When editing or translating, you may research and apply content improvements (drop duplicates, fix errors, add missing context, swap weak examples). The user reviews the list afterwards, so give each entry its reason and, if researched, its source.
 
+## Defaults
+
+The devline config files override these (lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`).
+
+- `voice_dir` (default `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice`): the personal voice layer.
+
 ## Reading
 
 Read each file with the Read tool, one file per call. Never read several files in one shell command: a failure or a size cut-off then hides all of them. The core voice is already in context (injected at session start), so don't re-read it.
 
-Defaults come from the devline config (lookup and precedence: `${CLAUDE_PLUGIN_ROOT}/skills/setup/references/config.md`). `voice_dir` defaults to `${CLAUDE_CONFIG_DIR:-~/.claude}/devline/voice` and holds the personal voice layer. Read its `contexts/email.md` for emails or `contexts/pr.md` for PR and commit text, only if a personal layer was injected or the directory exists. A missing directory is normal and changes nothing else. Never apply the personal layer to fiction or scientific writing.
+For the personal voice layer in `voice_dir`, read its `contexts/email.md` for emails or `contexts/pr.md` for PR and commit text, only if a personal layer was injected or the directory exists. A missing directory is normal and changes nothing else. Never apply the personal layer to fiction or scientific writing.
 
 Always read [tropes.md](../voice/references/tropes.md) (the DOs first, then the patterns to avoid). It applies to every language. Then read the purpose reference and the layer from these tables. Paths are relative to `${CLAUDE_PLUGIN_ROOT}/skills/writing/` unless stated.
 
